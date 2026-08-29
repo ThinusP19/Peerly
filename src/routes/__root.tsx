@@ -10,7 +10,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
-import { reportLovableError } from "../lib/lovable-error-reporting";
+import { reportError } from "../lib/report-error";
 import { DevRoleSwitcher } from "@/components/DevRoleSwitcher";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -42,7 +42,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
   useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    reportError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
 
   return (
@@ -88,20 +88,46 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Peerly automates student peer assessment for group projects — class lists, groups, evaluations, marks and exports.",
       },
       { name: "author", content: "Peerly" },
+      { name: "theme-color", content: "#4F46E5" },
+
+      { property: "og:site_name", content: "Peerly" },
       { property: "og:title", content: "Peerly Assessment Hub" },
       {
         property: "og:description",
         content: "Automated peer assessment for university group projects.",
       },
       { property: "og:type", content: "website" },
+      // Absolute URLs are required by most crawlers, but the deployment domain
+      // is not fixed yet (IS-10). A root-relative path is resolved correctly by
+      // Slack, Discord and LinkedIn; set OG_BASE_URL at deploy time for X.
+      { property: "og:image", content: "/og-image.png" },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      {
+        property: "og:image:alt",
+        content: "Peerly — automated peer assessment for group projects.",
+      },
+
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Peerly Assessment Hub" },
+      {
+        name: "twitter:description",
+        content: "Automated peer assessment for university group projects.",
+      },
+      { name: "twitter:image", content: "/og-image.png" },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      // .ico first for older browsers, SVG for everything modern (it stays
+      // crisp at any density and follows the OS dark/light theme if we ever
+      // add a variant).
+      { rel: "icon", href: "/favicon.ico", sizes: "48x48" },
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180" },
+      { rel: "manifest", href: "/site.webmanifest" },
     ],
   }),
   shellComponent: RootShell,

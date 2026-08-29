@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <!-- Social share card. Flat charcoal ground matching the auth screens, the
+       indigo mark, and one line of description. No gradients, no decoration. -->
+  <rect width="1200" height="630" fill="#1E2028"/>
+
+  <!-- Indigo edge, the only colour on the card besides the mark. -->
+  <rect x="0" y="0" width="10" height="630" fill="#4F46E5"/>
+
+  <g transform="translate(96, 150)">
+    <!-- Mark -->
+    <g transform="scale(1.75)">
+      <rect width="64" height="64" rx="14" fill="#4F46E5"/>
+      <g stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" opacity="0.55">
+        <path d="M32 22 L18 44"/>
+        <path d="M32 22 L46 44"/>
+        <path d="M18 44 L46 44"/>
+      </g>
+      <g fill="#FFFFFF">
+        <circle cx="32" cy="21" r="7.5"/>
+        <circle cx="18" cy="44" r="7.5"/>
+        <circle cx="46" cy="44" r="7.5"/>
+      </g>
+    </g>
+
+    <text x="140" y="52"
+          font-family="Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif"
+          font-size="76" font-weight="700" fill="#F6F7F9" letter-spacing="-2">Peerly</text>
+    <text x="142" y="94"
+          font-family="Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif"
+          font-size="27" font-weight="500" fill="#A7A2F2" letter-spacing="4">ASSESSMENT HUB</text>
+  </g>
+
+  <line x1="96" y1="382" x2="1104" y2="382" stroke="#33363F" stroke-width="2"/>
+
+  <text x="96" y="452"
+        font-family="Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="40" font-weight="600" fill="#F6F7F9">Automated peer assessment for group projects</text>
+  <text x="96" y="504"
+        font-family="Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="29" font-weight="400" fill="#9AA0AC">Class lists, groups, evaluations, marks and exports — in one place.</text>
+</svg>

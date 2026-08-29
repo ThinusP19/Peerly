@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Peerly">
+  <!-- Small-size variant. The connecting links in mark.svg turn to mud below
+       about 48px, so they are dropped here and the nodes are enlarged and
+       spread. Same silhouette, legible at 16px. -->
+  <rect width="64" height="64" rx="13" fill="#4F46E5"/>
+  <g fill="#FFFFFF">
+    <circle cx="32" cy="18.5" r="9.5"/>
+    <circle cx="16" cy="45.5" r="9.5"/>
+    <circle cx="48" cy="45.5" r="9.5"/>
+  </g>
+</svg>
