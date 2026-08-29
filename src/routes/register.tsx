@@ -5,10 +5,12 @@ import { useState, type FormEvent } from "react";
 import { AuthShell } from "@/components/layout/AuthShell";
 import { BusyButton } from "@/components/shared/BusyButton";
 import { FormField } from "@/components/shared/FormField";
+import { RoleSelector } from "@/components/shared/RoleSelector";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { Role } from "@/mocks/types";
 
 export const Route = createFileRoute("/register")({
   component: RegisterPage,
@@ -34,24 +36,41 @@ const empty: Form = {
   confirm: "",
 };
 
-function validate(form: Form, noticeAccepted: boolean): Errors {
-  const errors: Errors = {};
+/**
+ * Students register with a student number on the student domain; staff register
+ * on the staff domain and have no student number. The domain split is what stops
+ * a student registering themselves as a lecturer — their address cannot pass the
+ * staff check.
+ */
+const STUDENT_DOMAIN = "mynwu.ac.za";
+const STAFF_DOMAIN = "nwu.ac.za";
 
-  if (!form.studentNumber.trim()) {
-    errors.studentNumber = "Enter the student number printed on your student card.";
-  } else if (!/^\d{8}$/.test(form.studentNumber.trim())) {
-    errors.studentNumber = "A student number is 8 digits, for example 41200345.";
+function validate(form: Form, role: Role, noticeAccepted: boolean): Errors {
+  const errors: Errors = {};
+  const isStudent = role === "student";
+  const email = form.email.trim().toLowerCase();
+
+  if (isStudent) {
+    if (!form.studentNumber.trim()) {
+      errors.studentNumber = "Enter the student number printed on your student card.";
+    } else if (!/^\d{8}$/.test(form.studentNumber.trim())) {
+      errors.studentNumber = "A student number is 8 digits, for example 41200345.";
+    }
   }
 
   if (!form.name.trim()) errors.name = "Enter your first name.";
   if (!form.surname.trim()) errors.surname = "Enter your surname.";
 
-  if (!form.email.trim()) {
+  if (!email) {
     errors.email = "Enter your institutional email address.";
-  } else if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) {
+  } else if (!/^\S+@\S+\.\S+$/.test(email)) {
     errors.email = "This doesn't look like an email address — check for a missing @ or full stop.";
-  } else if (!form.email.trim().toLowerCase().endsWith("mynwu.ac.za")) {
-    errors.email = "Use your institutional address ending in mynwu.ac.za, not a personal one.";
+  } else if (isStudent && !email.endsWith(`@${STUDENT_DOMAIN}`)) {
+    errors.email = `Use your student address ending in @${STUDENT_DOMAIN}, not a personal one.`;
+  } else if (!isStudent && email.endsWith(`@${STUDENT_DOMAIN}`)) {
+    errors.email = `That's a student address. Staff accounts need a @${STAFF_DOMAIN} address.`;
+  } else if (!isStudent && !email.endsWith(`@${STAFF_DOMAIN}`)) {
+    errors.email = `Use your staff address ending in @${STAFF_DOMAIN}.`;
   }
 
   if (!form.password) {
@@ -74,6 +93,7 @@ function validate(form: Form, noticeAccepted: boolean): Errors {
 }
 
 function RegisterPage() {
+  const [role, setRole] = useState<Role>("student");
   const [form, setForm] = useState<Form>(empty);
   const [noticeAccepted, setNoticeAccepted] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
@@ -85,7 +105,7 @@ function RegisterPage() {
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    const next = validate(form, noticeAccepted);
+    const next = validate(form, role, noticeAccepted);
     setErrors(next);
     if (Object.keys(next).length) return;
 
@@ -129,8 +149,12 @@ function RegisterPage() {
 
   return (
     <AuthShell
-      title="Create your student account"
-      description="Register with the details your institution has on file so we can match you to your class list."
+      title="Create your account"
+      description={
+        role === "student"
+          ? "Register with the details your institution has on file so we can match you to your class list."
+          : "Register with your staff details. Your account is checked before it is activated."
+      }
       footer={
         <>
           <p>
@@ -139,30 +163,38 @@ function RegisterPage() {
               Sign in
             </Link>
           </p>
-          <p className="mt-1.5">
-            Lecturers and administrators don't register here — your administrator creates your
-            account for you.
-          </p>
+          <p className="mt-1.5">Staff accounts must use a university staff address.</p>
         </>
       }
     >
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
-        <FormField
-          label="Student number"
-          error={errors.studentNumber}
-          hint="We use this to match you to your class list."
-          required
-        >
-          {(props) => (
-            <Input
-              {...props}
-              inputMode="numeric"
-              autoComplete="username"
-              value={form.studentNumber}
-              onChange={(event) => set("studentNumber")(event.target.value)}
-            />
-          )}
-        </FormField>
+        <RoleSelector
+          value={role}
+          onChange={(next) => {
+            setRole(next);
+            setErrors({});
+          }}
+          label="I'm registering as"
+        />
+
+        {role === "student" ? (
+          <FormField
+            label="Student number"
+            error={errors.studentNumber}
+            hint="We use this to match you to your class list."
+            required
+          >
+            {(props) => (
+              <Input
+                {...props}
+                inputMode="numeric"
+                autoComplete="username"
+                value={form.studentNumber}
+                onChange={(event) => set("studentNumber")(event.target.value)}
+              />
+            )}
+          </FormField>
+        ) : null}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField label="First name" error={errors.name} required>
@@ -191,7 +223,11 @@ function RegisterPage() {
         <FormField
           label="Institutional email"
           error={errors.email}
-          hint="Your university address, ending in mynwu.ac.za."
+          hint={
+            role === "student"
+              ? `Your student address, ending in @${STUDENT_DOMAIN}.`
+              : `Your staff address, ending in @${STAFF_DOMAIN}.`
+          }
           required
         >
           {(props) => (

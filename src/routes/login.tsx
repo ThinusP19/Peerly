@@ -6,9 +6,11 @@ import { toast } from "sonner";
 import { AuthShell } from "@/components/layout/AuthShell";
 import { BusyButton } from "@/components/shared/BusyButton";
 import { FormField } from "@/components/shared/FormField";
+import { RoleSelector } from "@/components/shared/RoleSelector";
 import { Input } from "@/components/ui/input";
 import { homePathForRole, useSession } from "@/lib/session";
 import { users } from "@/mocks/data";
+import type { Role } from "@/mocks/types";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -23,6 +25,7 @@ function LoginPage() {
   const { signInAs } = useSession();
   const navigate = useNavigate();
 
+  const [role, setRole] = useState<Role>("student");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Errors>({});
@@ -57,18 +60,21 @@ function LoginPage() {
     signInAs(account.id);
     setBusy(false);
     toast.success(`Signed in as ${account.name} ${account.surname}`);
+    // The account's own role decides the portal — not the selector above. If the
+    // two disagree the account wins, because the selector is user input and the
+    // role is not.
     navigate({ to: homePathForRole(account.role) });
   };
 
   return (
     <AuthShell
       title="Sign in"
-      description="Use the email address your institution registered for you."
+      description="Choose how you're signing in, then use the email address your institution registered for you."
       footer={
         <>
-          New student?{" "}
+          Don't have an account yet?{" "}
           <Link to="/register" className="font-medium text-auth-canvas-accent hover:underline">
-            Create your account
+            Create one
           </Link>
         </>
       }
@@ -83,6 +89,8 @@ function LoginPage() {
             <p>{formError}</p>
           </div>
         ) : null}
+
+        <RoleSelector value={role} onChange={setRole} label="I'm signing in as" />
 
         <FormField label="Email address" error={errors.email} required>
           {(props) => (
