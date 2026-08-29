@@ -7,6 +7,18 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
+  // Pinned to a port nothing else on this machine uses. The default (8080) is
+  // shared with other projects here, and two apps on one origin collide badly:
+  // the browser reuses the origin's cache and service worker, so you get one
+  // app's server HTML hydrated by another app's JavaScript.
+  // strictPort makes a clash fail loudly instead of silently drifting.
+  vite: {
+    server: {
+      host: "127.0.0.1",
+      port: 7331,
+      strictPort: true,
+    },
+  },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
