@@ -6,13 +6,16 @@ import { toast } from "sonner";
 import { AuthShell } from "@/components/layout/AuthShell";
 import { BusyButton } from "@/components/shared/BusyButton";
 import { Button } from "@/components/ui/button";
+import { activateAccount } from "@/services/peerly";
 
 export const Route = createFileRoute("/activate")({
   // A real activation link carries a signed token. In the prototype the token
   // value simply picks which of the three landing states to show, and is
   // optional so `/activate` on its own still renders the happy path.
-  validateSearch: (search: Record<string, unknown>): { token?: string } => ({
+  validateSearch: (search: Record<string, unknown>): { token?: string; email?: string } => ({
     token: typeof search["token"] === "string" ? search["token"] : undefined,
+    // Carried from registration so activation knows which account to switch on.
+    email: typeof search["email"] === "string" ? search["email"] : undefined,
   }),
   component: ActivatePage,
 });
@@ -20,17 +23,30 @@ export const Route = createFileRoute("/activate")({
 type State = "verifying" | "success" | "expired";
 
 function ActivatePage() {
-  const { token } = Route.useSearch();
+  const { token, email } = Route.useSearch();
   const [state, setState] = useState<State>("verifying");
   const [resending, setResending] = useState(false);
 
   useEffect(() => {
     setState("verifying");
-    const timer = setTimeout(() => {
-      setState(token === "expired" || token === "invalid" ? "expired" : "success");
-    }, 1400);
-    return () => clearTimeout(timer);
-  }, [token]);
+    let cancelled = false;
+
+    void (async () => {
+      if (token === "expired" || token === "invalid") {
+        await new Promise((resolve) => setTimeout(resolve, 900));
+        if (!cancelled) setState("expired");
+        return;
+      }
+      // Flip the account to active and run the class-list match (FR-04).
+      if (email) await activateAccount(email);
+      else await new Promise((resolve) => setTimeout(resolve, 900));
+      if (!cancelled) setState("success");
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, email]);
 
   const resend = async () => {
     setResending(true);

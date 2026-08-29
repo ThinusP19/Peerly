@@ -49,7 +49,9 @@ function LoginPage() {
     // message is deliberately generic — it must not reveal which field was wrong.
     const account = users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
 
-    if (!account || account.status === "inactive") {
+    // FR-05: only active accounts may sign in. Unverified counts as not active —
+    // otherwise activation is optional, which defeats the point of it.
+    if (!account || account.status !== "active") {
       setBusy(false);
       setFormError(
         "Those details don't match an active Peerly account. Please check and try again.",
@@ -86,7 +88,14 @@ function LoginPage() {
             className="flex gap-2.5 rounded-md border border-danger/30 bg-danger-muted p-3 text-sm text-danger"
           >
             <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            <p>{formError}</p>
+            <div className="space-y-1">
+              <p>{formError}</p>
+              {/* Shown on every failure, so it reveals nothing about whether a
+                  particular account exists (SR-06). */}
+              <p className="text-danger/80">
+                Just registered? Open the activation link we emailed you first.
+              </p>
+            </div>
           </div>
         ) : null}
 

@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { Role } from "@/mocks/types";
+import { RegistrationError, registerAccount } from "@/services/peerly";
 
 export const Route = createFileRoute("/register")({
   component: RegisterPage,
@@ -110,9 +111,25 @@ function RegisterPage() {
     if (Object.keys(next).length) return;
 
     setBusy(true);
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    setBusy(false);
-    setSubmitted(true);
+    try {
+      await registerAccount({
+        role,
+        name: form.name,
+        surname: form.surname,
+        email: form.email,
+        studentNumber: role === "student" ? form.studentNumber.trim() : undefined,
+      });
+      setSubmitted(true);
+    } catch (error) {
+      // Duplicate email or student number — report it on the field it belongs to.
+      if (error instanceof RegistrationError) {
+        setErrors({ [error.field]: error.message });
+      } else {
+        setErrors({ email: "We couldn't create that account. Please try again." });
+      }
+    } finally {
+      setBusy(false);
+    }
   };
 
   if (submitted) {
@@ -136,7 +153,10 @@ function RegisterPage() {
 
           <div className="flex flex-col gap-2">
             <Button asChild className="w-full">
-              <Link to="/activate">Open the activation link</Link>
+              {/* Stands in for clicking the link in the email. */}
+              <Link to="/activate" search={{ email: form.email.trim() }}>
+                Open the activation link
+              </Link>
             </Button>
             <Button asChild variant="outline" className="w-full">
               <Link to="/login">Back to sign in</Link>

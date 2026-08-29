@@ -32,6 +32,7 @@ import type {
   GroupMark,
   PeerRating,
   RatingOption,
+  Role,
   StudentRatingOption,
   Submission,
   User,
@@ -538,3 +539,77 @@ export const getStudentRatingOptions = (): Promise<StudentRatingOption[]> =>
     ratingOptions.map(({ hiddenValue: _hiddenValue, ...option }) => option),
     200,
   );
+
+/* --------------------------- registration ---------------------------- */
+
+export class RegistrationError extends Error {
+  constructor(
+    override readonly message: string,
+    readonly field: "email" | "studentNumber",
+  ) {
+    super(message);
+  }
+}
+
+/**
+ * Creates a self-registered account. Students land unverified and unmatched;
+ * staff land unverified. Nothing is usable until `activateAccount` runs, which
+ * is what the emailed link does (FR-03).
+ */
+export const registerAccount = (input: {
+  role: Role;
+  name: string;
+  surname: string;
+  email: string;
+  studentNumber?: string;
+}): Promise<User> => {
+  const email = input.email.trim().toLowerCase();
+
+  if (users.some((u) => u.email.toLowerCase() === email)) {
+    throw new RegistrationError("An account already uses that email address.", "email");
+  }
+  if (input.studentNumber && users.some((u) => u.studentNumber === input.studentNumber)) {
+    throw new RegistrationError("An account already uses that student number.", "studentNumber");
+  }
+
+  const user: User = {
+    id: `u-${input.role}-${Math.random().toString(36).slice(2, 8)}`,
+    role: input.role,
+    name: input.name.trim(),
+    surname: input.surname.trim(),
+    email: input.email.trim(),
+    studentNumber: input.studentNumber,
+    status: "unverified",
+    createdAt: new Date().toISOString(),
+  };
+
+  // Keep the role-specific lists in step with the combined one — screens read
+  // from whichever suits them.
+  (user.role === "student" ? studentUsers : staffUsers).push(user);
+  users.push(user);
+
+  return delay(user, 800);
+};
+
+/**
+ * Activates an account and, for a student, immediately attempts the class-list
+ * match (FR-04). A student who is not on any imported list stays unmatched and
+ * sees the explanation screen rather than an empty dashboard.
+ */
+export const activateAccount = (email: string): Promise<User | null> => {
+  const user = users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
+  if (!user) return delay(null, 600);
+
+  user.status = "active";
+
+  if (user.role === "student" && user.studentNumber) {
+    const enrolment = enrolments.find((e) => e.studentNumber === user.studentNumber);
+    if (enrolment && !enrolment.userId) {
+      enrolment.userId = user.id;
+      enrolment.matchStatus = "matched";
+      enrolment.matchNote = undefined;
+    }
+  }
+
+  return delay(user, 600);
+};
