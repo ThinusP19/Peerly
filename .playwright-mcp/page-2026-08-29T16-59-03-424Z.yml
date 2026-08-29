@@ -1,0 +1,43 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e465]:
+    - banner [ref=f1e466]:
+      - generic [ref=f1e467]:
+        - link "Peerly" [ref=f1e468] [cursor=pointer]:
+          - /url: /student
+        - generic [ref=f1e476]:
+          - generic [ref=f1e477]:
+            - paragraph [ref=f1e478]: Dumisani Ngcobo
+            - paragraph [ref=f1e479]: Student
+          - button "Sign out" [ref=f1e480] [cursor=pointer]
+    - main [ref=f1e481]:
+      - generic [ref=f1e482]:
+        - generic [ref=f1e483]:
+          - generic [ref=f1e489]:
+            - heading "We couldn't match your account to a class list yet" [level=1] [ref=f1e490]
+            - paragraph [ref=f1e491]: Your account is active, but it isn't linked to a class yet — so there's nothing for you to evaluate at the moment.
+          - generic [ref=f1e492]: Unmatched
+        - generic [ref=f1e497]:
+          - generic [ref=f1e498]:
+            - heading "What happened" [level=2] [ref=f1e499]
+            - paragraph [ref=f1e500]: No registered Peerly account uses this student number yet.
+          - generic [ref=f1e501]:
+            - heading "Your details" [level=2] [ref=f1e502]
+            - generic [ref=f1e503]:
+              - generic [ref=f1e504]:
+                - term [ref=f1e505]: Name on your account
+                - definition [ref=f1e506]: Dumisani Ngcobo
+              - generic [ref=f1e507]:
+                - term [ref=f1e508]: Name on the class list
+                - definition [ref=f1e509]: Dumisani Ngcobo
+              - generic [ref=f1e510]:
+                - term [ref=f1e511]: Student number
+                - definition [ref=f1e512]: "41204181"
+          - generic [ref=f1e513]:
+            - heading "What to do next" [level=2] [ref=f1e514]
+            - list [ref=f1e515]:
+              - listitem [ref=f1e516]: Check that the student number above is the one printed on your student card. If it isn't, that's the mismatch.
+              - listitem [ref=f1e517]: Email your lecturer with your student number and the module code, and ask them to re-run the class list match.
+              - listitem [ref=f1e518]: Come back to this page afterwards — once you're matched, your assessments appear here automatically.
+          - paragraph [ref=f1e527]: Nothing is lost while you wait. If your lecturer fixes the match before the assessment closes, you'll still be able to submit.
+  - button "Dumisani Ngcobo" [ref=f1e528] [cursor=pointer]
+  - region "Notifications alt+T"

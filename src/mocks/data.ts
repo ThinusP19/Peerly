@@ -226,7 +226,7 @@ export const studentUsers: User[] = studentNames.map(([name, surname], i) => {
     surname,
     email: `${studentNumber}@mynwu.ac.za`,
     studentNumber,
-    status: i === 28 ? ("unverified" as const) : ("active" as const),
+    status: "active" as const,
     createdAt: `2026-08-0${(i % 5) + 1}T07:${String(10 + (i % 45)).padStart(2, "0")}:00Z`,
   };
 });
@@ -342,7 +342,7 @@ export const assessments: Assessment[] = [
     groupIds: groups.map((g) => g.id),
     status: "open",
     opensAt: "2026-08-24T08:00:00Z",
-    closesAt: "2026-09-04T22:00:00Z",
+    closesAt: "2026-09-04T20:00:00Z",
     maxMark: 100,
   },
   {
@@ -353,7 +353,7 @@ export const assessments: Assessment[] = [
     groupIds: groups.map((g) => g.id),
     status: "closed",
     opensAt: "2026-07-13T08:00:00Z",
-    closesAt: "2026-07-24T22:00:00Z",
+    closesAt: "2026-07-24T20:00:00Z",
     maxMark: 100,
     calculatedAt: "2026-07-26T09:14:00Z",
     calculationRunId: "run-2026-07-26-01",
@@ -366,7 +366,7 @@ export const assessments: Assessment[] = [
     groupIds: groups.slice(0, 4).map((g) => g.id),
     status: "draft",
     opensAt: "2026-09-21T08:00:00Z",
-    closesAt: "2026-10-02T22:00:00Z",
+    closesAt: "2026-10-02T20:00:00Z",
     maxMark: 100,
   },
   {
@@ -377,7 +377,7 @@ export const assessments: Assessment[] = [
     groupIds: secondClassGroups.map((g) => g.id),
     status: "draft",
     opensAt: "2026-09-07T08:00:00Z",
-    closesAt: "2026-09-18T22:00:00Z",
+    closesAt: "2026-09-18T20:00:00Z",
     maxMark: 100,
   },
 ];

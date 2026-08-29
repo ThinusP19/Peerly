@@ -1,0 +1,35 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e389]:
+    - generic [ref=f1e397]:
+      - paragraph [ref=f1e398]: Peerly
+      - paragraph [ref=f1e399]: Assessment Hub
+    - generic [ref=f1e400]:
+      - generic [ref=f1e401]:
+        - heading "Sign in" [level=1] [ref=f1e402]
+        - paragraph [ref=f1e403]: Choose how you're signing in, then use the email address your institution registered for you.
+      - generic [ref=f1e405]:
+        - generic [ref=f1e406]:
+          - text: I'm signing in as
+          - radiogroup "I'm signing in as" [ref=f1e407]:
+            - radio "Student" [checked] [ref=f1e408] [cursor=pointer]
+            - radio "Lecturer" [ref=f1e412] [cursor=pointer]
+            - radio "Administrator" [ref=f1e418] [cursor=pointer]
+        - generic [ref=f1e422]:
+          - generic [ref=f1e423]:
+            - text: Email address*
+            - generic [ref=f1e424]: (required)
+          - textbox "Email address (required)" [ref=f1e425]: 41200893@mynwu.ac.za
+        - generic [ref=f1e426]:
+          - generic [ref=f1e427]:
+            - text: Password*
+            - generic [ref=f1e428]: (required)
+          - textbox "Password (required)" [ref=f1e429]: test
+        - link "Forgot your password?" [ref=f1e431] [cursor=pointer]:
+          - /url: /forgot-password
+        - button "Signing in…" [disabled]
+    - generic [ref=f1e433]:
+      - text: Don't have an account yet?
+      - link "Create one" [ref=f1e434] [cursor=pointer]:
+        - /url: /register
+  - button "Sign in as…" [ref=f1e435] [cursor=pointer]
+  - region "Notifications alt+T"
