@@ -133,10 +133,16 @@ function RegisterPage() {
       description="Register with the details your institution has on file so we can match you to your class list."
       footer={
         <>
-          Already registered?{" "}
-          <Link to="/login" className="font-medium text-auth-canvas-accent hover:underline">
-            Sign in
-          </Link>
+          <p>
+            Already registered?{" "}
+            <Link to="/login" className="font-medium text-auth-canvas-accent hover:underline">
+              Sign in
+            </Link>
+          </p>
+          <p className="mt-1.5">
+            Lecturers and administrators don't register here — your administrator creates your
+            account for you.
+          </p>
         </>
       }
     >

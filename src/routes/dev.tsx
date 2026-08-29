@@ -28,6 +28,19 @@ function DevPage() {
   const { user, signInAs } = useSession();
   const navigate = useNavigate();
 
+  // Same reasoning as the corner switcher: this page hands out any identity in
+  // the system, so it must not exist in a production build.
+  if (!import.meta.env.DEV) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="max-w-md text-center">
+          <h1 className="text-7xl font-bold text-foreground">404</h1>
+          <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background px-4 py-10">
       <div className="mx-auto w-full max-w-3xl space-y-6">

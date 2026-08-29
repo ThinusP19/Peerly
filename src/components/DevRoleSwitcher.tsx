@@ -16,6 +16,9 @@ export function DevRoleSwitcher() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
+  // Prototype tooling: stripped from production builds entirely, so a deployed
+  // Peerly has no way to assume an identity without signing in.
+  if (!import.meta.env.DEV) return null;
   if (!hydrated) return null;
 
   const switchTo = (userId: string, role: (typeof personas)[number]["role"]) => {

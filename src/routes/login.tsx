@@ -118,14 +118,6 @@ function LoginPage() {
           Sign in
         </BusyButton>
       </form>
-
-      <p className="mt-5 rounded-md bg-muted p-3 text-xs text-muted-foreground">
-        <span className="font-medium text-foreground">Prototype tip:</span> any password works. Try{" "}
-        <span className="font-mono">anneke.vdmerwe@nwu.ac.za</span> (lecturer),{" "}
-        <span className="font-mono">riaan.botha@nwu.ac.za</span> (administrator) or{" "}
-        <span className="font-mono">41200345@mynwu.ac.za</span> (student) — or use the role switcher
-        in the corner.
-      </p>
     </AuthShell>
   );
 }
