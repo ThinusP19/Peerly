@@ -1,0 +1,85 @@
+- generic [ref=f3e1]:
+  - generic [ref=f3e735]:
+    - complementary [ref=f3e736]:
+      - link "Peerly Assessment Hub" [ref=f3e737] [cursor=pointer]:
+        - /url: /student
+        - generic [ref=f3e745]:
+          - generic [ref=f3e746]: Peerly
+          - generic [ref=f3e747]: Assessment Hub
+      - navigation "Student sections" [ref=f3e748]:
+        - link "Assessments" [ref=f3e749] [cursor=pointer]:
+          - /url: /student
+        - link "My group" [ref=f3e753] [cursor=pointer]:
+          - /url: /student/group
+        - link "How rating works" [active] [ref=f3e758] [cursor=pointer]:
+          - /url: /student/guide
+      - generic [ref=f3e761]:
+        - paragraph [ref=f3e762]: Ethan Pretorius
+        - paragraph [ref=f3e763]: "41200893"
+        - button "Sign out" [ref=f3e764] [cursor=pointer]
+    - main [ref=f3e766]:
+      - generic [ref=f3e912]:
+        - heading "How rating works" [level=1] [ref=f3e913]
+        - paragraph [ref=f3e914]: You choose a phrase for each group member — never a number or a score out of five.
+      - generic [ref=f3e915]:
+        - generic [ref=f3e916]:
+          - paragraph [ref=f3e921]: Nobody you rate ever sees it
+          - paragraph [ref=f3e922]: Your ratings go to your lecturer only. Group members never find out what you chose for them.
+        - generic [ref=f3e923]:
+          - paragraph [ref=f3e929]: Describe what happened, not how you feel
+          - paragraph [ref=f3e930]: Pick the sentence that matches what the person actually did. A friend who did little should still get the option that says so.
+        - generic [ref=f3e931]:
+          - paragraph [ref=f3e936]: It affects marks, including yours
+          - paragraph [ref=f3e937]: Your group's mark is adjusted per person using these ratings. Rating everyone identically tells your lecturer nothing.
+      - generic [ref=f3e938]:
+        - generic [ref=f3e939]:
+          - heading "The nine options" [level=2] [ref=f3e940]
+          - paragraph [ref=f3e941]: Listed strongest first. Pick the one that fits, not the one that's kindest.
+        - list [ref=f3e942]:
+          - listitem [ref=f3e943]:
+            - generic [ref=f3e944]: "1"
+            - generic [ref=f3e945]:
+              - generic [ref=f3e946]: Excellent
+              - generic [ref=f3e947]: Consistently went above and beyond what was asked, took the lead, carried more than their share.
+          - listitem [ref=f3e948]:
+            - generic [ref=f3e949]: "2"
+            - generic [ref=f3e950]:
+              - generic [ref=f3e951]: Very good
+              - generic [ref=f3e952]: Consistently did everything they were asked to do, and did it well.
+          - listitem [ref=f3e953]:
+            - generic [ref=f3e954]: "3"
+            - generic [ref=f3e955]:
+              - generic [ref=f3e956]: Satisfactory
+              - generic [ref=f3e957]: Usually did what they were asked to do, at an acceptable standard.
+          - listitem [ref=f3e958]:
+            - generic [ref=f3e959]: "4"
+            - generic [ref=f3e960]:
+              - generic [ref=f3e961]: Ordinary
+              - generic [ref=f3e962]: Often did what they were asked to do, but needed reminding.
+          - listitem [ref=f3e963]:
+            - generic [ref=f3e964]: "5"
+            - generic [ref=f3e965]:
+              - generic [ref=f3e966]: Marginal
+              - generic [ref=f3e967]: Sometimes failed to attend meetings or to complete what was asked.
+          - listitem [ref=f3e968]:
+            - generic [ref=f3e969]: "6"
+            - generic [ref=f3e970]:
+              - generic [ref=f3e971]: Deficient
+              - generic [ref=f3e972]: Often failed to attend meetings or to complete what was asked.
+          - listitem [ref=f3e973]:
+            - generic [ref=f3e974]: "7"
+            - generic [ref=f3e975]:
+              - generic [ref=f3e976]: Unsatisfactory
+              - generic [ref=f3e977]: Consistently failed to attend meetings or to complete what was asked.
+          - listitem [ref=f3e978]:
+            - generic [ref=f3e979]: "8"
+            - generic [ref=f3e980]:
+              - generic [ref=f3e981]: Superficial
+              - generic [ref=f3e982]: Contributed practically nothing to the work of the group.
+          - listitem [ref=f3e983]:
+            - generic [ref=f3e984]: "9"
+            - generic [ref=f3e985]:
+              - generic [ref=f3e986]: No contribution
+              - generic [ref=f3e987]: Never attended and contributed nothing at all.
+  - button "Ethan Pretorius" [ref=f3e835] [cursor=pointer]
+  - region "Notifications alt+T"

@@ -74,8 +74,8 @@ function NavLinks({ role, onNavigate }: { role: Role; onNavigate?: () => void })
             className={cn(
               "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
               active
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+                ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-card"
+                : "text-sidebar-foreground/85 hover:bg-sidebar-accent/45 hover:text-sidebar-accent-foreground",
             )}
           >
             <item.icon className="size-4 shrink-0" aria-hidden="true" />
@@ -91,9 +91,9 @@ function SidebarBody({ role, onNavigate }: { role: Role; onNavigate?: () => void
   return (
     <div className="flex h-full flex-col gap-4 p-4">
       <Link to={role === "admin" ? "/admin" : "/lecturer"} onClick={onNavigate}>
-        <BrandLockup subtitle="Assessment Hub" />
+        <BrandLockup subtitle="Assessment Hub" tone="onDark" />
       </Link>
-      <Separator />
+      <Separator className="bg-sidebar-border" />
       <div className="min-h-0 flex-1 overflow-y-auto">
         <NavLinks role={role} onNavigate={onNavigate} />
       </div>
@@ -208,7 +208,7 @@ function AdminShellInner({
 
   return (
     <div className="min-h-screen bg-background">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r bg-sidebar lg:block">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-sidebar-border bg-sidebar lg:block">
         <SidebarBody role={role} />
       </aside>
 
@@ -222,7 +222,7 @@ function AdminShellInner({
                   <span className="sr-only">Open navigation</span>
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-72 bg-sidebar p-0">
+              <SheetContent side="left" className="w-72 border-sidebar-border bg-sidebar p-0">
                 <SheetTitle className="sr-only">Portal navigation</SheetTitle>
                 <SidebarBody role={role} onNavigate={() => setMenuOpen(false)} />
               </SheetContent>

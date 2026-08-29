@@ -1,14 +1,25 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Peerly's mark: three peers around a shared piece of work. Calm and academic —
- * deliberately not a playful startup logo.
+ * Peerly's mark: three peers around a shared piece of work.
+ *
+ * `tone="onDark"` inverts it for the indigo sidebar, where an indigo tile would
+ * disappear into the background.
  */
-export function BrandMark({ className }: { className?: string }) {
+export function BrandMark({
+  className,
+  tone = "default",
+}: {
+  className?: string;
+  tone?: "default" | "onDark";
+}) {
   return (
     <span
       className={cn(
-        "flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground",
+        "flex size-8 shrink-0 items-center justify-center rounded-md",
+        tone === "onDark"
+          ? "bg-sidebar-primary text-sidebar-primary-foreground"
+          : "bg-primary text-primary-foreground",
         className,
       )}
       aria-hidden="true"
@@ -29,14 +40,37 @@ export function BrandMark({ className }: { className?: string }) {
   );
 }
 
-export function BrandLockup({ subtitle, className }: { subtitle?: string; className?: string }) {
+export function BrandLockup({
+  subtitle,
+  tone = "default",
+  className,
+}: {
+  subtitle?: string;
+  tone?: "default" | "onDark";
+  className?: string;
+}) {
+  const onDark = tone === "onDark";
   return (
     <span className={cn("flex items-center gap-2.5", className)}>
-      <BrandMark />
+      <BrandMark tone={tone} />
       <span className="min-w-0 leading-tight">
-        <span className="block font-semibold tracking-tight text-foreground">Peerly</span>
+        <span
+          className={cn(
+            "block font-semibold tracking-tight",
+            onDark ? "text-sidebar-primary" : "text-foreground",
+          )}
+        >
+          Peerly
+        </span>
         {subtitle ? (
-          <span className="block truncate text-xs text-muted-foreground">{subtitle}</span>
+          <span
+            className={cn(
+              "block truncate text-xs",
+              onDark ? "text-sidebar-foreground/70" : "text-muted-foreground",
+            )}
+          >
+            {subtitle}
+          </span>
         ) : null}
       </span>
     </span>

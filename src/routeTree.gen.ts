@@ -30,6 +30,8 @@ import { Route as LecturerMatrixRouteImport } from './routes/lecturer/matrix'
 import { Route as LecturerMonitorRouteImport } from './routes/lecturer/monitor'
 import { Route as LecturerResultsRouteImport } from './routes/lecturer/results'
 import { Route as StudentIndexRouteImport } from './routes/student/index'
+import { Route as StudentGroupRouteImport } from './routes/student/group'
+import { Route as StudentGuideRouteImport } from './routes/student/guide'
 import { Route as LecturerAssessmentsIndexRouteImport } from './routes/lecturer/assessments/index'
 import { Route as LecturerAssessmentsNewRouteImport } from './routes/lecturer/assessments/new'
 import { Route as LecturerClassesIndexRouteImport } from './routes/lecturer/classes/index'
@@ -147,6 +149,16 @@ const StudentIndexRoute = StudentIndexRouteImport.update({
   path: '/',
   getParentRoute: () => StudentRouteRoute,
 } as any)
+const StudentGroupRoute = StudentGroupRouteImport.update({
+  id: '/group',
+  path: '/group',
+  getParentRoute: () => StudentRouteRoute,
+} as any)
+const StudentGuideRoute = StudentGuideRouteImport.update({
+  id: '/guide',
+  path: '/guide',
+  getParentRoute: () => StudentRouteRoute,
+} as any)
 const LecturerAssessmentsIndexRoute =
   LecturerAssessmentsIndexRouteImport.update({
     id: '/assessments/',
@@ -228,6 +240,8 @@ export interface FileRoutesByFullPath {
   '/lecturer/matrix': typeof LecturerMatrixRoute
   '/lecturer/monitor': typeof LecturerMonitorRoute
   '/lecturer/results': typeof LecturerResultsRoute
+  '/student/group': typeof StudentGroupRoute
+  '/student/guide': typeof StudentGuideRoute
   '/admin/': typeof AdminIndexRoute
   '/lecturer/': typeof LecturerIndexRoute
   '/student/': typeof StudentIndexRoute
@@ -259,6 +273,8 @@ export interface FileRoutesByTo {
   '/lecturer/matrix': typeof LecturerMatrixRoute
   '/lecturer/monitor': typeof LecturerMonitorRoute
   '/lecturer/results': typeof LecturerResultsRoute
+  '/student/group': typeof StudentGroupRoute
+  '/student/guide': typeof StudentGuideRoute
   '/admin': typeof AdminIndexRoute
   '/lecturer': typeof LecturerIndexRoute
   '/student': typeof StudentIndexRoute
@@ -294,6 +310,8 @@ export interface FileRoutesById {
   '/lecturer/matrix': typeof LecturerMatrixRoute
   '/lecturer/monitor': typeof LecturerMonitorRoute
   '/lecturer/results': typeof LecturerResultsRoute
+  '/student/group': typeof StudentGroupRoute
+  '/student/guide': typeof StudentGuideRoute
   '/admin/': typeof AdminIndexRoute
   '/lecturer/': typeof LecturerIndexRoute
   '/student/': typeof StudentIndexRoute
@@ -330,6 +348,8 @@ export interface FileRouteTypes {
     | '/lecturer/matrix'
     | '/lecturer/monitor'
     | '/lecturer/results'
+    | '/student/group'
+    | '/student/guide'
     | '/admin/'
     | '/lecturer/'
     | '/student/'
@@ -361,6 +381,8 @@ export interface FileRouteTypes {
     | '/lecturer/matrix'
     | '/lecturer/monitor'
     | '/lecturer/results'
+    | '/student/group'
+    | '/student/guide'
     | '/admin'
     | '/lecturer'
     | '/student'
@@ -395,6 +417,8 @@ export interface FileRouteTypes {
     | '/lecturer/matrix'
     | '/lecturer/monitor'
     | '/lecturer/results'
+    | '/student/group'
+    | '/student/guide'
     | '/admin/'
     | '/lecturer/'
     | '/student/'
@@ -573,6 +597,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentIndexRouteImport
       parentRoute: typeof StudentRouteRoute
     }
+    '/student/group': {
+      id: '/student/group'
+      path: '/group'
+      fullPath: '/student/group'
+      preLoaderRoute: typeof StudentGroupRouteImport
+      parentRoute: typeof StudentRouteRoute
+    }
+    '/student/guide': {
+      id: '/student/guide'
+      path: '/guide'
+      fullPath: '/student/guide'
+      preLoaderRoute: typeof StudentGuideRouteImport
+      parentRoute: typeof StudentRouteRoute
+    }
     '/lecturer/assessments/': {
       id: '/lecturer/assessments/'
       path: '/assessments'
@@ -712,6 +750,8 @@ const LecturerRouteRouteWithChildren = LecturerRouteRoute._addFileChildren(
 )
 
 interface StudentRouteRouteChildren {
+  StudentGroupRoute: typeof StudentGroupRoute
+  StudentGuideRoute: typeof StudentGuideRoute
   StudentIndexRoute: typeof StudentIndexRoute
   StudentEvaluateAssessmentIdReviewRoute: typeof StudentEvaluateAssessmentIdReviewRoute
   StudentEvaluateAssessmentIdSubmittedRoute: typeof StudentEvaluateAssessmentIdSubmittedRoute
@@ -719,6 +759,8 @@ interface StudentRouteRouteChildren {
 }
 
 const StudentRouteRouteChildren: StudentRouteRouteChildren = {
+  StudentGroupRoute: StudentGroupRoute,
+  StudentGuideRoute: StudentGuideRoute,
   StudentIndexRoute: StudentIndexRoute,
   StudentEvaluateAssessmentIdReviewRoute:
     StudentEvaluateAssessmentIdReviewRoute,

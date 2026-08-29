@@ -28,7 +28,9 @@ export function DevRoleSwitcher() {
   };
 
   return (
-    <div className="fixed right-4 bottom-4 z-50 print:hidden">
+    // Lifted clear of the student portal's bottom tab bar on small screens,
+    // where it otherwise covered — and swallowed clicks on — the last tab.
+    <div className="fixed right-4 bottom-20 z-50 lg:bottom-4 print:hidden">
       {open ? (
         <div className="w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border bg-popover shadow-raised">
           <div className="flex items-center justify-between gap-2 border-b px-3 py-2.5">
