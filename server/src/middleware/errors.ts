@@ -41,12 +41,7 @@ const PG_UNIQUE_VIOLATION = "23505";
 const PG_FOREIGN_KEY_VIOLATION = "23503";
 const PG_CHECK_VIOLATION = "23514";
 
-export function errorHandler(
-  error: unknown,
-  _req: Request,
-  res: Response,
-  _next: NextFunction,
-) {
+export function errorHandler(error: unknown, _req: Request, res: Response, _next: NextFunction) {
   if (error instanceof ZodError) {
     // Field errors are returned per-field so the client can render them inline
     // beside the offending input rather than as one banner (UI-06).
@@ -63,7 +58,11 @@ export function errorHandler(
 
   if (error instanceof AppError) {
     res.status(error.status).json({
-      error: { code: error.code, message: error.message, ...(error.fields && { fields: error.fields }) },
+      error: {
+        code: error.code,
+        message: error.message,
+        ...(error.fields && { fields: error.fields }),
+      },
     });
     return;
   }
@@ -71,7 +70,11 @@ export function errorHandler(
   const pgCode = (error as { code?: string })?.code;
   const constraint = (error as { constraint?: string })?.constraint;
 
-  if (pgCode === PG_UNIQUE_VIOLATION || pgCode === PG_FOREIGN_KEY_VIOLATION || pgCode === PG_CHECK_VIOLATION) {
+  if (
+    pgCode === PG_UNIQUE_VIOLATION ||
+    pgCode === PG_FOREIGN_KEY_VIOLATION ||
+    pgCode === PG_CHECK_VIOLATION
+  ) {
     // The database refused the write because a business rule forbids it. That is
     // a client error, not a server fault — but the constraint name is internal,
     // so it is logged rather than returned (OR-04).
@@ -90,6 +93,9 @@ export function errorHandler(
   // line carries no credentials or rating content.
   console.error("[error]", error instanceof Error ? error.stack : error);
   res.status(500).json({
-    error: { code: "internal_error", message: "Something went wrong on our end. Please try again." },
+    error: {
+      code: "internal_error",
+      message: "Something went wrong on our end. Please try again.",
+    },
   });
 }
