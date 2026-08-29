@@ -1,0 +1,103 @@
+import { useNavigate } from "@tanstack/react-router";
+import { Check, FlaskConical, X } from "lucide-react";
+import { useState } from "react";
+
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { homePathForRole, personas, roleLabel, useSession } from "@/lib/session";
+import { cn } from "@/lib/utils";
+
+/**
+ * Prototype-only helper: jump straight into any persona without a real login,
+ * so every screen is reachable for review. This widget would not ship.
+ */
+export function DevRoleSwitcher() {
+  const { user, hydrated, signInAs, signOut } = useSession();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+
+  if (!hydrated) return null;
+
+  const switchTo = (userId: string, role: (typeof personas)[number]["role"]) => {
+    signInAs(userId);
+    setOpen(false);
+    navigate({ to: homePathForRole(role) });
+  };
+
+  return (
+    <div className="fixed right-4 bottom-4 z-50 print:hidden">
+      {open ? (
+        <div className="w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border bg-popover shadow-raised">
+          <div className="flex items-center justify-between gap-2 border-b px-3 py-2.5">
+            <div className="flex items-center gap-2">
+              <FlaskConical className="size-4 text-primary" aria-hidden="true" />
+              <p className="text-sm font-semibold text-foreground">Prototype role switcher</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              onClick={() => setOpen(false)}
+              aria-label="Close role switcher"
+            >
+              <X aria-hidden="true" />
+            </Button>
+          </div>
+
+          <div className="max-h-80 overflow-y-auto p-1.5">
+            {personas.map((persona) => {
+              const active = user?.id === persona.userId;
+              return (
+                <button
+                  key={persona.userId}
+                  type="button"
+                  onClick={() => switchTo(persona.userId, persona.role)}
+                  className={cn(
+                    "flex w-full cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-2 text-left transition-colors",
+                    active ? "bg-accent text-accent-foreground" : "hover:bg-muted",
+                  )}
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">{persona.label}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {persona.hint}
+                    </span>
+                  </span>
+                  {active ? <Check className="size-4 shrink-0" aria-hidden="true" /> : null}
+                </button>
+              );
+            })}
+          </div>
+
+          <Separator />
+          <div className="flex items-center justify-between gap-2 px-3 py-2.5">
+            <p className="text-xs text-muted-foreground">
+              {user ? `Signed in as ${roleLabel(user.role)}` : "Signed out"}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                signOut();
+                setOpen(false);
+                navigate({ to: "/login" });
+              }}
+            >
+              Sign out
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button
+          size="sm"
+          variant="secondary"
+          className="shadow-raised"
+          onClick={() => setOpen(true)}
+        >
+          <FlaskConical aria-hidden="true" />
+          {user ? `${user.name} ${user.surname}` : "Sign in as…"}
+        </Button>
+      )}
+    </div>
+  );
+}

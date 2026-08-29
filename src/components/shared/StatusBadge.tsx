@@ -9,6 +9,7 @@ import {
   Link2Off,
   Lock,
   Unlock,
+  XCircle,
   type LucideIcon,
 } from "lucide-react";
 
@@ -25,6 +26,7 @@ export type StatusKind =
   | "matched"
   | "unmatched"
   | "conflict"
+  | "missed"
   | "active"
   | "deactivated"
   | "unverified";
@@ -48,6 +50,7 @@ const config: Record<StatusKind, { label: string; icon: LucideIcon; tone: keyof 
   matched: { label: "Matched", icon: Link2, tone: "success" },
   unmatched: { label: "Unmatched", icon: Link2Off, tone: "warning" },
   conflict: { label: "Conflict", icon: AlertTriangle, tone: "danger" },
+  missed: { label: "Closed – not submitted", icon: XCircle, tone: "danger" },
   active: { label: "Active", icon: CheckCircle2, tone: "success" },
   deactivated: { label: "Deactivated", icon: CircleSlash, tone: "neutral" },
   unverified: { label: "Unverified", icon: Clock, tone: "warning" },

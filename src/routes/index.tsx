@@ -1,24 +1,26 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
+import { FullPageLoading } from "@/components/layout/RoleGuard";
+import { homePathForRole, useSession } from "@/lib/session";
+
 export const Route = createFileRoute("/")({
   component: Index,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
+/**
+ * Entry point. Sends signed-in users to their portal and everyone else to the
+ * login screen. The session is restored from localStorage after first paint, so
+ * this waits for `hydrated` before deciding.
+ */
 function Index() {
-  return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
-  );
+  const { user, hydrated } = useSession();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!hydrated) return;
+    navigate({ to: user ? homePathForRole(user.role) : "/login", replace: true });
+  }, [hydrated, user, navigate]);
+
+  return <FullPageLoading />;
 }

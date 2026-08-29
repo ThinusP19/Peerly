@@ -307,9 +307,24 @@ export const groups: Group[] = (() => {
 
 /* Second class: small confirmed set so the lecturer has 2 real classes. */
 export const secondClassGroups: Group[] = [
-  { id: "grp-c2-1", classId: "cls-2", groupNumber: 1, memberStudentIds: matchedStudentIds.slice(0, 4) },
-  { id: "grp-c2-2", classId: "cls-2", groupNumber: 2, memberStudentIds: matchedStudentIds.slice(4, 8) },
-  { id: "grp-c2-3", classId: "cls-2", groupNumber: 3, memberStudentIds: matchedStudentIds.slice(8, 11) },
+  {
+    id: "grp-c2-1",
+    classId: "cls-2",
+    groupNumber: 1,
+    memberStudentIds: matchedStudentIds.slice(0, 4),
+  },
+  {
+    id: "grp-c2-2",
+    classId: "cls-2",
+    groupNumber: 2,
+    memberStudentIds: matchedStudentIds.slice(4, 8),
+  },
+  {
+    id: "grp-c2-3",
+    classId: "cls-2",
+    groupNumber: 3,
+    memberStudentIds: matchedStudentIds.slice(8, 11),
+  },
 ];
 
 export const allGroups: Group[] = [...groups, ...secondClassGroups];
@@ -460,7 +475,8 @@ groups.forEach((group) => {
 export const groupMarks: GroupMark[] = groups.map((group) => ({
   assessmentId: "asm-1",
   groupId: group.id,
-  baseMark: group.groupNumber === 5 ? null : [74, 68, 81, 77, null, 63][group.groupNumber - 1] ?? 70,
+  baseMark:
+    group.groupNumber === 5 ? null : ([74, 68, 81, 77, null, 63][group.groupNumber - 1] ?? 70),
 }));
 
 /* ------------------------------------------------------------------ *
@@ -499,7 +515,8 @@ export const calculatedResults: CalculatedResult[] = groups.flatMap((group) => {
     if (group.memberStudentIds.some((id) => outstandingEvaluatorIds.includes(id)))
       flags.push("incomplete-group");
     if (group.memberStudentIds.length <= 2) flags.push("group-of-two");
-    const finalMark = baseMark == null ? 0 : Number(Math.min(100, baseMark * adjustmentFactor).toFixed(1));
+    const finalMark =
+      baseMark == null ? 0 : Number(Math.min(100, baseMark * adjustmentFactor).toFixed(1));
     return {
       studentId,
       assessmentId: "asm-1",

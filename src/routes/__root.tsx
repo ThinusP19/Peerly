@@ -11,6 +11,10 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { DevRoleSwitcher } from "@/components/DevRoleSwitcher";
+import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { SessionProvider } from "@/lib/session";
 
 function NotFoundComponent() {
   return (
@@ -77,14 +81,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Peerly Assessment Hub" },
+      {
+        name: "description",
+        content:
+          "Peerly automates student peer assessment for group projects — class lists, groups, evaluations, marks and exports.",
+      },
+      { name: "author", content: "Peerly" },
+      { property: "og:title", content: "Peerly Assessment Hub" },
+      {
+        property: "og:description",
+        content: "Automated peer assessment for university group projects.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {
@@ -119,8 +129,14 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <SessionProvider>
+        <TooltipProvider delayDuration={200}>
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+          <DevRoleSwitcher />
+          <Toaster position="top-right" richColors closeButton />
+        </TooltipProvider>
+      </SessionProvider>
     </QueryClientProvider>
   );
 }

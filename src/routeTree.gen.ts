@@ -10,33 +10,418 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ActivateRouteImport } from './routes/activate'
+import { Route as AdminRouteRouteImport } from './routes/admin/route'
+import { Route as DevRouteImport } from './routes/dev'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as LecturerRouteRouteImport } from './routes/lecturer/route'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as RegisterRouteImport } from './routes/register'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as StudentRouteRouteImport } from './routes/student/route'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminAccountsRouteImport } from './routes/admin/accounts'
+import { Route as AdminAuditRouteImport } from './routes/admin/audit'
+import { Route as LecturerIndexRouteImport } from './routes/lecturer/index'
+import { Route as LecturerAuditRouteImport } from './routes/lecturer/audit'
+import { Route as LecturerExportRouteImport } from './routes/lecturer/export'
+import { Route as LecturerMarksRouteImport } from './routes/lecturer/marks'
+import { Route as LecturerMatrixRouteImport } from './routes/lecturer/matrix'
+import { Route as LecturerMonitorRouteImport } from './routes/lecturer/monitor'
+import { Route as LecturerResultsRouteImport } from './routes/lecturer/results'
+import { Route as StudentIndexRouteImport } from './routes/student/index'
+import { Route as LecturerAssessmentsIndexRouteImport } from './routes/lecturer/assessments/index'
+import { Route as LecturerAssessmentsNewRouteImport } from './routes/lecturer/assessments/new'
+import { Route as LecturerClassesIndexRouteImport } from './routes/lecturer/classes/index'
+import { Route as LecturerClassesImportRouteImport } from './routes/lecturer/classes/import'
+import { Route as LecturerGroupsIndexRouteImport } from './routes/lecturer/groups/index'
+import { Route as LecturerGroupsGenerateRouteImport } from './routes/lecturer/groups/generate'
+import { Route as LecturerAssessmentsAssessmentIdIndexRouteImport } from './routes/lecturer/assessments/$assessmentId/index'
+import { Route as LecturerAssessmentsAssessmentIdEditRouteImport } from './routes/lecturer/assessments/$assessmentId/edit'
+import { Route as StudentEvaluateAssessmentIdIndexRouteImport } from './routes/student/evaluate/$assessmentId/index'
+import { Route as StudentEvaluateAssessmentIdReviewRouteImport } from './routes/student/evaluate/$assessmentId/review'
+import { Route as StudentEvaluateAssessmentIdSubmittedRouteImport } from './routes/student/evaluate/$assessmentId/submitted'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ActivateRoute = ActivateRouteImport.update({
+  id: '/activate',
+  path: '/activate',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRouteRoute = AdminRouteRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevRoute = DevRouteImport.update({
+  id: '/dev',
+  path: '/dev',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LecturerRouteRoute = LecturerRouteRouteImport.update({
+  id: '/lecturer',
+  path: '/lecturer',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StudentRouteRoute = StudentRouteRouteImport.update({
+  id: '/student',
+  path: '/student',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminAccountsRoute = AdminAccountsRouteImport.update({
+  id: '/accounts',
+  path: '/accounts',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminAuditRoute = AdminAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const LecturerIndexRoute = LecturerIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => LecturerRouteRoute,
+} as any)
+const LecturerAuditRoute = LecturerAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => LecturerRouteRoute,
+} as any)
+const LecturerExportRoute = LecturerExportRouteImport.update({
+  id: '/export',
+  path: '/export',
+  getParentRoute: () => LecturerRouteRoute,
+} as any)
+const LecturerMarksRoute = LecturerMarksRouteImport.update({
+  id: '/marks',
+  path: '/marks',
+  getParentRoute: () => LecturerRouteRoute,
+} as any)
+const LecturerMatrixRoute = LecturerMatrixRouteImport.update({
+  id: '/matrix',
+  path: '/matrix',
+  getParentRoute: () => LecturerRouteRoute,
+} as any)
+const LecturerMonitorRoute = LecturerMonitorRouteImport.update({
+  id: '/monitor',
+  path: '/monitor',
+  getParentRoute: () => LecturerRouteRoute,
+} as any)
+const LecturerResultsRoute = LecturerResultsRouteImport.update({
+  id: '/results',
+  path: '/results',
+  getParentRoute: () => LecturerRouteRoute,
+} as any)
+const StudentIndexRoute = StudentIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => StudentRouteRoute,
+} as any)
+const LecturerAssessmentsIndexRoute =
+  LecturerAssessmentsIndexRouteImport.update({
+    id: '/assessments/',
+    path: '/assessments/',
+    getParentRoute: () => LecturerRouteRoute,
+  } as any)
+const LecturerAssessmentsNewRoute = LecturerAssessmentsNewRouteImport.update({
+  id: '/assessments/new',
+  path: '/assessments/new',
+  getParentRoute: () => LecturerRouteRoute,
+} as any)
+const LecturerClassesIndexRoute = LecturerClassesIndexRouteImport.update({
+  id: '/classes/',
+  path: '/classes/',
+  getParentRoute: () => LecturerRouteRoute,
+} as any)
+const LecturerClassesImportRoute = LecturerClassesImportRouteImport.update({
+  id: '/classes/import',
+  path: '/classes/import',
+  getParentRoute: () => LecturerRouteRoute,
+} as any)
+const LecturerGroupsIndexRoute = LecturerGroupsIndexRouteImport.update({
+  id: '/groups/',
+  path: '/groups/',
+  getParentRoute: () => LecturerRouteRoute,
+} as any)
+const LecturerGroupsGenerateRoute = LecturerGroupsGenerateRouteImport.update({
+  id: '/groups/generate',
+  path: '/groups/generate',
+  getParentRoute: () => LecturerRouteRoute,
+} as any)
+const LecturerAssessmentsAssessmentIdIndexRoute =
+  LecturerAssessmentsAssessmentIdIndexRouteImport.update({
+    id: '/assessments/$assessmentId/',
+    path: '/assessments/$assessmentId/',
+    getParentRoute: () => LecturerRouteRoute,
+  } as any)
+const LecturerAssessmentsAssessmentIdEditRoute =
+  LecturerAssessmentsAssessmentIdEditRouteImport.update({
+    id: '/assessments/$assessmentId/edit',
+    path: '/assessments/$assessmentId/edit',
+    getParentRoute: () => LecturerRouteRoute,
+  } as any)
+const StudentEvaluateAssessmentIdIndexRoute =
+  StudentEvaluateAssessmentIdIndexRouteImport.update({
+    id: '/evaluate/$assessmentId/',
+    path: '/evaluate/$assessmentId/',
+    getParentRoute: () => StudentRouteRoute,
+  } as any)
+const StudentEvaluateAssessmentIdReviewRoute =
+  StudentEvaluateAssessmentIdReviewRouteImport.update({
+    id: '/evaluate/$assessmentId/review',
+    path: '/evaluate/$assessmentId/review',
+    getParentRoute: () => StudentRouteRoute,
+  } as any)
+const StudentEvaluateAssessmentIdSubmittedRoute =
+  StudentEvaluateAssessmentIdSubmittedRouteImport.update({
+    id: '/evaluate/$assessmentId/submitted',
+    path: '/evaluate/$assessmentId/submitted',
+    getParentRoute: () => StudentRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteRouteWithChildren
+  '/lecturer': typeof LecturerRouteRouteWithChildren
+  '/student': typeof StudentRouteRouteWithChildren
+  '/activate': typeof ActivateRoute
+  '/dev': typeof DevRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/admin/accounts': typeof AdminAccountsRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/lecturer/audit': typeof LecturerAuditRoute
+  '/lecturer/export': typeof LecturerExportRoute
+  '/lecturer/marks': typeof LecturerMarksRoute
+  '/lecturer/matrix': typeof LecturerMatrixRoute
+  '/lecturer/monitor': typeof LecturerMonitorRoute
+  '/lecturer/results': typeof LecturerResultsRoute
+  '/admin/': typeof AdminIndexRoute
+  '/lecturer/': typeof LecturerIndexRoute
+  '/student/': typeof StudentIndexRoute
+  '/lecturer/assessments/new': typeof LecturerAssessmentsNewRoute
+  '/lecturer/classes/import': typeof LecturerClassesImportRoute
+  '/lecturer/groups/generate': typeof LecturerGroupsGenerateRoute
+  '/lecturer/assessments/': typeof LecturerAssessmentsIndexRoute
+  '/lecturer/classes/': typeof LecturerClassesIndexRoute
+  '/lecturer/groups/': typeof LecturerGroupsIndexRoute
+  '/lecturer/assessments/$assessmentId/edit': typeof LecturerAssessmentsAssessmentIdEditRoute
+  '/student/evaluate/$assessmentId/review': typeof StudentEvaluateAssessmentIdReviewRoute
+  '/student/evaluate/$assessmentId/submitted': typeof StudentEvaluateAssessmentIdSubmittedRoute
+  '/lecturer/assessments/$assessmentId/': typeof LecturerAssessmentsAssessmentIdIndexRoute
+  '/student/evaluate/$assessmentId/': typeof StudentEvaluateAssessmentIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/activate': typeof ActivateRoute
+  '/dev': typeof DevRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/admin/accounts': typeof AdminAccountsRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/lecturer/audit': typeof LecturerAuditRoute
+  '/lecturer/export': typeof LecturerExportRoute
+  '/lecturer/marks': typeof LecturerMarksRoute
+  '/lecturer/matrix': typeof LecturerMatrixRoute
+  '/lecturer/monitor': typeof LecturerMonitorRoute
+  '/lecturer/results': typeof LecturerResultsRoute
+  '/admin': typeof AdminIndexRoute
+  '/lecturer': typeof LecturerIndexRoute
+  '/student': typeof StudentIndexRoute
+  '/lecturer/assessments/new': typeof LecturerAssessmentsNewRoute
+  '/lecturer/classes/import': typeof LecturerClassesImportRoute
+  '/lecturer/groups/generate': typeof LecturerGroupsGenerateRoute
+  '/lecturer/assessments': typeof LecturerAssessmentsIndexRoute
+  '/lecturer/classes': typeof LecturerClassesIndexRoute
+  '/lecturer/groups': typeof LecturerGroupsIndexRoute
+  '/lecturer/assessments/$assessmentId/edit': typeof LecturerAssessmentsAssessmentIdEditRoute
+  '/student/evaluate/$assessmentId/review': typeof StudentEvaluateAssessmentIdReviewRoute
+  '/student/evaluate/$assessmentId/submitted': typeof StudentEvaluateAssessmentIdSubmittedRoute
+  '/lecturer/assessments/$assessmentId': typeof LecturerAssessmentsAssessmentIdIndexRoute
+  '/student/evaluate/$assessmentId': typeof StudentEvaluateAssessmentIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteRouteWithChildren
+  '/lecturer': typeof LecturerRouteRouteWithChildren
+  '/student': typeof StudentRouteRouteWithChildren
+  '/activate': typeof ActivateRoute
+  '/dev': typeof DevRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/admin/accounts': typeof AdminAccountsRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/lecturer/audit': typeof LecturerAuditRoute
+  '/lecturer/export': typeof LecturerExportRoute
+  '/lecturer/marks': typeof LecturerMarksRoute
+  '/lecturer/matrix': typeof LecturerMatrixRoute
+  '/lecturer/monitor': typeof LecturerMonitorRoute
+  '/lecturer/results': typeof LecturerResultsRoute
+  '/admin/': typeof AdminIndexRoute
+  '/lecturer/': typeof LecturerIndexRoute
+  '/student/': typeof StudentIndexRoute
+  '/lecturer/assessments/new': typeof LecturerAssessmentsNewRoute
+  '/lecturer/classes/import': typeof LecturerClassesImportRoute
+  '/lecturer/groups/generate': typeof LecturerGroupsGenerateRoute
+  '/lecturer/assessments/': typeof LecturerAssessmentsIndexRoute
+  '/lecturer/classes/': typeof LecturerClassesIndexRoute
+  '/lecturer/groups/': typeof LecturerGroupsIndexRoute
+  '/lecturer/assessments/$assessmentId/edit': typeof LecturerAssessmentsAssessmentIdEditRoute
+  '/student/evaluate/$assessmentId/review': typeof StudentEvaluateAssessmentIdReviewRoute
+  '/student/evaluate/$assessmentId/submitted': typeof StudentEvaluateAssessmentIdSubmittedRoute
+  '/lecturer/assessments/$assessmentId/': typeof LecturerAssessmentsAssessmentIdIndexRoute
+  '/student/evaluate/$assessmentId/': typeof StudentEvaluateAssessmentIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/lecturer'
+    | '/student'
+    | '/activate'
+    | '/dev'
+    | '/forgot-password'
+    | '/login'
+    | '/register'
+    | '/reset-password'
+    | '/admin/accounts'
+    | '/admin/audit'
+    | '/lecturer/audit'
+    | '/lecturer/export'
+    | '/lecturer/marks'
+    | '/lecturer/matrix'
+    | '/lecturer/monitor'
+    | '/lecturer/results'
+    | '/admin/'
+    | '/lecturer/'
+    | '/student/'
+    | '/lecturer/assessments/new'
+    | '/lecturer/classes/import'
+    | '/lecturer/groups/generate'
+    | '/lecturer/assessments/'
+    | '/lecturer/classes/'
+    | '/lecturer/groups/'
+    | '/lecturer/assessments/$assessmentId/edit'
+    | '/student/evaluate/$assessmentId/review'
+    | '/student/evaluate/$assessmentId/submitted'
+    | '/lecturer/assessments/$assessmentId/'
+    | '/student/evaluate/$assessmentId/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/activate'
+    | '/dev'
+    | '/forgot-password'
+    | '/login'
+    | '/register'
+    | '/reset-password'
+    | '/admin/accounts'
+    | '/admin/audit'
+    | '/lecturer/audit'
+    | '/lecturer/export'
+    | '/lecturer/marks'
+    | '/lecturer/matrix'
+    | '/lecturer/monitor'
+    | '/lecturer/results'
+    | '/admin'
+    | '/lecturer'
+    | '/student'
+    | '/lecturer/assessments/new'
+    | '/lecturer/classes/import'
+    | '/lecturer/groups/generate'
+    | '/lecturer/assessments'
+    | '/lecturer/classes'
+    | '/lecturer/groups'
+    | '/lecturer/assessments/$assessmentId/edit'
+    | '/student/evaluate/$assessmentId/review'
+    | '/student/evaluate/$assessmentId/submitted'
+    | '/lecturer/assessments/$assessmentId'
+    | '/student/evaluate/$assessmentId'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/lecturer'
+    | '/student'
+    | '/activate'
+    | '/dev'
+    | '/forgot-password'
+    | '/login'
+    | '/register'
+    | '/reset-password'
+    | '/admin/accounts'
+    | '/admin/audit'
+    | '/lecturer/audit'
+    | '/lecturer/export'
+    | '/lecturer/marks'
+    | '/lecturer/matrix'
+    | '/lecturer/monitor'
+    | '/lecturer/results'
+    | '/admin/'
+    | '/lecturer/'
+    | '/student/'
+    | '/lecturer/assessments/new'
+    | '/lecturer/classes/import'
+    | '/lecturer/groups/generate'
+    | '/lecturer/assessments/'
+    | '/lecturer/classes/'
+    | '/lecturer/groups/'
+    | '/lecturer/assessments/$assessmentId/edit'
+    | '/student/evaluate/$assessmentId/review'
+    | '/student/evaluate/$assessmentId/submitted'
+    | '/lecturer/assessments/$assessmentId/'
+    | '/student/evaluate/$assessmentId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRouteRoute: typeof AdminRouteRouteWithChildren
+  LecturerRouteRoute: typeof LecturerRouteRouteWithChildren
+  StudentRouteRoute: typeof StudentRouteRouteWithChildren
+  ActivateRoute: typeof ActivateRoute
+  DevRoute: typeof DevRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
+  LoginRoute: typeof LoginRoute
+  RegisterRoute: typeof RegisterRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +433,315 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/activate': {
+      id: '/activate'
+      path: '/activate'
+      fullPath: '/activate'
+      preLoaderRoute: typeof ActivateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dev': {
+      id: '/dev'
+      path: '/dev'
+      fullPath: '/dev'
+      preLoaderRoute: typeof DevRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lecturer': {
+      id: '/lecturer'
+      path: '/lecturer'
+      fullPath: '/lecturer'
+      preLoaderRoute: typeof LecturerRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/student': {
+      id: '/student'
+      path: '/student'
+      fullPath: '/student'
+      preLoaderRoute: typeof StudentRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/accounts': {
+      id: '/admin/accounts'
+      path: '/accounts'
+      fullPath: '/admin/accounts'
+      preLoaderRoute: typeof AdminAccountsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/audit': {
+      id: '/admin/audit'
+      path: '/audit'
+      fullPath: '/admin/audit'
+      preLoaderRoute: typeof AdminAuditRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/lecturer/': {
+      id: '/lecturer/'
+      path: '/'
+      fullPath: '/lecturer/'
+      preLoaderRoute: typeof LecturerIndexRouteImport
+      parentRoute: typeof LecturerRouteRoute
+    }
+    '/lecturer/audit': {
+      id: '/lecturer/audit'
+      path: '/audit'
+      fullPath: '/lecturer/audit'
+      preLoaderRoute: typeof LecturerAuditRouteImport
+      parentRoute: typeof LecturerRouteRoute
+    }
+    '/lecturer/export': {
+      id: '/lecturer/export'
+      path: '/export'
+      fullPath: '/lecturer/export'
+      preLoaderRoute: typeof LecturerExportRouteImport
+      parentRoute: typeof LecturerRouteRoute
+    }
+    '/lecturer/marks': {
+      id: '/lecturer/marks'
+      path: '/marks'
+      fullPath: '/lecturer/marks'
+      preLoaderRoute: typeof LecturerMarksRouteImport
+      parentRoute: typeof LecturerRouteRoute
+    }
+    '/lecturer/matrix': {
+      id: '/lecturer/matrix'
+      path: '/matrix'
+      fullPath: '/lecturer/matrix'
+      preLoaderRoute: typeof LecturerMatrixRouteImport
+      parentRoute: typeof LecturerRouteRoute
+    }
+    '/lecturer/monitor': {
+      id: '/lecturer/monitor'
+      path: '/monitor'
+      fullPath: '/lecturer/monitor'
+      preLoaderRoute: typeof LecturerMonitorRouteImport
+      parentRoute: typeof LecturerRouteRoute
+    }
+    '/lecturer/results': {
+      id: '/lecturer/results'
+      path: '/results'
+      fullPath: '/lecturer/results'
+      preLoaderRoute: typeof LecturerResultsRouteImport
+      parentRoute: typeof LecturerRouteRoute
+    }
+    '/student/': {
+      id: '/student/'
+      path: '/'
+      fullPath: '/student/'
+      preLoaderRoute: typeof StudentIndexRouteImport
+      parentRoute: typeof StudentRouteRoute
+    }
+    '/lecturer/assessments/': {
+      id: '/lecturer/assessments/'
+      path: '/assessments'
+      fullPath: '/lecturer/assessments/'
+      preLoaderRoute: typeof LecturerAssessmentsIndexRouteImport
+      parentRoute: typeof LecturerRouteRoute
+    }
+    '/lecturer/assessments/new': {
+      id: '/lecturer/assessments/new'
+      path: '/assessments/new'
+      fullPath: '/lecturer/assessments/new'
+      preLoaderRoute: typeof LecturerAssessmentsNewRouteImport
+      parentRoute: typeof LecturerRouteRoute
+    }
+    '/lecturer/classes/': {
+      id: '/lecturer/classes/'
+      path: '/classes'
+      fullPath: '/lecturer/classes/'
+      preLoaderRoute: typeof LecturerClassesIndexRouteImport
+      parentRoute: typeof LecturerRouteRoute
+    }
+    '/lecturer/classes/import': {
+      id: '/lecturer/classes/import'
+      path: '/classes/import'
+      fullPath: '/lecturer/classes/import'
+      preLoaderRoute: typeof LecturerClassesImportRouteImport
+      parentRoute: typeof LecturerRouteRoute
+    }
+    '/lecturer/groups/': {
+      id: '/lecturer/groups/'
+      path: '/groups'
+      fullPath: '/lecturer/groups/'
+      preLoaderRoute: typeof LecturerGroupsIndexRouteImport
+      parentRoute: typeof LecturerRouteRoute
+    }
+    '/lecturer/groups/generate': {
+      id: '/lecturer/groups/generate'
+      path: '/groups/generate'
+      fullPath: '/lecturer/groups/generate'
+      preLoaderRoute: typeof LecturerGroupsGenerateRouteImport
+      parentRoute: typeof LecturerRouteRoute
+    }
+    '/lecturer/assessments/$assessmentId/': {
+      id: '/lecturer/assessments/$assessmentId/'
+      path: '/assessments/$assessmentId'
+      fullPath: '/lecturer/assessments/$assessmentId/'
+      preLoaderRoute: typeof LecturerAssessmentsAssessmentIdIndexRouteImport
+      parentRoute: typeof LecturerRouteRoute
+    }
+    '/lecturer/assessments/$assessmentId/edit': {
+      id: '/lecturer/assessments/$assessmentId/edit'
+      path: '/assessments/$assessmentId/edit'
+      fullPath: '/lecturer/assessments/$assessmentId/edit'
+      preLoaderRoute: typeof LecturerAssessmentsAssessmentIdEditRouteImport
+      parentRoute: typeof LecturerRouteRoute
+    }
+    '/student/evaluate/$assessmentId/': {
+      id: '/student/evaluate/$assessmentId/'
+      path: '/evaluate/$assessmentId'
+      fullPath: '/student/evaluate/$assessmentId/'
+      preLoaderRoute: typeof StudentEvaluateAssessmentIdIndexRouteImport
+      parentRoute: typeof StudentRouteRoute
+    }
+    '/student/evaluate/$assessmentId/review': {
+      id: '/student/evaluate/$assessmentId/review'
+      path: '/evaluate/$assessmentId/review'
+      fullPath: '/student/evaluate/$assessmentId/review'
+      preLoaderRoute: typeof StudentEvaluateAssessmentIdReviewRouteImport
+      parentRoute: typeof StudentRouteRoute
+    }
+    '/student/evaluate/$assessmentId/submitted': {
+      id: '/student/evaluate/$assessmentId/submitted'
+      path: '/evaluate/$assessmentId/submitted'
+      fullPath: '/student/evaluate/$assessmentId/submitted'
+      preLoaderRoute: typeof StudentEvaluateAssessmentIdSubmittedRouteImport
+      parentRoute: typeof StudentRouteRoute
+    }
   }
 }
 
+interface AdminRouteRouteChildren {
+  AdminAccountsRoute: typeof AdminAccountsRoute
+  AdminAuditRoute: typeof AdminAuditRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminAccountsRoute: AdminAccountsRoute,
+  AdminAuditRoute: AdminAuditRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
+  AdminRouteRouteChildren,
+)
+
+interface LecturerRouteRouteChildren {
+  LecturerAuditRoute: typeof LecturerAuditRoute
+  LecturerExportRoute: typeof LecturerExportRoute
+  LecturerMarksRoute: typeof LecturerMarksRoute
+  LecturerMatrixRoute: typeof LecturerMatrixRoute
+  LecturerMonitorRoute: typeof LecturerMonitorRoute
+  LecturerResultsRoute: typeof LecturerResultsRoute
+  LecturerIndexRoute: typeof LecturerIndexRoute
+  LecturerAssessmentsNewRoute: typeof LecturerAssessmentsNewRoute
+  LecturerClassesImportRoute: typeof LecturerClassesImportRoute
+  LecturerGroupsGenerateRoute: typeof LecturerGroupsGenerateRoute
+  LecturerAssessmentsIndexRoute: typeof LecturerAssessmentsIndexRoute
+  LecturerClassesIndexRoute: typeof LecturerClassesIndexRoute
+  LecturerGroupsIndexRoute: typeof LecturerGroupsIndexRoute
+  LecturerAssessmentsAssessmentIdEditRoute: typeof LecturerAssessmentsAssessmentIdEditRoute
+  LecturerAssessmentsAssessmentIdIndexRoute: typeof LecturerAssessmentsAssessmentIdIndexRoute
+}
+
+const LecturerRouteRouteChildren: LecturerRouteRouteChildren = {
+  LecturerAuditRoute: LecturerAuditRoute,
+  LecturerExportRoute: LecturerExportRoute,
+  LecturerMarksRoute: LecturerMarksRoute,
+  LecturerMatrixRoute: LecturerMatrixRoute,
+  LecturerMonitorRoute: LecturerMonitorRoute,
+  LecturerResultsRoute: LecturerResultsRoute,
+  LecturerIndexRoute: LecturerIndexRoute,
+  LecturerAssessmentsNewRoute: LecturerAssessmentsNewRoute,
+  LecturerClassesImportRoute: LecturerClassesImportRoute,
+  LecturerGroupsGenerateRoute: LecturerGroupsGenerateRoute,
+  LecturerAssessmentsIndexRoute: LecturerAssessmentsIndexRoute,
+  LecturerClassesIndexRoute: LecturerClassesIndexRoute,
+  LecturerGroupsIndexRoute: LecturerGroupsIndexRoute,
+  LecturerAssessmentsAssessmentIdEditRoute:
+    LecturerAssessmentsAssessmentIdEditRoute,
+  LecturerAssessmentsAssessmentIdIndexRoute:
+    LecturerAssessmentsAssessmentIdIndexRoute,
+}
+
+const LecturerRouteRouteWithChildren = LecturerRouteRoute._addFileChildren(
+  LecturerRouteRouteChildren,
+)
+
+interface StudentRouteRouteChildren {
+  StudentIndexRoute: typeof StudentIndexRoute
+  StudentEvaluateAssessmentIdReviewRoute: typeof StudentEvaluateAssessmentIdReviewRoute
+  StudentEvaluateAssessmentIdSubmittedRoute: typeof StudentEvaluateAssessmentIdSubmittedRoute
+  StudentEvaluateAssessmentIdIndexRoute: typeof StudentEvaluateAssessmentIdIndexRoute
+}
+
+const StudentRouteRouteChildren: StudentRouteRouteChildren = {
+  StudentIndexRoute: StudentIndexRoute,
+  StudentEvaluateAssessmentIdReviewRoute:
+    StudentEvaluateAssessmentIdReviewRoute,
+  StudentEvaluateAssessmentIdSubmittedRoute:
+    StudentEvaluateAssessmentIdSubmittedRoute,
+  StudentEvaluateAssessmentIdIndexRoute: StudentEvaluateAssessmentIdIndexRoute,
+}
+
+const StudentRouteRouteWithChildren = StudentRouteRoute._addFileChildren(
+  StudentRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRouteRoute: AdminRouteRouteWithChildren,
+  LecturerRouteRoute: LecturerRouteRouteWithChildren,
+  StudentRouteRoute: StudentRouteRouteWithChildren,
+  ActivateRoute: ActivateRoute,
+  DevRoute: DevRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
+  LoginRoute: LoginRoute,
+  RegisterRoute: RegisterRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

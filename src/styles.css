@@ -44,6 +44,11 @@
   --color-danger: var(--danger);
   --color-danger-foreground: var(--danger-foreground);
   --color-danger-muted: var(--danger-muted);
+  --color-auth-canvas: var(--auth-canvas);
+  --color-auth-canvas-foreground: var(--auth-canvas-foreground);
+  --color-auth-canvas-muted: var(--auth-canvas-muted);
+  --color-auth-canvas-border: var(--auth-canvas-border);
+  --color-auth-canvas-accent: var(--auth-canvas-accent);
   --color-neutral-status: var(--neutral-status);
   --color-neutral-status-muted: var(--neutral-status-muted);
   --color-border: var(--border);
@@ -64,7 +69,8 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --shadow-card: 0 1px 2px 0 oklch(0.2 0.03 265 / 0.05), 0 1px 3px 0 oklch(0.2 0.03 265 / 0.08);
-  --shadow-raised: 0 4px 12px -2px oklch(0.2 0.03 265 / 0.1), 0 2px 4px -2px oklch(0.2 0.03 265 / 0.06);
+  --shadow-raised:
+    0 4px 12px -2px oklch(0.2 0.03 265 / 0.1), 0 2px 4px -2px oklch(0.2 0.03 265 / 0.06);
 }
 
 :root {
@@ -96,6 +102,16 @@
   --danger-muted: oklch(0.96 0.03 25);
   --neutral-status: oklch(0.5 0.02 265);
   --neutral-status-muted: oklch(0.955 0.005 265);
+  /* Charcoal canvas — the dark ground the auth screens sit on. Added
+     alongside the indigo primary, not in place of it: the white card and its
+     purple buttons keep the palette above unchanged. */
+  --auth-canvas: oklch(0.215 0.012 265);
+  --auth-canvas-foreground: oklch(0.97 0.004 265);
+  --auth-canvas-muted: oklch(0.7 0.012 265);
+  --auth-canvas-border: oklch(0.32 0.014 265);
+  /* The indigo primary is too dark to read as a link on charcoal (~3:1), so
+     links on the canvas use this lighter tint of the same hue (~7:1). */
+  --auth-canvas-accent: oklch(0.8 0.1 287);
   --border: oklch(0.915 0.01 265);
   --input: oklch(0.9 0.012 265);
   --ring: oklch(0.51 0.21 280);

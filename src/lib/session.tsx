@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { classes, staffUsers, studentUsers, users } from "@/mocks/data";
 import type { Role, User } from "@/mocks/types";
@@ -17,25 +25,73 @@ const defaultState: SessionState = {
   activeAssessmentId: "asm-1",
 };
 
-/** Prototype personas the dev role switcher can jump between. */
-export const personas: Array<{ role: Role; userId: string; label: string }> = [
-  { role: "admin", userId: "u-admin-1", label: "System Administrator — Riaan Botha" },
-  { role: "lecturer", userId: "u-lec-1", label: "Lecturer — Anneke van der Merwe" },
-  { role: "student", userId: studentUsers[0].id, label: `Student — ${studentUsers[0].name} ${studentUsers[0].surname}` },
+const student = (index: number) => studentUsers[index];
+
+/**
+ * Prototype personas the dev role switcher can jump between.
+ *
+ * The student personas are chosen so every dashboard state in the spec is
+ * reachable without hunting: submitted, not started, draft in progress,
+ * unmatched enrolment and conflicting enrolment.
+ */
+export const personas: Array<{
+  role: Role;
+  userId: string;
+  label: string;
+  hint: string;
+}> = [
   {
-    role: "student",
-    userId: studentUsers[28].id,
-    label: `Student (unmatched) — ${studentUsers[28].name} ${studentUsers[28].surname}`,
+    role: "admin",
+    userId: "u-admin-1",
+    label: "Riaan Botha",
+    hint: "System Administrator",
+  },
+  {
+    role: "lecturer",
+    userId: "u-lec-1",
+    label: "Anneke van der Merwe",
+    hint: "Lecturer · owns CMPG323 + CMPG315",
   },
   {
     role: "student",
-    userId: studentUsers[29].id,
-    label: `Student (conflict) — ${studentUsers[29].name} ${studentUsers[29].surname}`,
+    userId: student(0).id,
+    label: `${student(0).name} ${student(0).surname}`,
+    hint: "Student · already submitted",
+  },
+  {
+    role: "student",
+    userId: student(4).id,
+    label: `${student(4).name} ${student(4).surname}`,
+    hint: "Student · not started",
+  },
+  {
+    role: "student",
+    userId: student(21).id,
+    label: `${student(21).name} ${student(21).surname}`,
+    hint: "Student · draft in progress",
+  },
+  {
+    role: "student",
+    userId: student(28).id,
+    label: `${student(28).name} ${student(28).surname}`,
+    hint: "Student · unmatched enrolment",
+  },
+  {
+    role: "student",
+    userId: student(29).id,
+    label: `${student(29).name} ${student(29).surname}`,
+    hint: "Student · conflicting enrolment",
   },
 ];
 
 interface SessionContextValue extends SessionState {
   user: User | null;
+  /**
+   * False during the first render pass (server render + first client render),
+   * true once the persisted session has been read from localStorage. Route
+   * guards must wait for this or they will bounce a signed-in user to /login.
+   */
+  hydrated: boolean;
   signInAs: (userId: string) => void;
   signOut: () => void;
   setActiveClassId: (id: string) => void;
@@ -44,8 +100,9 @@ interface SessionContextValue extends SessionState {
 
 const SessionContext = createContext<SessionContextValue | null>(null);
 
-export function SessionProvider({ children }: { children: React.ReactNode }) {
+export function SessionProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<SessionState>(defaultState);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     try {
@@ -54,6 +111,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     } catch {
       /* prototype only — ignore unreadable storage */
     }
+    setHydrated(true);
   }, []);
 
   const persist = useCallback((next: SessionState) => {
@@ -66,17 +124,29 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<SessionContextValue>(() => {
-    const user = state.userId ? users.find((u) => u.id === state.userId) ?? null : null;
+    const user = state.userId ? (users.find((u) => u.id === state.userId) ?? null) : null;
     return {
       ...state,
       user,
-      signInAs: (userId: string) => persist({ ...state, userId }),
+      hydrated,
+      signInAs: (userId: string) => {
+        const next = { ...state, userId };
+        // Jumping into a lecturer persona should land on a class they own.
+        const target = users.find((u) => u.id === userId);
+        if (target?.role === "lecturer") {
+          const owned = classes.filter((c) => c.lecturerId === userId);
+          if (owned.length && !owned.some((c) => c.id === next.activeClassId)) {
+            next.activeClassId = owned[0].id;
+          }
+        }
+        persist(next);
+      },
       signOut: () => persist({ ...state, userId: null }),
       setActiveClassId: (activeClassId: string) => persist({ ...state, activeClassId }),
       setActiveAssessmentId: (activeAssessmentId: string) =>
         persist({ ...state, activeAssessmentId }),
     };
-  }, [state, persist]);
+  }, [state, hydrated, persist]);
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
@@ -89,6 +159,10 @@ export function useSession() {
 
 export const roleLabel = (role: Role) =>
   role === "admin" ? "System Administrator" : role === "lecturer" ? "Lecturer" : "Student";
+
+/** Where a given role belongs after signing in. */
+export const homePathForRole = (role: Role) =>
+  role === "admin" ? "/admin" : role === "lecturer" ? "/lecturer" : "/student";
 
 export const lecturerClasses = (lecturerId: string) =>
   classes.filter((c) => c.lecturerId === lecturerId);
