@@ -178,6 +178,7 @@ function SignInForm({ audience }: { audience: Audience }) {
           <div className="flex justify-end">
             <Link
               to="/forgot-password"
+              search={{ as: audience }}
               className="text-sm font-semibold text-primary hover:underline"
             >
               Forgot password?

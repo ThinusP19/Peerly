@@ -9,14 +9,18 @@ import { PasswordInput } from "@/components/shared/PasswordInput";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/reset-password")({
-  validateSearch: (search: Record<string, unknown>): { token?: string } => ({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { token?: string; as?: "student" | "lecturer" } => ({
     token: typeof search["token"] === "string" ? search["token"] : undefined,
+    // Which sign-in form to return to afterwards.
+    as: search["as"] === "student" || search["as"] === "lecturer" ? search["as"] : undefined,
   }),
   component: ResetPasswordPage,
 });
 
 function ResetPasswordPage() {
-  const { token } = Route.useSearch();
+  const { token, as } = Route.useSearch();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [errors, setErrors] = useState<{ password?: string; confirm?: string }>({});
@@ -35,7 +39,9 @@ function ResetPasswordPage() {
             <p>Request a new link and use it within the hour.</p>
           </div>
           <Button asChild className="w-full">
-            <Link to="/forgot-password">Request a new link</Link>
+            <Link to="/forgot-password" search={{ as }}>
+              Request a new link
+            </Link>
           </Button>
         </div>
       </AuthShell>
@@ -51,7 +57,9 @@ function ResetPasswordPage() {
             <p>Your password has been updated. The reset link you used is no longer valid.</p>
           </div>
           <Button asChild className="w-full">
-            <Link to="/login">Go to sign in</Link>
+            <Link to="/login" search={{ as }}>
+              Go to sign in
+            </Link>
           </Button>
         </div>
       </AuthShell>

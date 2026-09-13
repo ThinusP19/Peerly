@@ -8,11 +8,19 @@ import { FormField } from "@/components/shared/FormField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+type Audience = "student" | "lecturer";
+
 export const Route = createFileRoute("/forgot-password")({
+  // Carries which sign-in form the user came from, so "Back to sign in" goes
+  // one step back to that form instead of starting over at role selection.
+  validateSearch: (search: Record<string, unknown>): { as?: Audience } => ({
+    as: search["as"] === "student" || search["as"] === "lecturer" ? search["as"] : undefined,
+  }),
   component: ForgotPasswordPage,
 });
 
 function ForgotPasswordPage() {
+  const { as } = Route.useSearch();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -56,12 +64,14 @@ function ForgotPasswordPage() {
 
           <div className="flex flex-col gap-2">
             <Button asChild className="w-full">
-              <Link to="/reset-password" search={{ token: "demo-token" }}>
+              <Link to="/reset-password" search={{ token: "demo-token", as }}>
                 Open the reset link
               </Link>
             </Button>
             <Button asChild variant="outline" className="w-full">
-              <Link to="/login">Back to sign in</Link>
+              <Link to="/login" search={{ as }}>
+                Back to sign in
+              </Link>
             </Button>
           </div>
         </div>
@@ -74,7 +84,7 @@ function ForgotPasswordPage() {
       title="Reset your password"
       description="Tell us the email address on your Peerly account and we'll send you a reset link."
       footer={
-        <Link to="/login" className="font-semibold text-primary hover:underline">
+        <Link to="/login" search={{ as }} className="font-semibold text-primary hover:underline">
           Back to sign in
         </Link>
       }
