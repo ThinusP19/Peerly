@@ -3,7 +3,7 @@
  *
  * Every function here is async and artificially delayed so loading and skeleton
  * states are visible. To move to the real Node.js/Express backend, replace the
- * bodies with `fetch()` calls — the signatures and return types stay the same.
+ * bodies with `fetch()` calls - the signatures and return types stay the same.
  */
 import {
   allGroups,
@@ -583,12 +583,46 @@ export const registerAccount = (input: {
     createdAt: new Date().toISOString(),
   };
 
-  // Keep the role-specific lists in step with the combined one — screens read
+  // Keep the role-specific lists in step with the combined one - screens read
   // from whichever suits them.
   (user.role === "student" ? studentUsers : staffUsers).push(user);
   users.push(user);
 
   return delay(user, 800);
+};
+
+/**
+ * Updates a registration that hasn't been verified yet, e.g. when a student goes
+ * back and fixes a typo in their email before entering the code. Verified
+ * accounts can't be changed this way.
+ */
+export const updatePendingRegistration = (
+  userId: string,
+  input: { name: string; surname: string; email: string; studentNumber: string },
+): Promise<User> => {
+  const user = users.find((u) => u.id === userId);
+  if (!user || user.status !== "unverified") {
+    throw new RegistrationError(
+      "This registration can't be changed any more. Please sign in instead.",
+      "email",
+    );
+  }
+
+  const email = input.email.trim().toLowerCase();
+  if (users.some((u) => u.id !== userId && u.email.toLowerCase() === email)) {
+    throw new RegistrationError("An account already uses that email address.", "email");
+  }
+  if (users.some((u) => u.id !== userId && u.studentNumber === input.studentNumber)) {
+    throw new RegistrationError("An account already uses that student number.", "studentNumber");
+  }
+
+  // `users` and `studentUsers` hold the same object, so both lists see this.
+  user.name = input.name.trim();
+  user.surname = input.surname.trim();
+  user.email = input.email.trim();
+  user.studentNumber = input.studentNumber;
+
+  return delay(user, 600);
 };
 
 /**

@@ -26,7 +26,7 @@ function ForgotPasswordPage() {
       return;
     }
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
-      setError("This doesn't look like an email address — check for a missing @ or full stop.");
+      setError("This doesn't look like an email address - check for a missing @ or full stop.");
       return;
     }
     setError(null);
@@ -74,7 +74,7 @@ function ForgotPasswordPage() {
       title="Reset your password"
       description="Tell us the email address on your Peerly account and we'll send you a reset link."
       footer={
-        <Link to="/login" className="font-medium text-auth-canvas-accent hover:underline">
+        <Link to="/login" className="font-semibold text-primary hover:underline">
           Back to sign in
         </Link>
       }

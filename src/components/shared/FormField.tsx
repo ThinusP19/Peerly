@@ -11,7 +11,7 @@ export interface FieldControlProps {
 
 /**
  * Every form control gets a real <label>, an optional plain-language hint, and
- * an inline error underneath — never a placeholder standing in for a label, and
+ * an inline error underneath - never a placeholder standing in for a label, and
  * never a red border with no explanation.
  */
 export function FormField({
@@ -36,7 +36,7 @@ export function FormField({
 
   return (
     <div className={cn("space-y-1.5", className)}>
-      <Label htmlFor={id} className={cn(error && "text-danger")}>
+      <Label htmlFor={id} data-slot="field-label" className={cn(error && "text-danger")}>
         {label}
         {required ? (
           <span className="text-danger" aria-hidden="true">

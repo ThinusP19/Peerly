@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportError } from "../lib/report-error";
 import { DevRoleSwitcher } from "@/components/DevRoleSwitcher";
+import { PageTransitionProvider } from "@/components/shared/PageTransition";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SessionProvider } from "@/lib/session";
@@ -85,10 +86,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "Peerly automates student peer assessment for group projects — class lists, groups, evaluations, marks and exports.",
+          "Peerly automates student peer assessment for group projects - class lists, groups, evaluations, marks and exports.",
       },
       { name: "author", content: "Peerly" },
-      { name: "theme-color", content: "#4F46E5" },
+      { name: "theme-color", content: "#462A69" },
 
       { property: "og:site_name", content: "Peerly" },
       { property: "og:title", content: "Peerly Assessment Hub" },
@@ -105,7 +106,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:image:height", content: "630" },
       {
         property: "og:image:alt",
-        content: "Peerly — automated peer assessment for group projects.",
+        content: "Peerly - automated peer assessment for group projects.",
       },
 
       { name: "twitter:card", content: "summary_large_image" },
@@ -157,10 +158,13 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <SessionProvider>
         <TooltipProvider delayDuration={200}>
-          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-          <Outlet />
-          <DevRoleSwitcher />
-          <Toaster position="top-right" richColors closeButton />
+          {/* Preloader on hard reload and on flagged route transitions. */}
+          <PageTransitionProvider>
+            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+            <Outlet />
+            <DevRoleSwitcher />
+            <Toaster position="top-right" richColors closeButton />
+          </PageTransitionProvider>
         </TooltipProvider>
       </SessionProvider>
     </QueryClientProvider>
