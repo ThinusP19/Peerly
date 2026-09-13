@@ -11,13 +11,13 @@ import { usePageTransition } from "@/hooks/use-page-transition";
 import { homePathForRole, useSession } from "@/lib/session";
 import { users } from "@/mocks/data";
 
-type Audience = "student" | "staff";
+type Audience = "student" | "lecturer";
 
 export const Route = createFileRoute("/login")({
   // `?as=` picks the form's wording. It never decides the portal - that is
   // always the account's own role.
   validateSearch: (search: Record<string, unknown>): { as?: Audience } => ({
-    as: search["as"] === "student" || search["as"] === "staff" ? search["as"] : undefined,
+    as: search["as"] === "student" || search["as"] === "lecturer" ? search["as"] : undefined,
   }),
   // Choosing how you sign in happens on the welcome page, so a bare /login
   // (sign-out, the route guard, "back to sign in" links) goes there first.
@@ -33,9 +33,9 @@ const audiences: Record<Audience, { title: string; description: string; placehol
     description: "Use your NWU student email address to continue.",
     placeholder: "studentno@mynwu.ac.za",
   },
-  staff: {
-    title: "Staff sign in",
-    description: "Use your NWU staff email address to continue.",
+  lecturer: {
+    title: "Lecturer sign in",
+    description: "Use your NWU email address to continue.",
     placeholder: "name.surname@nwu.ac.za",
   },
 };
@@ -95,7 +95,7 @@ function SignInForm({ audience }: { audience: Audience }) {
     setBusy(false);
     toast.success(`Signed in as ${account.name} ${account.surname}`);
     // The account's own role decides the portal - a student who signs in on the
-    // staff form still lands in the Student Portal.
+    // lecturer form still lands in the Student Portal.
     navigate({ to: homePathForRole(account.role) });
   };
 
@@ -117,8 +117,8 @@ function SignInForm({ audience }: { audience: Audience }) {
       title={copy.title}
       description={copy.description}
       // Registration is for students only, so its link lives on the student
-      // form - the one place a new student is guaranteed to pass. Staff can't
-      // register, so they get the line that says where accounts come from.
+      // form - the one place a new student is guaranteed to pass. Lecturers
+      // can't register, so they get the line that says where accounts come from.
       footer={
         audience === "student" ? (
           <>
@@ -128,7 +128,7 @@ function SignInForm({ audience }: { audience: Audience }) {
             </Link>
           </>
         ) : (
-          "Staff accounts are created by your System Administrator."
+          "Lecturer accounts are set up for you, so there's nothing to register."
         )
       }
     >

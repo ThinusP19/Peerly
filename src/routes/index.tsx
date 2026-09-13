@@ -21,7 +21,7 @@ export const Route = createFileRoute("/")({
 const WELCOME_BACKGROUND: string | null = "/students-on-campus.jpg";
 
 const choices: Array<{
-  as: "student" | "staff";
+  as: "student" | "lecturer";
   icon: LucideIcon;
   title: string;
   hint: string;
@@ -33,10 +33,10 @@ const choices: Array<{
     hint: "Rate your group members and follow your assessments.",
   },
   {
-    as: "staff",
+    as: "lecturer",
     icon: Users,
-    title: "I'm staff",
-    hint: "Lecturers and system administrators.",
+    title: "I'm a lecturer",
+    hint: "Manage your classes, groups and peer assessments.",
   },
 ];
 
@@ -101,7 +101,7 @@ function WelcomePage() {
                 to="/login"
                 search={{ as: choice.as }}
                 onClick={transitionOnClick(
-                  choice.as === "student" ? "Opening student sign in" : "Opening staff sign in",
+                  choice.as === "student" ? "Opening student sign in" : "Opening lecturer sign in",
                 )}
                 className="group flex flex-col rounded-2xl bg-card p-6 shadow-raised transition hover:-translate-y-0.5 hover:shadow-xl focus-visible:outline-auth-panel-heading"
               >
