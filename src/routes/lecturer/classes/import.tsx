@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { AlertTriangle, Check, CheckCircle2, Loader2 } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, Info, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -9,6 +9,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { FileUpload } from "@/components/shared/FileUpload";
 import { FormField } from "@/components/shared/FormField";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { PanelHeader } from "@/components/shared/PanelHeader";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -48,6 +49,10 @@ type StepKey = (typeof steps)[number]["key"];
 const fileHeaders = ["Stud No.", "Given Name", "Family Name", "Email Address", "Programme"];
 
 type FieldKey = "studentNumber" | "name" | "surname" | "email";
+
+// The submit strip at the foot of each step panel.
+const panelFooterClass =
+  "flex flex-col-reverse gap-2 border-t px-5 py-4 sm:flex-row sm:justify-end sm:px-6";
 
 const fields: Array<{ key: FieldKey; label: string; hint: string; guess: string }> = [
   {
@@ -119,54 +124,64 @@ function ImportPage() {
       />
 
       {/* Step indicator */}
-      <ol className="flex flex-wrap gap-x-2 gap-y-3">
-        {steps.map((s, index) => {
-          const state = index < stepIndex ? "done" : index === stepIndex ? "current" : "todo";
-          return (
-            <li key={s.key} className="flex items-center gap-2">
-              <span
-                className={cn(
-                  "flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
-                  state === "done" && "border-success bg-success text-success-foreground",
-                  state === "current" && "border-primary bg-primary text-primary-foreground",
-                  state === "todo" && "border-border bg-card text-muted-foreground",
-                )}
+      <Card className="rounded-2xl border-0 px-5 py-4 shadow-card sm:px-6">
+        <ol className="flex flex-wrap gap-x-2 gap-y-3">
+          {steps.map((s, index) => {
+            const state = index < stepIndex ? "done" : index === stepIndex ? "current" : "todo";
+            return (
+              <li
+                key={s.key}
+                className="flex items-center gap-2"
+                aria-current={state === "current" ? "step" : undefined}
               >
-                {state === "done" ? <Check className="size-3.5" aria-hidden="true" /> : index + 1}
-              </span>
-              <span
-                className={cn(
-                  "text-sm",
-                  state === "current" ? "font-medium text-foreground" : "text-muted-foreground",
-                )}
-              >
-                {s.label}
-              </span>
-              {index < steps.length - 1 ? (
-                <span className="mx-1 hidden h-px w-8 bg-border sm:block" aria-hidden="true" />
-              ) : null}
-            </li>
-          );
-        })}
-      </ol>
+                <span
+                  className={cn(
+                    "flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
+                    state === "done" && "border-success bg-success text-success-foreground",
+                    state === "current" && "border-primary bg-primary text-primary-foreground",
+                    state === "todo" && "border-border bg-card text-muted-foreground",
+                  )}
+                >
+                  {state === "done" ? <Check className="size-3.5" aria-hidden="true" /> : index + 1}
+                </span>
+                <span
+                  className={cn(
+                    "text-sm",
+                    state === "current" ? "font-semibold text-foreground" : "text-muted-foreground",
+                  )}
+                >
+                  {s.label}
+                </span>
+                {index < steps.length - 1 ? (
+                  <span className="mx-1 hidden h-px w-8 bg-border sm:block" aria-hidden="true" />
+                ) : null}
+              </li>
+            );
+          })}
+        </ol>
+      </Card>
 
       {step === "upload" ? (
-        <Card className="space-y-4 p-5 shadow-card">
-          <div>
-            <h2 className="font-semibold text-foreground">Upload the class list</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Export the list from the student system and upload it here. We'll show you exactly
-              what will be imported before anything changes.
-            </p>
+        <Card className="overflow-hidden rounded-2xl border-0 shadow-card">
+          <PanelHeader
+            title="Upload the class list"
+            size="lg"
+            description="Export the list from the student system and upload it here. We'll show you exactly what will be imported before anything changes."
+          />
+
+          <div className="px-5 py-5 sm:px-6">
+            <FileUpload file={file} onFileChange={setFile} />
           </div>
 
-          <FileUpload file={file} onFileChange={setFile} />
-
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => navigate({ to: "/lecturer/classes" })}>
+          <div className={panelFooterClass}>
+            <Button
+              variant="outline"
+              onClick={() => navigate({ to: "/lecturer/classes" })}
+              className="h-10 px-4"
+            >
               Cancel
             </Button>
-            <Button disabled={!file} onClick={() => setStep("mapping")}>
+            <Button disabled={!file} onClick={() => setStep("mapping")} className="h-10 px-4">
               Continue
             </Button>
           </div>
@@ -174,58 +189,72 @@ function ImportPage() {
       ) : null}
 
       {step === "mapping" ? (
-        <Card className="space-y-5 p-5 shadow-card">
-          <div>
-            <h2 className="font-semibold text-foreground">Confirm the columns</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              We matched the headers in{" "}
-              <span className="font-medium text-foreground">{file?.name}</span> to Peerly's fields.
-              Change anything we got wrong.
-            </p>
+        <Card className="overflow-hidden rounded-2xl border-0 shadow-card">
+          <PanelHeader
+            title="Confirm the columns"
+            size="lg"
+            description={
+              <>
+                We matched the headers in{" "}
+                <span className="font-medium text-foreground">{file?.name}</span> to Peerly's
+                fields. Change anything we got wrong.
+              </>
+            }
+          />
+
+          <div className="space-y-5 px-5 py-5 sm:px-6">
+            {mappingError ? (
+              <p
+                role="alert"
+                className="flex gap-2.5 rounded-lg border border-danger/30 bg-danger-muted p-3 text-sm text-danger"
+              >
+                <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                <span>{mappingError}</span>
+              </p>
+            ) : null}
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              {fields.map((field) => (
+                <FormField key={field.key} label={field.label} hint={field.hint} required>
+                  {(props) => (
+                    <Select
+                      value={mapping[field.key]}
+                      onValueChange={(value) =>
+                        setMapping((current) => ({ ...current, [field.key]: value }))
+                      }
+                    >
+                      <SelectTrigger id={props.id} aria-describedby={props["aria-describedby"]}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {fileHeaders.map((header) => (
+                          <SelectItem key={header} value={header}>
+                            {header}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </FormField>
+              ))}
+            </div>
+
+            <div className="flex gap-2.5 rounded-lg bg-muted p-3.5 text-sm text-muted-foreground">
+              <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              <p>
+                The <span className="font-medium text-foreground">Programme</span> column isn't used
+                by Peerly and will be ignored.
+              </p>
+            </div>
           </div>
 
-          {mappingError ? (
-            <p role="alert" className="text-sm text-danger">
-              {mappingError}
-            </p>
-          ) : null}
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            {fields.map((field) => (
-              <FormField key={field.key} label={field.label} hint={field.hint} required>
-                {(props) => (
-                  <Select
-                    value={mapping[field.key]}
-                    onValueChange={(value) =>
-                      setMapping((current) => ({ ...current, [field.key]: value }))
-                    }
-                  >
-                    <SelectTrigger id={props.id} aria-describedby={props["aria-describedby"]}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {fileHeaders.map((header) => (
-                        <SelectItem key={header} value={header}>
-                          {header}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </FormField>
-            ))}
-          </div>
-
-          <div className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
-            The <span className="font-medium text-foreground">Programme</span> column isn't used by
-            Peerly and will be ignored.
-          </div>
-
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setStep("upload")}>
+          <div className={panelFooterClass}>
+            <Button variant="outline" onClick={() => setStep("upload")} className="h-10 px-4">
               Back
             </Button>
-            <Button onClick={goToPreview}>Continue</Button>
+            <Button onClick={goToPreview} className="h-10 px-4">
+              Continue
+            </Button>
           </div>
         </Card>
       ) : null}
@@ -233,50 +262,59 @@ function ImportPage() {
       {step === "preview" || step === "confirm" ? (
         <>
           {preview.isPending ? (
-            <Card className="flex items-center justify-center gap-3 p-10 text-muted-foreground shadow-card">
+            <Card className="flex items-center justify-center gap-3 rounded-2xl border-0 px-6 py-14 text-muted-foreground shadow-card">
               <Loader2 className="size-5 animate-spin" aria-hidden="true" />
-              <p className="text-sm">Reading {file?.name}…</p>
+              <p className="min-w-0 text-sm break-words">Reading {file?.name}…</p>
             </Card>
           ) : (
             <>
               <Card
                 className={cn(
-                  "flex flex-col gap-3 p-4 shadow-card sm:flex-row sm:items-center sm:justify-between",
-                  errorRows.length
-                    ? "border-warning/40 bg-warning-muted/40"
-                    : "border-success/40 bg-success-muted/40",
+                  "flex flex-col gap-4 rounded-2xl border p-5 shadow-card sm:flex-row sm:items-center sm:justify-between sm:px-6",
+                  errorRows.length ? "border-warning/25" : "border-success/25",
                 )}
               >
                 <div className="flex gap-3">
-                  {errorRows.length ? (
-                    <AlertTriangle
-                      className="mt-0.5 size-5 shrink-0 text-warning"
-                      aria-hidden="true"
-                    />
-                  ) : (
-                    <CheckCircle2
-                      className="mt-0.5 size-5 shrink-0 text-success"
-                      aria-hidden="true"
-                    />
-                  )}
-                  <div>
-                    <p className="font-medium text-foreground">
+                  <span
+                    className={cn(
+                      "flex size-9 shrink-0 items-center justify-center rounded-lg",
+                      errorRows.length
+                        ? "bg-warning-muted text-warning"
+                        : "bg-success-muted text-success",
+                    )}
+                  >
+                    {errorRows.length ? (
+                      <AlertTriangle className="size-4" aria-hidden="true" />
+                    ) : (
+                      <CheckCircle2 className="size-4" aria-hidden="true" />
+                    )}
+                  </span>
+                  <div className="min-w-0">
+                    <h2 className="font-semibold text-foreground">
                       {validRows.length} rows ready to import
                       {errorRows.length ? `, ${errorRows.length} with errors` : ""}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
+                    </h2>
+                    <p className="mt-0.5 text-sm text-muted-foreground">
                       {errorRows.length
                         ? "Rows with errors are highlighted below and will be skipped. Fix them in the file and re-upload if you need them."
                         : "Every row passed validation."}
                     </p>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => setStep("upload")}>
+                <Button
+                  variant="outline"
+                  onClick={() => setStep("upload")}
+                  className="h-10 shrink-0 px-4"
+                >
                   Upload a different file
                 </Button>
               </Card>
 
-              <div className="w-full overflow-x-auto rounded-lg border bg-card shadow-card">
+              {/* Rows, then the step's actions, in one panel. The table scrolls
+                  sideways inside its own wrapper on narrow screens. */}
+              <Card className="overflow-hidden rounded-2xl border-0 shadow-card">
+                <PanelHeader title="Check the rows" size="lg" count={rows.length} />
+
                 <Table>
                   <caption className="sr-only">Rows parsed from the uploaded class list</caption>
                   <TableHeader>
@@ -303,8 +341,8 @@ function ImportPage() {
                           </TableCell>
                           <TableCell
                             className={cn(
-                              "tabular-nums",
-                              fieldsWithErrors.has("Student number") && "font-medium text-danger",
+                              "tabular-nums whitespace-nowrap",
+                              fieldsWithErrors.has("Student number") && "font-semibold text-danger",
                             )}
                           >
                             {row.studentNumber}
@@ -312,24 +350,25 @@ function ImportPage() {
                           <TableCell>{row.name}</TableCell>
                           <TableCell
                             className={cn(
-                              fieldsWithErrors.has("Surname") && "font-medium text-danger",
+                              fieldsWithErrors.has("Surname") && "font-semibold text-danger",
                             )}
                           >
                             {row.surname}
                           </TableCell>
                           <TableCell
                             className={cn(
-                              fieldsWithErrors.has("Email") && "font-medium text-danger",
+                              "whitespace-nowrap",
+                              fieldsWithErrors.has("Email") && "font-semibold text-danger",
                             )}
                           >
                             {row.email || <span className="text-danger">Missing</span>}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="min-w-56">
                             {invalid ? (
                               <ul className="space-y-1">
                                 {row.errors.map((error) => (
                                   <li key={error.field} className="text-sm text-danger">
-                                    <span className="font-medium">{error.field}:</span>{" "}
+                                    <span className="font-semibold">{error.field}:</span>{" "}
                                     {error.reason}
                                   </li>
                                 ))}
@@ -346,16 +385,24 @@ function ImportPage() {
                     })}
                   </TableBody>
                 </Table>
-              </div>
 
-              <div className="flex flex-wrap justify-end gap-2">
-                <Button variant="outline" onClick={() => setStep("mapping")}>
-                  Back
-                </Button>
-                <BusyButton disabled={validRows.length === 0} onClick={() => setConfirmOpen(true)}>
-                  Import {validRows.length} students
-                </BusyButton>
-              </div>
+                <div className={panelFooterClass}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setStep("mapping")}
+                    className="h-10 px-4"
+                  >
+                    Back
+                  </Button>
+                  <BusyButton
+                    disabled={validRows.length === 0}
+                    onClick={() => setConfirmOpen(true)}
+                    className="h-10 px-4"
+                  >
+                    Import {validRows.length} students
+                  </BusyButton>
+                </div>
+              </Card>
             </>
           )}
         </>

@@ -137,7 +137,7 @@ function SignInForm({ audience }: { audience: Audience }) {
         {formError ? (
           <div
             role="alert"
-            className="flex gap-2.5 rounded-md border border-danger/30 bg-danger-muted p-3 text-sm text-danger"
+            className="flex gap-2.5 rounded-lg border border-danger/30 bg-danger-muted p-3.5 text-sm text-danger"
           >
             <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             <div className="space-y-1">

@@ -12,6 +12,7 @@ import { FormField } from "@/components/shared/FormField";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge, accountStatusKind } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -96,10 +97,10 @@ function AccountsPage() {
       sortValue: (row) => `${row.surname} ${row.name}`,
       cell: (row) => (
         <div className="min-w-0">
-          <p className="font-medium text-foreground">
+          <p className="font-semibold text-foreground">
             {row.name} {row.surname}
           </p>
-          <p className="text-xs text-muted-foreground sm:hidden">{row.email}</p>
+          <p className="mt-0.5 text-xs break-all text-muted-foreground sm:hidden">{row.email}</p>
         </div>
       ),
     },
@@ -115,7 +116,8 @@ function AccountsPage() {
       key: "role",
       header: "Role",
       sortValue: (row) => row.role,
-      cell: (row) => <span className="text-sm">{roleLabel(row.role)}</span>,
+      className: "whitespace-nowrap",
+      cell: (row) => roleLabel(row.role),
     },
     {
       key: "status",
@@ -164,98 +166,106 @@ function AccountsPage() {
         title="Lecturer & administrator accounts"
         description="Create staff accounts and control who can sign in. Student accounts are self-registered and are not managed here."
         actions={
-          <Button onClick={() => setCreateOpen(true)}>
+          <Button onClick={() => setCreateOpen(true)} className="h-10 px-4">
             <UserPlus aria-hidden="true" />
             Create account
           </Button>
         }
       />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <Search
-            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden="true"
-          />
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search by name or email"
-            aria-label="Search accounts by name or email"
-            className="pl-9"
-          />
+      <Card className="overflow-hidden rounded-2xl border-0 shadow-card">
+        {/* Wraps before the search box gets cramped; the count rides at the end. */}
+        <div className="flex flex-col gap-3 border-b px-5 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:px-6">
+          <div className="relative min-w-0 flex-1 sm:min-w-64">
+            <Search
+              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search by name or email"
+              aria-label="Search accounts by name or email"
+              className="h-10 rounded-lg pl-9"
+            />
+          </div>
+
+          <Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as RoleFilter)}>
+            <SelectTrigger className="h-10 w-full rounded-lg sm:w-48" aria-label="Filter by role">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All roles</SelectItem>
+              <SelectItem value="lecturer">Lecturer</SelectItem>
+              <SelectItem value="admin">System Administrator</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={statusFilter}
+            onValueChange={(value) => setStatusFilter(value as StatusFilter)}
+          >
+            <SelectTrigger className="h-10 w-full rounded-lg sm:w-44" aria-label="Filter by status">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Deactivated</SelectItem>
+              <SelectItem value="unverified">Unverified</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <p
+            className="text-sm whitespace-nowrap text-muted-foreground sm:ml-auto"
+            aria-live="polite"
+          >
+            {accounts.isPending
+              ? "Loading accounts…"
+              : `Showing ${rows.length} of ${accounts.data?.length ?? 0} accounts`}
+          </p>
         </div>
 
-        <Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as RoleFilter)}>
-          <SelectTrigger className="w-full sm:w-48" aria-label="Filter by role">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All roles</SelectItem>
-            <SelectItem value="lecturer">Lecturer</SelectItem>
-            <SelectItem value="admin">System Administrator</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={statusFilter}
-          onValueChange={(value) => setStatusFilter(value as StatusFilter)}
-        >
-          <SelectTrigger className="w-full sm:w-44" aria-label="Filter by status">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="inactive">Deactivated</SelectItem>
-            <SelectItem value="unverified">Unverified</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <p className="text-sm text-muted-foreground" aria-live="polite">
-        {accounts.isPending
-          ? "Loading accounts…"
-          : `Showing ${rows.length} of ${accounts.data?.length ?? 0} accounts`}
-      </p>
-
-      <DataTable
-        columns={columns}
-        rows={rows}
-        getRowKey={(row) => row.id}
-        loading={accounts.isPending}
-        caption="Lecturer and administrator accounts"
-        empty={
-          <EmptyState
-            icon={Users}
-            title={filtersApplied ? "No accounts match those filters" : "No staff accounts yet"}
-            description={
-              filtersApplied
-                ? "Try a different search term, or clear the role and status filters."
-                : "Create the first lecturer or administrator account to get started."
-            }
-            action={
-              filtersApplied ? (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setSearch("");
-                    setRoleFilter("all");
-                    setStatusFilter("all");
-                  }}
-                >
-                  Clear filters
-                </Button>
-              ) : (
-                <Button onClick={() => setCreateOpen(true)}>
-                  <UserPlus aria-hidden="true" />
-                  Create account
-                </Button>
-              )
-            }
-          />
-        }
-      />
+        <DataTable
+          columns={columns}
+          rows={rows}
+          getRowKey={(row) => row.id}
+          loading={accounts.isPending}
+          caption="Lecturer and administrator accounts"
+          className="rounded-none shadow-none"
+          empty={
+            <EmptyState
+              icon={Users}
+              title={filtersApplied ? "No accounts match those filters" : "No staff accounts yet"}
+              description={
+                filtersApplied
+                  ? "Try a different search term, or clear the role and status filters."
+                  : "Create the first lecturer or administrator account to get started."
+              }
+              action={
+                filtersApplied ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSearch("");
+                      setRoleFilter("all");
+                      setStatusFilter("all");
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                ) : (
+                  <Button onClick={() => setCreateOpen(true)}>
+                    <UserPlus aria-hidden="true" />
+                    Create account
+                  </Button>
+                )
+              }
+              className="rounded-none bg-transparent shadow-none"
+            />
+          }
+        />
+      </Card>
 
       <AccountFormDialog
         mode="create"
@@ -312,7 +322,7 @@ function AccountsPage() {
             <DialogTitle>This account can't be deactivated</DialogTitle>
             <DialogDescription asChild>
               <div className="space-y-2 text-sm text-muted-foreground">
-                <p className="font-medium text-foreground">
+                <p className="font-semibold text-foreground">
                   {blockedAccount?.name} {blockedAccount?.surname}
                 </p>
                 <p>
@@ -323,7 +333,7 @@ function AccountsPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex gap-2.5 rounded-md border border-danger/30 bg-danger-muted p-3 text-sm text-danger">
+          <div className="flex gap-2.5 rounded-lg border border-danger/30 bg-danger-muted p-3 text-sm text-danger">
             <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             <p>Create or activate another System Administrator first, then deactivate this one.</p>
           </div>
@@ -518,9 +528,9 @@ function AccountFormDialog({
             </FormField>
 
             {mode === "edit" && account ? (
-              <div className="rounded-md bg-muted p-3 text-xs text-muted-foreground">
+              <div className="rounded-lg bg-muted p-3.5 text-sm text-muted-foreground">
                 Created {formatDate(account.createdAt)} · current status{" "}
-                <span className="font-medium text-foreground">
+                <span className="font-semibold text-foreground">
                   {account.status === "inactive"
                     ? "Deactivated"
                     : account.status === "active"

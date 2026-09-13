@@ -3,6 +3,7 @@ import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   BarChart3,
   CalendarClock,
+  ChevronRight,
   Grid3x3,
   Lock,
   Pencil,
@@ -19,6 +20,7 @@ import { DangerZone, UnexportedAcknowledgement } from "@/components/shared/Dange
 import { EmptyState } from "@/components/shared/EmptyState";
 import { FormField } from "@/components/shared/FormField";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { PanelHeader } from "@/components/shared/PanelHeader";
 import { ProgressBar } from "@/components/shared/ProgressBar";
 import { StatCard } from "@/components/shared/StatCard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -43,6 +45,12 @@ export const Route = createFileRoute("/lecturer/assessments/$assessmentId/")({
 });
 
 type PendingAction = "open" | "close" | "reopen" | null;
+
+const nextSteps = [
+  { to: "/lecturer/monitor", label: "Submission monitor", icon: BarChart3 },
+  { to: "/lecturer/matrix", label: "Evaluation matrix", icon: Grid3x3 },
+  { to: "/lecturer/marks", label: "Marks & calculation", icon: Sigma },
+] as const;
 
 function AssessmentDetailPage() {
   const { assessmentId } = Route.useParams();
@@ -78,9 +86,10 @@ function AssessmentDetailPage() {
 
   if (assessmentQuery.isPending) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-10 w-80" />
-        <Skeleton className="h-40 w-full rounded-lg" />
+      <div className="space-y-3">
+        <Skeleton className="h-24 rounded-2xl" />
+        <Skeleton className="h-28 rounded-2xl" />
+        <Skeleton className="h-40 rounded-2xl" />
       </div>
     );
   }
@@ -118,7 +127,7 @@ function AssessmentDetailPage() {
           klass ? `${klass.moduleCode} - ${klass.name} · ${klass.academicPeriod}` : undefined
         }
         actions={
-          <Button asChild variant="outline">
+          <Button asChild variant="outline" className="h-10 px-4">
             <Link
               to="/lecturer/assessments/$assessmentId/edit"
               params={{ assessmentId: assessment.id }}
@@ -130,12 +139,13 @@ function AssessmentDetailPage() {
         }
       />
 
-      {/* Status is the headline of this screen. */}
-      <Card className="space-y-4 p-5 shadow-card">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+      {/* Status is the headline of this screen. The actions only sit beside the
+          text on wide screens, where the long deadline sentence still fits. */}
+      <Card className="flex flex-col gap-4 rounded-2xl border-0 p-5 shadow-card sm:px-6 xl:flex-row xl:items-center xl:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <StatusBadge status={assessment.status} className="px-3 py-1 text-sm" />
-            <p className="text-sm text-muted-foreground">
+            <p className="min-w-0 text-sm text-foreground">
               {assessment.status === "draft"
                 ? "Not visible to students yet."
                 : assessment.status === "open"
@@ -143,53 +153,57 @@ function AssessmentDetailPage() {
                   : `Closed on ${formatDateTimeLong(assessment.closesAt)}.`}
             </p>
           </div>
-
-          <div className="flex flex-wrap gap-2">
-            {assessment.status === "draft" ? (
-              <Button onClick={() => setPending("open")}>
-                <Unlock aria-hidden="true" />
-                Open to students
-              </Button>
-            ) : null}
-
-            {assessment.status === "open" ? (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    const date = new Date(assessment.closesAt);
-                    const pad = (v: number) => String(v).padStart(2, "0");
-                    setNewClosesAt(
-                      `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`,
-                    );
-                    setExtendOpen(true);
-                  }}
-                >
-                  <CalendarClock aria-hidden="true" />
-                  Extend deadline
-                </Button>
-                <Button variant="destructive" onClick={() => setPending("close")}>
-                  <Lock aria-hidden="true" />
-                  Close assessment
-                </Button>
-              </>
-            ) : null}
-
-            {assessment.status === "closed" ? (
-              <Button variant="outline" onClick={() => setPending("reopen")}>
-                <RotateCcw aria-hidden="true" />
-                Re-open
-              </Button>
-            ) : null}
-          </div>
+          {assessment.description ? (
+            <p className="mt-3 max-w-2xl text-sm text-muted-foreground">{assessment.description}</p>
+          ) : null}
         </div>
 
-        {assessment.description ? (
-          <p className="text-sm text-muted-foreground">{assessment.description}</p>
-        ) : null}
+        <div className="flex shrink-0 flex-wrap gap-2">
+          {assessment.status === "draft" ? (
+            <Button className="h-10 px-4" onClick={() => setPending("open")}>
+              <Unlock aria-hidden="true" />
+              Open to students
+            </Button>
+          ) : null}
+
+          {assessment.status === "open" ? (
+            <>
+              <Button
+                variant="outline"
+                className="h-10 px-4"
+                onClick={() => {
+                  const date = new Date(assessment.closesAt);
+                  const pad = (v: number) => String(v).padStart(2, "0");
+                  setNewClosesAt(
+                    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`,
+                  );
+                  setExtendOpen(true);
+                }}
+              >
+                <CalendarClock aria-hidden="true" />
+                Extend deadline
+              </Button>
+              <Button
+                variant="destructive"
+                className="h-10 px-4"
+                onClick={() => setPending("close")}
+              >
+                <Lock aria-hidden="true" />
+                Close assessment
+              </Button>
+            </>
+          ) : null}
+
+          {assessment.status === "closed" ? (
+            <Button variant="outline" className="h-10 px-4" onClick={() => setPending("reopen")}>
+              <RotateCcw aria-hidden="true" />
+              Re-open
+            </Button>
+          ) : null}
+        </div>
       </Card>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Groups" value={groups.length} icon={Users} />
         <StatCard label="Students" value={expected} />
         <StatCard
@@ -212,8 +226,8 @@ function AssessmentDetailPage() {
       </div>
 
       {assessment.status !== "draft" ? (
-        <Card className="space-y-3 p-5 shadow-card">
-          <h2 className="font-semibold text-foreground">Submission progress</h2>
+        <Card className="space-y-3 rounded-2xl border-0 p-5 shadow-card sm:px-6">
+          <h2 className="text-base font-semibold text-foreground">Submission progress</h2>
           <ProgressBar
             value={submitted}
             max={expected}
@@ -224,28 +238,29 @@ function AssessmentDetailPage() {
         </Card>
       ) : null}
 
-      <Card className="p-5 shadow-card">
-        <h2 className="font-semibold text-foreground">Where to next</h2>
-        <div className="mt-3 grid gap-2 sm:grid-cols-3">
-          <Button asChild variant="outline" className="justify-start">
-            <Link to="/lecturer/monitor">
-              <BarChart3 aria-hidden="true" />
-              Submission monitor
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="justify-start">
-            <Link to="/lecturer/matrix">
-              <Grid3x3 aria-hidden="true" />
-              Evaluation matrix
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="justify-start">
-            <Link to="/lecturer/marks">
-              <Sigma aria-hidden="true" />
-              Marks & calculation
-            </Link>
-          </Button>
-        </div>
+      <Card className="flex min-h-0 flex-col overflow-hidden rounded-2xl border-0 shadow-card">
+        <PanelHeader title="Where to next" />
+        <ul className="divide-y">
+          {nextSteps.map((step) => (
+            <li key={step.to}>
+              <Link
+                to={step.to}
+                className="group flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-muted/50 sm:px-6"
+              >
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+                  <step.icon className="size-4" aria-hidden="true" />
+                </span>
+                <span className="min-w-0 flex-1 text-sm font-semibold text-foreground">
+                  {step.label}
+                </span>
+                <ChevronRight
+                  className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                  aria-hidden="true"
+                />
+              </Link>
+            </li>
+          ))}
+        </ul>
       </Card>
 
       <DangerZone

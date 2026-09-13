@@ -226,8 +226,8 @@ function RegisterPage() {
   if (step === "done") {
     return (
       <AuthShell title="You're all set" description="Your student account is verified and active.">
-        <div className="space-y-6">
-          <div className="flex gap-3 rounded-md border border-success/30 bg-success-muted p-3.5 text-sm text-success">
+        <div className="space-y-5">
+          <div className="flex gap-2.5 rounded-lg border border-success/30 bg-success-muted p-3.5 text-sm text-success">
             <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             <p>
               Welcome to Peerly, {form.name.trim()}. Sign in with{" "}
@@ -325,7 +325,7 @@ function RegisterPage() {
         className="animate-in duration-300 fade-in slide-in-from-right-4 motion-reduce:animate-none"
       >
         {pendingUserId && step !== "verify" ? (
-          <div className="mb-5 flex gap-2.5 rounded-md border border-primary/20 bg-accent p-3 text-sm text-accent-foreground">
+          <div className="mb-5 flex gap-2.5 rounded-lg border border-primary/25 bg-accent p-3.5 text-sm text-accent-foreground">
             <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             <p>
               Your account is saved but not verified yet. Change anything you need, and we'll send a
@@ -335,7 +335,7 @@ function RegisterPage() {
         ) : null}
 
         {step === "details" ? (
-          <form onSubmit={submitDetails} noValidate className="space-y-4">
+          <form onSubmit={submitDetails} noValidate className="space-y-5">
             <FormField
               label="Student number"
               error={errors.studentNumber}
@@ -354,7 +354,7 @@ function RegisterPage() {
               )}
             </FormField>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2">
               <FormField label="First name" error={errors.name} required>
                 {(props) => (
                   <Input
@@ -385,7 +385,7 @@ function RegisterPage() {
         ) : null}
 
         {step === "account" ? (
-          <form onSubmit={submitAccount} noValidate className="space-y-4">
+          <form onSubmit={submitAccount} noValidate className="space-y-5">
             <FormField
               label="Student email"
               error={errors.email}
@@ -432,7 +432,7 @@ function RegisterPage() {
               )}
             </FormField>
 
-            <div className="space-y-2 rounded-md border bg-muted/40 p-3.5">
+            <div className="space-y-2 rounded-xl bg-muted/60 p-4">
               <div className="flex gap-2.5">
                 <Checkbox
                   id="data-notice"
@@ -467,11 +467,12 @@ function RegisterPage() {
               ) : null}
             </div>
 
-            <div className="flex gap-3">
+            {/* Stacks on phones: the longer labels don't fit beside Back at 390px. */}
+            <div className="flex flex-col-reverse gap-3 sm:flex-row">
               {backButton("details")}
               <BusyButton
                 type="submit"
-                className="flex-1"
+                className="sm:flex-1"
                 busy={busy}
                 busyLabel={pendingUserId ? "Saving…" : "Creating account…"}
               >
@@ -536,9 +537,9 @@ function RegisterPage() {
               ) : null}
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-col-reverse gap-3 sm:flex-row">
               {backButton("account")}
-              <BusyButton type="submit" className="flex-1" busy={busy} busyLabel="Verifying…">
+              <BusyButton type="submit" className="sm:flex-1" busy={busy} busyLabel="Verifying…">
                 Verify email
               </BusyButton>
             </div>

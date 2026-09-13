@@ -39,25 +39,27 @@ export function StatCard({
   className?: string;
 }) {
   return (
-    <Card className={cn("p-4 shadow-card", className)}>
+    <Card className={cn("rounded-2xl border-0 px-5 py-4 shadow-card", className)}>
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 space-y-1">
-          <p className="text-sm font-medium text-muted-foreground">{label}</p>
+        <div className="min-w-0">
+          <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+            {label}
+          </p>
           {loading ? (
-            <Skeleton className="h-8 w-16" />
+            <Skeleton className="mt-1 h-9 w-16" />
           ) : (
-            <p className={cn("text-2xl font-semibold tabular-nums", tones[tone])}>{value}</p>
+            <p className={cn("mt-1 text-3xl font-semibold tabular-nums", tones[tone])}>{value}</p>
           )}
-          {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+          {hint ? <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p> : null}
         </div>
         {Icon ? (
           <span
             className={cn(
-              "flex size-9 shrink-0 items-center justify-center rounded-md",
+              "flex size-8 shrink-0 items-center justify-center rounded-lg",
               iconTones[tone],
             )}
           >
-            <Icon className="size-4.5" aria-hidden="true" />
+            <Icon className="size-4" aria-hidden="true" />
           </span>
         ) : null}
       </div>

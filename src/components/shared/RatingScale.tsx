@@ -33,7 +33,7 @@ export function RatingScale({
       return <p className="text-sm text-muted-foreground">Not rated</p>;
     }
     return (
-      <div className={cn("rounded-md border border-primary/30 bg-accent p-3", className)}>
+      <div className={cn("rounded-xl border border-primary/25 bg-accent px-4 py-3", className)}>
         <p className="text-sm font-semibold text-accent-foreground">{selected.label}</p>
         <p className="mt-0.5 text-sm text-muted-foreground">{selected.description}</p>
       </div>
@@ -55,7 +55,7 @@ export function RatingScale({
             key={option.id}
             htmlFor={id}
             className={cn(
-              "flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors",
+              "flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 transition-colors",
               selected
                 ? "border-primary bg-accent ring-1 ring-primary"
                 : "border-border bg-card hover:border-primary/40 hover:bg-muted/50",

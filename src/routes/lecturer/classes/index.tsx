@@ -77,7 +77,7 @@ function ClassListPage() {
       key: "studentNumber",
       header: "Student number",
       sortValue: (row) => row.studentNumber,
-      className: "font-medium tabular-nums whitespace-nowrap",
+      className: "tabular-nums whitespace-nowrap text-foreground",
       cell: (row) => row.studentNumber,
     },
     {
@@ -86,11 +86,11 @@ function ClassListPage() {
       sortValue: (row) => `${row.importedSurname} ${row.importedName}`,
       cell: (row) => (
         <div className="min-w-0">
-          <p className="text-foreground">
+          <p className="font-semibold text-foreground">
             {row.importedName} {row.importedSurname}
           </p>
           {row.account && row.matchStatus === "matched" ? (
-            <p className="text-xs text-muted-foreground">{row.account.email}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{row.account.email}</p>
           ) : null}
         </div>
       ),
@@ -116,7 +116,7 @@ function ClassListPage() {
     {
       key: "note",
       header: "Why",
-      className: "text-muted-foreground",
+      className: "min-w-56 text-muted-foreground",
       cell: (row) => row.matchNote ?? "Matched to a registered Peerly account.",
     },
     {
@@ -153,12 +153,12 @@ function ClassListPage() {
         }
         actions={
           <>
-            <Button variant="outline" onClick={() => setCreateOpen(true)}>
+            <Button variant="outline" onClick={() => setCreateOpen(true)} className="h-10 px-4">
               <Plus aria-hidden="true" />
               New class
             </Button>
             {klass ? (
-              <Button asChild>
+              <Button asChild className="h-10 px-4">
                 <Link to="/lecturer/classes/import">
                   <UploadCloud aria-hidden="true" />
                   Import a new list
@@ -169,7 +169,7 @@ function ClassListPage() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="On the class list"
           value={all.length}
@@ -202,22 +202,28 @@ function ClassListPage() {
       </div>
 
       {!rows.isPending && unmatched.length + conflicts.length > 0 ? (
-        <Card className="flex flex-col gap-3 border-warning/30 bg-warning-muted/40 p-4 shadow-card sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex gap-2.5">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
-            <p className="text-sm text-foreground">
+        <Card className="flex flex-col gap-4 rounded-2xl border border-warning/25 p-5 shadow-card sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="flex gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-warning-muted text-warning">
+              <AlertTriangle className="size-4" aria-hidden="true" />
+            </span>
+            <p className="min-w-0 text-sm text-foreground">
               {unmatched.length + conflicts.length} students on this list aren't linked to an
               account. They can't be put into a group or rate anyone until that's resolved.
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
             {conflicts.length > 0 ? (
-              <Button variant="outline" size="sm" onClick={() => setStatus("conflict")}>
+              <Button variant="outline" onClick={() => setStatus("conflict")} className="h-10 px-4">
                 Show conflicts
               </Button>
             ) : null}
             {unmatched.length > 0 ? (
-              <Button variant="outline" size="sm" onClick={() => setStatus("unmatched")}>
+              <Button
+                variant="outline"
+                onClick={() => setStatus("unmatched")}
+                className="h-10 px-4"
+              >
                 Show unmatched
               </Button>
             ) : null}
@@ -225,79 +231,95 @@ function ClassListPage() {
         </Card>
       ) : null}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <Search
-            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden="true"
-          />
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search by name or student number"
-            aria-label="Search the class list"
-            className="pl-9"
-          />
+      {/* The filters, the result count and the table share one panel. */}
+      <Card className="overflow-hidden rounded-2xl border-0 shadow-card">
+        <div className="flex flex-col gap-3 border-b px-5 py-3 sm:flex-row sm:items-center sm:px-6">
+          <div className="relative min-w-0 flex-1">
+            <Search
+              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search by name or student number"
+              aria-label="Search the class list"
+              className="h-10 rounded-lg pl-9"
+            />
+          </div>
+
+          <Select value={status} onValueChange={(value) => setStatus(value as MatchStatus | "all")}>
+            <SelectTrigger
+              className="h-10 w-full rounded-lg sm:w-52"
+              aria-label="Filter by match status"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All match statuses</SelectItem>
+              <SelectItem value="matched">Matched</SelectItem>
+              <SelectItem value="unmatched">Unmatched</SelectItem>
+              <SelectItem value="conflict">Conflict</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <p
+            className="text-sm whitespace-nowrap text-muted-foreground sm:ml-auto"
+            aria-live="polite"
+          >
+            {rows.isPending
+              ? "Loading the class list…"
+              : `Showing ${filtered.length} of ${all.length} students`}
+          </p>
         </div>
 
-        <Select value={status} onValueChange={(value) => setStatus(value as MatchStatus | "all")}>
-          <SelectTrigger className="w-full sm:w-52" aria-label="Filter by match status">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All match statuses</SelectItem>
-            <SelectItem value="matched">Matched</SelectItem>
-            <SelectItem value="unmatched">Unmatched</SelectItem>
-            <SelectItem value="conflict">Conflict</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <p className="text-sm text-muted-foreground" aria-live="polite">
-        {rows.isPending
-          ? "Loading the class list…"
-          : `Showing ${filtered.length} of ${all.length} students`}
-      </p>
-
-      <DataTable
-        columns={columns}
-        rows={filtered}
-        getRowKey={(row) => row.id}
-        loading={rows.isPending}
-        skeletonRows={8}
-        caption="Students on this class list"
-        rowClassName={(row) => (row.matchStatus === "conflict" ? "bg-danger-muted/30" : undefined)}
-        empty={
-          <EmptyState
-            icon={Users}
-            title={
-              filtersApplied ? "No students match those filters" : "No class list imported yet"
-            }
-            description={
-              filtersApplied
-                ? "Try a different search term or clear the match status filter."
-                : "Import a .csv or .xlsx class list to populate this class."
-            }
-            action={
-              filtersApplied ? (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setSearch("");
-                    setStatus("all");
-                  }}
-                >
-                  Clear filters
-                </Button>
-              ) : (
-                <Button asChild>
-                  <Link to="/lecturer/classes/import">Import a class list</Link>
-                </Button>
-              )
-            }
-          />
-        }
-      />
+        <DataTable
+          columns={columns}
+          rows={filtered}
+          getRowKey={(row) => row.id}
+          loading={rows.isPending}
+          skeletonRows={8}
+          caption="Students on this class list"
+          className="rounded-none shadow-none"
+          rowClassName={(row) =>
+            row.matchStatus === "conflict" ? "bg-danger-muted/30" : undefined
+          }
+          empty={
+            <EmptyState
+              icon={Users}
+              title={
+                filtersApplied ? "No students match those filters" : "No class list imported yet"
+              }
+              description={
+                filtersApplied
+                  ? "Try a different search term or clear the match status filter."
+                  : "Import a .csv or .xlsx class list to populate this class."
+              }
+              action={
+                filtersApplied ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSearch("");
+                      setStatus("all");
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                ) : (
+                  <Button asChild>
+                    <Link to="/lecturer/classes/import">
+                      <UploadCloud aria-hidden="true" />
+                      Import a class list
+                    </Link>
+                  </Button>
+                )
+              }
+              className="rounded-none bg-transparent shadow-none"
+            />
+          }
+        />
+      </Card>
 
       {klass ? (
         <DangerZone

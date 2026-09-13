@@ -30,12 +30,18 @@ export function FlagBadge({ flag, className }: { flag: ResultFlag; className?: s
           className,
         )}
         aria-label={`${meta.label} - why was this flagged?`}
+        // Inside a clickable table row, opening the explanation must not also
+        // open the row.
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") event.stopPropagation();
+        }}
       >
         <Icon className="size-3.5 shrink-0" aria-hidden="true" />
         {meta.label}
       </PopoverTrigger>
-      <PopoverContent className="w-72 text-sm" align="start">
-        <p className="font-medium text-foreground">{meta.label}</p>
+      <PopoverContent className="w-72 rounded-xl border-0 text-sm shadow-raised" align="start">
+        <p className="font-semibold text-foreground">{meta.label}</p>
         <p className="mt-1 text-muted-foreground">{meta.description}</p>
       </PopoverContent>
     </Popover>

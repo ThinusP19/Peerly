@@ -8,6 +8,7 @@ import { BusyButton } from "@/components/shared/BusyButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { FormField } from "@/components/shared/FormField";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { PanelHeader } from "@/components/shared/PanelHeader";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -113,161 +114,185 @@ function GenerateGroupsPage() {
         }
       />
 
-      <Card className="space-y-5 p-5 shadow-card">
-        <div>
-          <h2 className="font-semibold text-foreground">How should the groups be built?</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Choose one of the two - the other is worked out for you.
-          </p>
+      <Card className="overflow-hidden rounded-2xl border-0 shadow-card">
+        <PanelHeader
+          title="How should the groups be built?"
+          size="lg"
+          description="Choose one of the two - the other is worked out for you."
+        />
+
+        <div className="space-y-5 px-5 py-5 sm:px-6">
+          <RadioGroup
+            value={mode}
+            onValueChange={(value) => {
+              setMode(value as Mode);
+              setError(null);
+            }}
+            className="gap-3 sm:grid-cols-2"
+          >
+            <label
+              htmlFor="mode-count"
+              className={cn(
+                "flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors",
+                mode === "count"
+                  ? "border-primary bg-accent ring-1 ring-primary"
+                  : "hover:bg-muted/50",
+              )}
+            >
+              <RadioGroupItem id="mode-count" value="count" className="mt-0.5" />
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-foreground">
+                  Number of groups
+                </span>
+                <span className="mt-0.5 block text-sm text-muted-foreground">
+                  Split the class into a fixed number of groups of roughly equal size.
+                </span>
+              </span>
+            </label>
+
+            <label
+              htmlFor="mode-size"
+              className={cn(
+                "flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors",
+                mode === "size"
+                  ? "border-primary bg-accent ring-1 ring-primary"
+                  : "hover:bg-muted/50",
+              )}
+            >
+              <RadioGroupItem id="mode-size" value="size" className="mt-0.5" />
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-foreground">
+                  Target group size
+                </span>
+                <span className="mt-0.5 block text-sm text-muted-foreground">
+                  Aim for a number of students per group; we work out how many groups that needs.
+                </span>
+              </span>
+            </label>
+          </RadioGroup>
+
+          <div className="max-w-xs">
+            {mode === "count" ? (
+              <FormField
+                label="How many groups?"
+                error={error}
+                hint={`About ${Math.max(1, Math.round(eligible / Math.max(1, Number(groupCount) || 1)))} students per group.`}
+                required
+              >
+                {(props) => (
+                  <Input
+                    {...props}
+                    type="number"
+                    min={1}
+                    max={eligible}
+                    value={groupCount}
+                    onChange={(event) => setGroupCount(event.target.value)}
+                  />
+                )}
+              </FormField>
+            ) : (
+              <FormField
+                label="Students per group"
+                error={error}
+                hint={`That works out to about ${Math.max(1, Math.ceil(eligible / Math.max(1, Number(groupSize) || 1)))} groups.`}
+                required
+              >
+                {(props) => (
+                  <Input
+                    {...props}
+                    type="number"
+                    min={1}
+                    max={eligible}
+                    value={groupSize}
+                    onChange={(event) => setGroupSize(event.target.value)}
+                  />
+                )}
+              </FormField>
+            )}
+          </div>
         </div>
 
-        <RadioGroup
-          value={mode}
-          onValueChange={(value) => {
-            setMode(value as Mode);
-            setError(null);
-          }}
-          className="gap-3 sm:grid-cols-2"
-        >
-          <label
-            htmlFor="mode-count"
-            className={cn(
-              "flex cursor-pointer items-start gap-3 rounded-md border p-3.5 transition-colors",
-              mode === "count"
-                ? "border-primary bg-accent ring-1 ring-primary"
-                : "hover:bg-muted/50",
-            )}
+        <div className="flex flex-col-reverse gap-2 border-t px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
+          <BusyButton
+            busy={generating}
+            busyLabel="Allocating students…"
+            onClick={generate}
+            className="h-10 px-4"
           >
-            <RadioGroupItem id="mode-count" value="count" className="mt-0.5" />
-            <span>
-              <span className="block text-sm font-medium text-foreground">Number of groups</span>
-              <span className="mt-0.5 block text-sm text-muted-foreground">
-                Split the class into a fixed number of groups of roughly equal size.
-              </span>
-            </span>
-          </label>
-
-          <label
-            htmlFor="mode-size"
-            className={cn(
-              "flex cursor-pointer items-start gap-3 rounded-md border p-3.5 transition-colors",
-              mode === "size"
-                ? "border-primary bg-accent ring-1 ring-primary"
-                : "hover:bg-muted/50",
-            )}
-          >
-            <RadioGroupItem id="mode-size" value="size" className="mt-0.5" />
-            <span>
-              <span className="block text-sm font-medium text-foreground">Target group size</span>
-              <span className="mt-0.5 block text-sm text-muted-foreground">
-                Aim for a number of students per group; we work out how many groups that needs.
-              </span>
-            </span>
-          </label>
-        </RadioGroup>
-
-        <div className="max-w-xs">
-          {mode === "count" ? (
-            <FormField
-              label="How many groups?"
-              error={error}
-              hint={`About ${Math.max(1, Math.round(eligible / Math.max(1, Number(groupCount) || 1)))} students per group.`}
-              required
-            >
-              {(props) => (
-                <Input
-                  {...props}
-                  type="number"
-                  min={1}
-                  max={eligible}
-                  value={groupCount}
-                  onChange={(event) => setGroupCount(event.target.value)}
-                />
-              )}
-            </FormField>
-          ) : (
-            <FormField
-              label="Students per group"
-              error={error}
-              hint={`That works out to about ${Math.max(1, Math.ceil(eligible / Math.max(1, Number(groupSize) || 1)))} groups.`}
-              required
-            >
-              {(props) => (
-                <Input
-                  {...props}
-                  type="number"
-                  min={1}
-                  max={eligible}
-                  value={groupSize}
-                  onChange={(event) => setGroupSize(event.target.value)}
-                />
-              )}
-            </FormField>
-          )}
+            <Shuffle aria-hidden="true" />
+            {proposed ? "Generate again" : "Generate groups"}
+          </BusyButton>
         </div>
-
-        <BusyButton busy={generating} busyLabel="Allocating students…" onClick={generate}>
-          <Shuffle aria-hidden="true" />
-          {proposed ? "Generate again" : "Generate groups"}
-        </BusyButton>
       </Card>
 
       {proposed ? (
         <>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
+          <Card className="flex flex-col gap-4 rounded-2xl border-0 p-5 shadow-card sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <div className="min-w-0">
               <h2 className="font-semibold text-foreground">Proposed allocation</h2>
-              <p className="text-sm text-muted-foreground">
+              <p className="mt-0.5 text-sm text-muted-foreground">
                 {proposed.length} groups · move anyone who shouldn't be where they landed. Nothing
                 is saved until you confirm.
               </p>
             </div>
-            <Button onClick={() => setConfirmOpen(true)} disabled={smallGroups.length > 0}>
+            <Button
+              onClick={() => setConfirmOpen(true)}
+              disabled={smallGroups.length > 0}
+              className="h-10 shrink-0 px-4"
+            >
               Confirm these groups
             </Button>
-          </div>
+          </Card>
 
           {smallGroups.length ? (
-            <div
+            <Card
               role="alert"
-              className="flex gap-2.5 rounded-md border border-warning/30 bg-warning-muted p-3.5 text-sm text-warning"
+              className="flex gap-3 rounded-2xl border border-warning/25 p-5 shadow-card sm:px-6"
             >
-              <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-              <div>
-                <p className="font-medium">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-warning-muted text-warning">
+                <AlertTriangle className="size-4" aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <h2 className="font-semibold text-foreground">
                   {smallGroups.length} {smallGroups.length === 1 ? "group has" : "groups have"}{" "}
                   fewer than 2 members
-                </p>
-                <p>
+                </h2>
+                <p className="mt-0.5 text-sm text-muted-foreground">
                   Peer assessment needs at least two people in a group - nobody can rate anyone in a
                   group of one. Move someone in, or generate again with fewer groups.
                 </p>
               </div>
-            </div>
+            </Card>
           ) : null}
 
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {proposed.map((group) => {
               const tooSmall = group.memberStudentIds.length < 2;
               return (
                 <Card
                   key={group.id}
-                  className={cn("flex flex-col shadow-card", tooSmall && "border-warning/50")}
+                  className={cn(
+                    "flex min-w-0 flex-col overflow-hidden rounded-2xl shadow-card",
+                    tooSmall ? "border border-warning/25" : "border-0",
+                  )}
                 >
-                  <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
-                    <h3 className="font-semibold text-foreground">Group {group.groupNumber}</h3>
-                    <span
-                      className={cn(
-                        "text-sm",
-                        tooSmall ? "font-medium text-warning" : "text-muted-foreground",
-                      )}
-                    >
-                      {group.memberStudentIds.length} members
-                    </span>
-                  </div>
+                  <PanelHeader
+                    as="h3"
+                    title={`Group ${group.groupNumber}`}
+                    actions={
+                      <span
+                        className={cn(
+                          "text-sm tabular-nums",
+                          tooSmall ? "font-semibold text-warning" : "text-muted-foreground",
+                        )}
+                      >
+                        {group.memberStudentIds.length} members
+                      </span>
+                    }
+                  />
 
                   {tooSmall ? (
-                    <p className="flex items-start gap-2 border-b bg-warning-muted/40 px-4 py-2.5 text-xs text-warning">
+                    <p className="flex items-start gap-2 border-b bg-warning-muted/40 px-5 py-2.5 text-xs text-warning sm:px-6">
                       <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
                       Too small to run a peer assessment.
                     </p>
@@ -277,8 +302,8 @@ function GenerateGroupsPage() {
                     {group.memberStudentIds.map((studentId) => {
                       const member = users.find((u) => u.id === studentId);
                       return (
-                        <li key={studentId} className="space-y-1.5 px-4 py-2.5">
-                          <p className="text-sm text-foreground">
+                        <li key={studentId} className="space-y-1.5 px-5 py-2.5 sm:px-6">
+                          <p className="text-sm break-words text-foreground">
                             {member?.name} {member?.surname}
                           </p>
                           <div className="flex items-center gap-2">
@@ -294,7 +319,7 @@ function GenerateGroupsPage() {
                             >
                               <SelectTrigger
                                 id={`move-${studentId}`}
-                                className="h-8 flex-1 text-xs"
+                                className="h-8 min-w-0 flex-1 rounded-lg text-xs"
                               >
                                 <SelectValue />
                               </SelectTrigger>
@@ -311,7 +336,7 @@ function GenerateGroupsPage() {
                       );
                     })}
                     {group.memberStudentIds.length === 0 ? (
-                      <li className="px-4 py-6 text-center text-sm text-muted-foreground">
+                      <li className="px-6 py-10 text-center text-sm text-muted-foreground">
                         Nobody in this group yet.
                       </li>
                     ) : null}

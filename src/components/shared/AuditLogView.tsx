@@ -6,6 +6,7 @@ import { DataTable, type Column } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { FormField } from "@/components/shared/FormField";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -88,8 +89,8 @@ export function AuditLogView({
       sortValue: (row) => row.actorName,
       cell: (row) => (
         <div className="min-w-0">
-          <p className="font-medium text-foreground">{row.actorName}</p>
-          <p className="text-xs text-muted-foreground">{roleLabel(row.actorRole)}</p>
+          <p className="font-semibold text-foreground">{row.actorName}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{roleLabel(row.actorRole)}</p>
         </div>
       ),
     },
@@ -106,22 +107,22 @@ export function AuditLogView({
       cell: (row) => (
         <div className="min-w-0">
           <p className="text-foreground">{row.objectDescription}</p>
-          <p className="text-xs text-muted-foreground">{row.detail}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{row.detail}</p>
         </div>
       ),
     },
   ];
 
   return (
-    <>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_auto_auto_auto] lg:items-end">
+    <Card className="overflow-hidden rounded-2xl border-0 shadow-card">
+      <div className="grid gap-3 border-b px-5 py-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-[1fr_auto_auto_auto] lg:items-end">
         <FormField label="Event type">
           {(props) => (
             <Select
               value={eventType}
               onValueChange={(value) => setEventType(value as AuditEventType | "all")}
             >
-              <SelectTrigger id={props.id} className="w-full lg:w-60">
+              <SelectTrigger id={props.id} className="h-10 w-full rounded-lg lg:w-60">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -143,7 +144,7 @@ export function AuditLogView({
               type="date"
               value={from}
               onChange={(event) => setFrom(event.target.value)}
-              className="w-full lg:w-44"
+              className="h-10 w-full rounded-lg lg:w-44"
             />
           )}
         </FormField>
@@ -155,21 +156,26 @@ export function AuditLogView({
               type="date"
               value={to}
               onChange={(event) => setTo(event.target.value)}
-              className="w-full lg:w-44"
+              className="h-10 w-full rounded-lg lg:w-44"
             />
           )}
         </FormField>
 
-        <Button variant="outline" onClick={clearFilters} disabled={!filtersApplied}>
+        <Button
+          variant="outline"
+          onClick={clearFilters}
+          disabled={!filtersApplied}
+          className="h-10"
+        >
           Clear filters
         </Button>
-      </div>
 
-      <p className="text-sm text-muted-foreground" aria-live="polite">
-        {audit.isPending
-          ? "Loading the audit log…"
-          : `Showing ${rows.length} of ${scoped.length} entries`}
-      </p>
+        <p className="col-span-full text-sm text-muted-foreground" aria-live="polite">
+          {audit.isPending
+            ? "Loading the audit log…"
+            : `Showing ${rows.length} of ${scoped.length} entries`}
+        </p>
+      </div>
 
       <DataTable
         columns={columns}
@@ -177,6 +183,7 @@ export function AuditLogView({
         getRowKey={(row) => row.id}
         loading={audit.isPending}
         caption="Audit log entries"
+        className="rounded-none shadow-none"
         empty={
           <EmptyState
             icon={ScrollText}
@@ -193,9 +200,10 @@ export function AuditLogView({
                 </Button>
               ) : undefined
             }
+            className="rounded-none bg-transparent shadow-none"
           />
         }
       />
-    </>
+    </Card>
   );
 }

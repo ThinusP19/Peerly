@@ -16,6 +16,9 @@ export const Route = createFileRoute("/student/evaluate/$assessmentId/submitted"
   component: SubmittedPage,
 });
 
+// Long forms read badly at full width, so the evaluation flow is capped.
+const FLOW = "mx-auto w-full max-w-3xl space-y-3";
+
 function SubmittedPage() {
   const { assessmentId } = Route.useParams();
   const { user } = useSession();
@@ -52,23 +55,25 @@ function SubmittedPage() {
 
   if (view.isPending || options.isPending || !hydrated) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-24 w-full rounded-lg" />
-        <Skeleton className="h-64 w-full rounded-lg" />
+      <div className={FLOW}>
+        <Skeleton className="h-40 w-full rounded-2xl" />
+        <Skeleton className="h-96 w-full rounded-2xl" />
       </div>
     );
   }
 
   if (!view.data) {
     return (
-      <EmptyState
-        title="We couldn't find that assessment"
-        action={
-          <Button asChild variant="outline">
-            <Link to="/student">Back to your assessments</Link>
-          </Button>
-        }
-      />
+      <div className={FLOW}>
+        <EmptyState
+          title="We couldn't find that assessment"
+          action={
+            <Button asChild variant="outline">
+              <Link to="/student">Back to your assessments</Link>
+            </Button>
+          }
+        />
+      </div>
     );
   }
 
@@ -76,54 +81,61 @@ function SubmittedPage() {
   const canAmend = assessment.status === "open" && !isOverdue(assessment.closesAt);
 
   return (
-    <>
-      <div className="flex flex-col items-center gap-3 pt-4 text-center">
-        <span className="flex size-12 items-center justify-center rounded-full bg-success-muted text-success">
+    <div className={FLOW}>
+      <Card className="flex flex-col items-center gap-3 rounded-2xl border-0 px-5 py-8 text-center shadow-card sm:px-6">
+        <span className="flex size-12 items-center justify-center rounded-xl bg-success-muted text-success">
           <CheckCircle2 className="size-6" aria-hidden="true" />
         </span>
-        <div className="space-y-1">
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
             Your evaluation has been submitted
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground">
             {klass.moduleCode} · {assessment.name} · Group {group.groupNumber}
           </p>
         </div>
-      </div>
+      </Card>
 
-      <Card className="divide-y shadow-card">
-        <div className="space-y-3 p-4 sm:p-5">
-          <h2 className="text-sm font-semibold text-foreground">What we recorded</h2>
-          <dl className="space-y-2 text-sm">
-            <div className="flex flex-wrap justify-between gap-2">
-              <dt className="text-muted-foreground">Submitted at</dt>
-              <dd className="font-medium tabular-nums text-foreground">
-                {draft.submittedAt ? formatDateTimeLong(draft.submittedAt) : "-"}
-              </dd>
-            </div>
-            <div className="flex flex-wrap justify-between gap-2">
-              <dt className="text-muted-foreground">Group members rated</dt>
-              <dd className="font-medium text-foreground">
-                {members.length} of {members.length}
-              </dd>
-            </div>
-            <div className="flex flex-wrap justify-between gap-2">
-              <dt className="text-muted-foreground">Comments left</dt>
-              <dd className="font-medium text-foreground">
-                {members.filter((m) => draft.entries[m.id]?.comment?.trim()).length}
-              </dd>
-            </div>
-          </dl>
+      <Card className="divide-y overflow-hidden rounded-2xl border-0 shadow-card">
+        <div className="px-5 py-4 sm:px-6">
+          <h2 className="text-lg font-semibold text-foreground">What we recorded</h2>
         </div>
+
+        <dl className="divide-y">
+          <div className="flex flex-col gap-1 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6">
+            <dt className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+              Submitted at
+            </dt>
+            <dd className="text-sm break-words text-foreground tabular-nums sm:text-right">
+              {draft.submittedAt ? formatDateTimeLong(draft.submittedAt) : "-"}
+            </dd>
+          </div>
+          <div className="flex flex-col gap-1 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6">
+            <dt className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+              Group members rated
+            </dt>
+            <dd className="text-sm break-words text-foreground tabular-nums sm:text-right">
+              {members.length} of {members.length}
+            </dd>
+          </div>
+          <div className="flex flex-col gap-1 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6">
+            <dt className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+              Comments left
+            </dt>
+            <dd className="text-sm break-words text-foreground tabular-nums sm:text-right">
+              {members.filter((m) => draft.entries[m.id]?.comment?.trim()).length}
+            </dd>
+          </div>
+        </dl>
 
         <ul className="divide-y">
           {members.map((member) => {
             const entry = draft.entries[member.id];
             const option = entry?.ratingOptionId ? optionById.get(entry.ratingOptionId) : undefined;
             return (
-              <li key={member.id} className="space-y-1 p-4 sm:px-5">
+              <li key={member.id} className="px-5 py-4 sm:px-6">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                  <p className="font-medium text-foreground">
+                  <p className="min-w-0 text-sm font-semibold text-foreground">
                     {member.name} {member.surname}
                   </p>
                   <p className="text-sm font-semibold text-accent-foreground">
@@ -131,10 +143,10 @@ function SubmittedPage() {
                   </p>
                 </div>
                 {option ? (
-                  <p className="text-sm text-muted-foreground">{option.description}</p>
+                  <p className="mt-0.5 text-sm text-muted-foreground">{option.description}</p>
                 ) : null}
                 {entry?.comment?.trim() ? (
-                  <p className="mt-1.5 rounded-md bg-muted p-2.5 text-sm text-foreground">
+                  <p className="mt-2 rounded-lg bg-muted p-3.5 text-sm break-words text-foreground">
                     “{entry.comment}”
                   </p>
                 ) : null}
@@ -143,18 +155,18 @@ function SubmittedPage() {
           })}
         </ul>
 
-        <div className="space-y-3 p-4 sm:p-5">
+        <div className="space-y-4 px-5 py-5 sm:px-6">
           {canAmend ? (
-            <div className="flex gap-2.5 rounded-md border border-warning/30 bg-warning-muted p-3 text-sm text-warning">
+            <div className="flex gap-2.5 rounded-lg border border-warning/30 bg-warning-muted p-3 text-sm text-warning">
               <Clock className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               <p>
                 You can still change your answers until{" "}
-                <span className="font-medium">{formatDateTimeLong(assessment.closesAt)}</span>.
+                <span className="font-semibold">{formatDateTimeLong(assessment.closesAt)}</span>.
                 After that your submission is final.
               </p>
             </div>
           ) : (
-            <div className="flex gap-2.5 rounded-md bg-muted p-3 text-sm text-muted-foreground">
+            <div className="flex gap-2.5 rounded-lg bg-muted p-3.5 text-sm text-muted-foreground">
               <Lock className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               <p>
                 This assessment closed on {formatDateTimeLong(assessment.closesAt)}, so your
@@ -164,13 +176,13 @@ function SubmittedPage() {
           )}
 
           <div className="flex flex-col gap-2 sm:flex-row-reverse sm:justify-start">
-            <Button asChild className="w-full sm:w-auto">
+            <Button asChild className="h-10 w-full px-4 sm:w-auto">
               <Link to="/student">Back to your assessments</Link>
             </Button>
             {canAmend ? (
               <Button
                 variant="outline"
-                className="w-full sm:w-auto"
+                className="h-10 w-full px-4 sm:w-auto"
                 onClick={() => {
                   reopen();
                   navigate({
@@ -185,6 +197,6 @@ function SubmittedPage() {
           </div>
         </div>
       </Card>
-    </>
+    </div>
   );
 }

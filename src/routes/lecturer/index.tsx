@@ -15,8 +15,9 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-import { BrandMark } from "@/components/layout/BrandMark";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { Hero } from "@/components/shared/Hero";
+import { PanelHeader } from "@/components/shared/PanelHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -134,14 +135,23 @@ function LecturerDashboard() {
   const openCount = rows.filter((r) => r.assessment.status === "open").length;
   const draftCount = rows.filter((r) => r.assessment.status === "draft").length;
   const attention = attentionItems(rows, owned);
+  const period = owned[0]?.klass.academicPeriod;
+  const now = new Date();
 
   return (
     <div className="grid gap-3 2xl:min-h-[calc(100dvh-102px)] 2xl:grid-cols-[minmax(0,1fr)_24rem]">
       <div className="flex min-w-0 flex-col gap-3">
         <Hero
-          name={user!.name}
-          period={owned[0]?.klass.academicPeriod}
-          attentionCount={attention.length}
+          eyebrow={`${greetingFor(now.getHours())}, ${format(now, "EEEE d MMMM yyyy")}`}
+          title={`Welcome back, ${user!.name}`}
+          subtitle={
+            <>
+              {period ? `${period} · ` : ""}
+              {attention.length === 0
+                ? "Nothing needs your attention right now"
+                : `${plural(attention.length, "thing needs", "things need")} your attention`}
+            </>
+          }
           stats={[
             {
               label: "Students",
@@ -168,61 +178,6 @@ function LecturerDashboard() {
         <ClassesPanel summaries={owned} className="2xl:flex-1" />
       </div>
     </div>
-  );
-}
-
-/* ------------------------------ banner ------------------------------- */
-
-function Hero({
-  name,
-  period,
-  attentionCount,
-  stats,
-}: {
-  name: string;
-  period?: string;
-  attentionCount: number;
-  stats: Array<{ label: string; value: number; detail: string }>;
-}) {
-  const now = new Date();
-
-  return (
-    <section className="relative overflow-hidden rounded-2xl bg-primary px-6 py-6 text-primary-foreground shadow-raised sm:px-8 sm:py-7">
-      {/* Oversized, faint brand mark: texture, not information. */}
-      <BrandMark className="pointer-events-none absolute -right-8 -bottom-12 size-64 text-primary-foreground opacity-[0.07]" />
-
-      <div className="relative flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-        <div className="min-w-0">
-          <p className="text-xs font-semibold tracking-[0.16em] uppercase opacity-80">
-            {greetingFor(now.getHours())}, {format(now, "EEEE d MMMM yyyy")}
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
-            Welcome back, {name}
-          </h1>
-          <p className="mt-2 text-sm opacity-85 sm:text-base">
-            {period ? `${period} · ` : ""}
-            {attentionCount === 0
-              ? "Nothing needs your attention right now"
-              : `${plural(attentionCount, "thing needs", "things need")} your attention`}
-          </p>
-        </div>
-
-        <dl className="grid grid-cols-3 gap-2 sm:gap-3 xl:w-[30rem] xl:shrink-0">
-          {stats.map((stat) => (
-            <div
-              key={stat.label}
-              className="min-w-0 rounded-xl border border-primary-foreground/15 bg-primary-foreground/10 px-3 py-3 sm:px-4"
-            >
-              <dt className="truncate text-[11px] font-semibold tracking-wider uppercase opacity-80">
-                {stat.label}
-              </dt>
-              <dd className="mt-1 text-2xl font-semibold tabular-nums sm:text-3xl">{stat.value}</dd>
-              <dd className="mt-0.5 hidden truncate text-xs opacity-75 sm:block">{stat.detail}</dd>
-            </div>
-          ))}
-        </dl>
-      </div>
-    </section>
   );
 }
 
@@ -265,7 +220,7 @@ function AssessmentsPanel({ rows, className }: { rows: Row[]; className?: string
               ))}
             </TabsList>
           </div>
-          <Button asChild className="h-10 rounded-lg px-4">
+          <Button asChild className="h-10 px-4">
             <Link to="/lecturer/assessments/new">
               <Plus aria-hidden="true" />
               Create new assessment
@@ -563,7 +518,7 @@ function ClassesPanel({ summaries, className }: { summaries: ClassSummary[]; cla
         ))}
       </ul>
       <div className="border-t px-5 py-3 sm:px-6">
-        <Button asChild variant="outline" className="w-full rounded-lg">
+        <Button asChild variant="outline" className="w-full">
           <Link to="/lecturer/classes/import">
             <UploadCloud aria-hidden="true" />
             Import a class list
@@ -571,17 +526,6 @@ function ClassesPanel({ summaries, className }: { summaries: ClassSummary[]; cla
         </Button>
       </div>
     </Card>
-  );
-}
-
-function PanelHeader({ title, count }: { title: string; count: number }) {
-  return (
-    <div className="flex items-center justify-between gap-3 border-b px-5 py-4 sm:px-6">
-      <h2 className="text-base font-semibold text-foreground">{title}</h2>
-      <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-accent-foreground tabular-nums">
-        {count}
-      </span>
-    </div>
   );
 }
 

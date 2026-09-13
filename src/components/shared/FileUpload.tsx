@@ -62,13 +62,13 @@ export function FileUpload({
   if (file) {
     return (
       <div className={cn("space-y-2", className)}>
-        <div className="flex items-center gap-3 rounded-lg border bg-card p-4 shadow-card">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent text-accent-foreground">
+        <div className="flex items-center gap-3 rounded-xl border bg-card p-4">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
             <FileSpreadsheet className="size-5" aria-hidden="true" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-foreground">{file.name}</p>
-            <p className="text-xs text-muted-foreground">
+            <p className="truncate text-sm font-semibold text-foreground">{file.name}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
               {prettySize(file.size)} · ready to parse
             </p>
           </div>
@@ -99,16 +99,16 @@ export function FileUpload({
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
         className={cn(
-          "flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed px-6 py-10 text-center transition-colors",
+          "flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-10 text-center transition-colors",
           dragging ? "border-primary bg-accent" : "border-border bg-card",
           error && "border-danger/50",
         )}
       >
-        <span className="flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
+        <span className="flex size-11 items-center justify-center rounded-xl bg-accent text-accent-foreground">
           <UploadCloud className="size-5" aria-hidden="true" />
         </span>
         <div className="space-y-1">
-          <p className="text-sm font-medium text-foreground">
+          <p className="text-sm font-semibold text-foreground">
             Drag your class list here, or browse for it
           </p>
           <p className="text-xs text-muted-foreground">{acceptLabel}</p>

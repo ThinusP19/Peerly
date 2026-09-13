@@ -118,10 +118,14 @@ function MarkEntryPage() {
 
   if (assessmentQuery.isPending || groupsQuery.isPending || marksQuery.isPending) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-10 w-80" />
-        <Skeleton className="h-28 w-full rounded-lg" />
-        <Skeleton className="h-72 w-full rounded-lg" />
+      <div className="space-y-3">
+        <Skeleton className="h-24 rounded-2xl" />
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Skeleton className="h-28 rounded-2xl" />
+          <Skeleton className="h-28 rounded-2xl" />
+          <Skeleton className="h-28 rounded-2xl" />
+        </div>
+        <Skeleton className="h-96 rounded-2xl" />
       </div>
     );
   }
@@ -147,7 +151,7 @@ function MarkEntryPage() {
   return (
     <>
       <PageHeader
-        title="Group marks & calculation"
+        title="Marks & calculation"
         description={
           <>
             {klass?.moduleCode} · {assessment.name} · enter the mark each group earned for the work
@@ -156,7 +160,7 @@ function MarkEntryPage() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-3">
         <StatCard label="Groups" value={groups.length} />
         <StatCard
           label="Marks entered"
@@ -171,7 +175,8 @@ function MarkEntryPage() {
         />
       </div>
 
-      <div className="w-full overflow-x-auto rounded-lg border bg-card shadow-card">
+      {/* The Table primitive scrolls sideways inside its own wrapper. */}
+      <div className="relative w-full overflow-hidden rounded-2xl bg-card shadow-card">
         <Table>
           <caption className="sr-only">Base mark for each group in this assessment</caption>
           <TableHeader>
@@ -193,10 +198,10 @@ function MarkEntryPage() {
 
               return (
                 <TableRow key={group.id} className={cn(missing && "bg-warning-muted/30")}>
-                  <TableCell className="font-medium whitespace-nowrap">
+                  <TableCell className="font-semibold whitespace-nowrap text-foreground">
                     Group {group.groupNumber}
                   </TableCell>
-                  <TableCell className="tabular-nums text-muted-foreground">
+                  <TableCell className="text-muted-foreground tabular-nums">
                     {group.memberStudentIds.length}
                   </TableCell>
                   <TableCell>
@@ -215,7 +220,7 @@ function MarkEntryPage() {
                         setErrors((current) => ({ ...current, [group.id]: validate(next) }));
                       }}
                       onBlur={(event) => save(group.id, event.target.value)}
-                      className="w-32 tabular-nums"
+                      className="w-32 rounded-lg tabular-nums"
                       placeholder="-"
                     />
                     {error ? (
@@ -226,13 +231,13 @@ function MarkEntryPage() {
                   </TableCell>
                   <TableCell>
                     {state === "saving" ? (
-                      <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <span className="inline-flex items-center gap-1.5 text-sm whitespace-nowrap text-muted-foreground">
                         <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
                         Saving…
                       </span>
                     ) : state === "saved" ? (
                       <span
-                        className="inline-flex items-center gap-1.5 text-sm text-success"
+                        className="inline-flex items-center gap-1.5 text-sm whitespace-nowrap text-success"
                         role="status"
                       >
                         <Check className="size-3.5" aria-hidden="true" />
@@ -253,20 +258,27 @@ function MarkEntryPage() {
         </Table>
       </div>
 
-      <Card className="flex flex-col gap-3 p-5 shadow-card sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex gap-2.5">
-          {canCalculate ? (
-            <Sigma className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
-          ) : (
-            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
-          )}
-          <div className="text-sm">
-            <p className="font-medium text-foreground">
+      <Card className="flex flex-col gap-4 rounded-2xl border-0 p-5 shadow-card sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <div className="flex gap-3">
+          <span
+            className={cn(
+              "flex size-9 shrink-0 items-center justify-center rounded-lg",
+              canCalculate ? "bg-accent text-accent-foreground" : "bg-warning-muted text-warning",
+            )}
+          >
+            {canCalculate ? (
+              <Sigma className="size-4" aria-hidden="true" />
+            ) : (
+              <AlertTriangle className="size-4" aria-hidden="true" />
+            )}
+          </span>
+          <div className="min-w-0">
+            <h2 className="font-semibold text-foreground">
               {canCalculate
                 ? "Every group has a base mark"
                 : `${outstanding} ${outstanding === 1 ? "group is" : "groups are"} still missing a base mark`}
-            </p>
-            <p className="text-muted-foreground">
+            </h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">
               {canCalculate
                 ? "Calculating produces one individual mark per student from their peer ratings."
                 : "Calculation stays disabled until every group has a mark, so nobody ends up with a mark of zero by accident."}
@@ -274,7 +286,11 @@ function MarkEntryPage() {
           </div>
         </div>
 
-        <Button disabled={!canCalculate} onClick={() => setConfirmOpen(true)}>
+        <Button
+          disabled={!canCalculate}
+          onClick={() => setConfirmOpen(true)}
+          className="h-10 shrink-0 px-4"
+        >
           <Sigma aria-hidden="true" />
           Calculate marks
         </Button>

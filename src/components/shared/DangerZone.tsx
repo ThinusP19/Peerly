@@ -32,7 +32,7 @@ export function DangerZone({
           <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
         </div>
       </div>
-      <Button variant="destructive" onClick={onAction} className="shrink-0">
+      <Button variant="destructive" onClick={onAction} className="h-10 shrink-0 px-4">
         <Trash2 aria-hidden="true" />
         {actionLabel}
       </Button>
@@ -56,7 +56,7 @@ export function UnexportedAcknowledgement({
 }) {
   const id = useId();
   return (
-    <div className="flex gap-2.5 rounded-md border border-danger/30 bg-danger-muted/60 p-3">
+    <div className="flex gap-2.5 rounded-lg border border-danger/30 bg-danger-muted/60 p-3">
       <Checkbox
         id={id}
         checked={checked}

@@ -2,10 +2,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Pencil, TriangleAlert } from "lucide-react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import { BusyButton } from "@/components/shared/BusyButton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { PanelHeader } from "@/components/shared/PanelHeader";
 import { ProgressBar } from "@/components/shared/ProgressBar";
 import { RatingScale } from "@/components/shared/RatingScale";
 import { Button } from "@/components/ui/button";
@@ -14,11 +16,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useDraftProgress, useEvaluationDraft } from "@/lib/evaluation-draft";
 import { formatDateTimeLong } from "@/lib/format";
 import { useSession } from "@/lib/session";
+import { cn } from "@/lib/utils";
 import { getStudentRatingOptions, getStudentAssessment, submitEvaluation } from "@/services/peerly";
 
 export const Route = createFileRoute("/student/evaluate/$assessmentId/review")({
   component: ReviewPage,
 });
+
+// Long forms read badly at full width, so the evaluation flow is capped.
+const FLOW = "mx-auto w-full max-w-3xl space-y-3";
 
 function ReviewPage() {
   const { assessmentId } = Route.useParams();
@@ -47,24 +53,27 @@ function ReviewPage() {
 
   if (view.isPending || options.isPending || !hydrated) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-40 w-full rounded-lg" />
-        <Skeleton className="h-40 w-full rounded-lg" />
+      <div className={FLOW}>
+        <Skeleton className="h-24 w-full rounded-2xl" />
+        <Skeleton className="h-14 w-full rounded-2xl" />
+        <Skeleton className="h-40 w-full rounded-2xl" />
+        <Skeleton className="h-40 w-full rounded-2xl" />
       </div>
     );
   }
 
   if (!view.data) {
     return (
-      <EmptyState
-        title="We couldn't find that assessment"
-        action={
-          <Button asChild variant="outline">
-            <Link to="/student">Back to your assessments</Link>
-          </Button>
-        }
-      />
+      <div className={FLOW}>
+        <EmptyState
+          title="We couldn't find that assessment"
+          action={
+            <Button asChild variant="outline">
+              <Link to="/student">Back to your assessments</Link>
+            </Button>
+          }
+        />
+      </div>
     );
   }
 
@@ -82,10 +91,17 @@ function ReviewPage() {
       ratingOptionId: draft.entries[id]!.ratingOptionId!,
       comment: draft.entries[id]?.comment || undefined,
     }));
-    const { submittedAt } = await submitEvaluation(assessmentId, studentId, entries);
-    markSubmitted(submittedAt);
-    await queryClient.invalidateQueries();
-    setBusy(false);
+    try {
+      const { submittedAt } = await submitEvaluation(assessmentId, studentId, entries);
+      markSubmitted(submittedAt);
+      await queryClient.invalidateQueries();
+    } catch {
+      // Keep the draft so nothing is lost, and let the student try again.
+      toast.error("We couldn't submit your evaluation. Your ratings are saved - please try again.");
+      return;
+    } finally {
+      setBusy(false);
+    }
     navigate({
       to: "/student/evaluate/$assessmentId/submitted",
       params: { assessmentId },
@@ -94,7 +110,7 @@ function ReviewPage() {
   };
 
   return (
-    <>
+    <div className={FLOW}>
       <PageHeader
         title="Check before you submit"
         backTo="/student/evaluate/$assessmentId"
@@ -107,44 +123,52 @@ function ReviewPage() {
         }
       />
 
-      <ProgressBar
-        value={progress.rated}
-        max={progress.total}
-        label={`${progress.rated} of ${progress.total} rated`}
-        valueLabel={progress.complete ? "Ready to submit" : "Something is still missing"}
-        tone={progress.complete ? "success" : "warning"}
-      />
+      <Card className="rounded-2xl border-0 px-5 py-4 shadow-card sm:px-6">
+        <ProgressBar
+          value={progress.rated}
+          max={progress.total}
+          label={`${progress.rated} of ${progress.total} rated`}
+          valueLabel={progress.complete ? "Ready to submit" : "Something is still missing"}
+          tone={progress.complete ? "success" : "warning"}
+        />
+      </Card>
 
       {blocked && !progress.complete ? (
         <div
           role="alert"
-          className="flex gap-2.5 rounded-md border border-danger/30 bg-danger-muted p-3.5 text-sm text-danger"
+          className="flex gap-3 rounded-2xl border border-danger/25 bg-card p-5 shadow-card sm:px-6"
         >
-          <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-          <div className="space-y-1">
-            <p className="font-medium">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-danger-muted text-danger">
+            <TriangleAlert className="size-4" aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <p className="font-semibold text-foreground">
               You haven't rated{" "}
               {missingMembers.map((member) => `${member.name} ${member.surname}`).join(", ")} yet.
             </p>
-            <p>Every group member needs a rating before you can submit.</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Every group member needs a rating before you can submit.
+            </p>
           </div>
         </div>
       ) : null}
 
-      <div className="space-y-4">
-        {members.map((member) => {
-          const entry = draft.entries[member.id] ?? {};
-          const missing = !entry.ratingOptionId;
+      {members.map((member, index) => {
+        const entry = draft.entries[member.id] ?? {};
+        const missing = !entry.ratingOptionId;
 
-          return (
-            <Card
-              key={member.id}
-              className={`p-4 shadow-card sm:p-5 ${missing ? "border-warning/40" : ""}`}
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
-                <h2 className="text-base font-semibold text-foreground">
-                  {member.name} {member.surname}
-                </h2>
+        return (
+          <Card
+            key={member.id}
+            className={cn(
+              "overflow-hidden rounded-2xl border-0 shadow-card",
+              missing && "border border-warning/25",
+            )}
+          >
+            <PanelHeader
+              eyebrow={`Member ${index + 1} of ${members.length}`}
+              title={`${member.name} ${member.surname}`}
+              actions={
                 <Button asChild variant="ghost" size="sm">
                   <Link
                     to="/student/evaluate/$assessmentId"
@@ -153,73 +177,77 @@ function ReviewPage() {
                   >
                     <Pencil aria-hidden="true" />
                     Edit
+                    <span className="sr-only">
+                      {" "}
+                      your rating for {member.name} {member.surname}
+                    </span>
                   </Link>
                 </Button>
-              </div>
+              }
+            />
 
-              <div className="mt-3 space-y-3">
-                {missing ? (
-                  <div className="flex gap-2.5 rounded-md border border-warning/30 bg-warning-muted p-3 text-sm text-warning">
-                    <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-                    <p>You haven't chosen a rating for {member.name} yet.</p>
-                  </div>
-                ) : (
-                  <div>
-                    <p className="mb-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                      Your rating
-                    </p>
-                    {/* Read-only restatement uses exactly the same wording as the form. */}
-                    <RatingScale
-                      options={options.data ?? []}
-                      name={`review-${member.id}`}
-                      value={entry.ratingOptionId}
-                      readOnly
-                    />
-                  </div>
-                )}
-
-                <div>
-                  <p className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                    Your comment
-                  </p>
-                  <p className="text-sm text-foreground">
-                    {entry.comment?.trim() ? (
-                      entry.comment
-                    ) : (
-                      <span className="text-muted-foreground">You didn't leave a comment.</span>
-                    )}
-                  </p>
+            <div className="space-y-4 px-5 py-5 sm:px-6">
+              {missing ? (
+                <div className="flex gap-2.5 rounded-lg border border-warning/30 bg-warning-muted p-3 text-sm text-warning">
+                  <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                  <p>You haven't chosen a rating for {member.name} yet.</p>
                 </div>
-              </div>
-            </Card>
-          );
-        })}
-      </div>
+              ) : (
+                <div>
+                  <p className="mb-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                    Your rating
+                  </p>
+                  {/* Read-only restatement uses exactly the same wording as the form. */}
+                  <RatingScale
+                    options={options.data ?? []}
+                    name={`review-${member.id}`}
+                    value={entry.ratingOptionId}
+                    readOnly
+                  />
+                </div>
+              )}
 
-      <Card className="space-y-3 p-4 shadow-card sm:p-5">
-        <p className="text-sm text-muted-foreground">
+              <div>
+                <p className="mb-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                  Your comment
+                </p>
+                <p className="text-sm break-words text-foreground">
+                  {entry.comment?.trim() ? (
+                    entry.comment
+                  ) : (
+                    <span className="text-muted-foreground">You didn't leave a comment.</span>
+                  )}
+                </p>
+              </div>
+            </div>
+          </Card>
+        );
+      })}
+
+      <Card className="flex flex-col gap-4 rounded-2xl border-0 p-5 shadow-card sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <p className="min-w-0 text-sm text-muted-foreground">
           You can change your answers until this assessment closes on{" "}
-          <span className="font-medium text-foreground">
+          <span className="font-semibold text-foreground">
             {formatDateTimeLong(assessment.closesAt)}
           </span>
           .
         </p>
-        <div className="flex flex-col gap-2 sm:flex-row-reverse sm:justify-start">
+        <div className="flex shrink-0 flex-col gap-2 sm:flex-row-reverse">
           <BusyButton
-            className="w-full sm:w-auto"
+            className="h-10 w-full px-4 sm:w-auto"
             busy={busy}
             busyLabel="Submitting…"
             onClick={handleSubmit}
           >
             Submit evaluation
           </BusyButton>
-          <Button asChild variant="outline" className="w-full sm:w-auto">
+          <Button asChild variant="outline" className="h-10 w-full px-4 sm:w-auto">
             <Link to="/student/evaluate/$assessmentId" params={{ assessmentId }}>
               Keep editing
             </Link>
           </Button>
         </div>
       </Card>
-    </>
+    </div>
   );
 }

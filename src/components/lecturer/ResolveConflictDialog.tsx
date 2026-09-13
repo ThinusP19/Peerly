@@ -95,14 +95,16 @@ export function ResolveConflictDialog({
 
         {row ? (
           <div className="space-y-4">
-            <div className="rounded-xl bg-muted/60 p-4">
+            <div className="rounded-xl border p-4">
               <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                 On the class list
               </p>
-              <p className="mt-1 font-semibold text-foreground">
+              <p className="mt-0.5 font-semibold text-foreground">
                 {row.importedName} {row.importedSurname}
               </p>
-              <p className="text-sm text-muted-foreground tabular-nums">{row.studentNumber}</p>
+              <p className="mt-0.5 text-sm text-muted-foreground tabular-nums">
+                {row.studentNumber}
+              </p>
               {row.matchNote ? (
                 <p className="mt-2 text-xs text-muted-foreground">{row.matchNote}</p>
               ) : null}
@@ -130,10 +132,10 @@ export function ResolveConflictDialog({
                     <label
                       key={account.id}
                       className={cn(
-                        "flex cursor-pointer items-start gap-3 rounded-xl border-2 p-3 transition-colors",
+                        "flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors",
                         checked
-                          ? "border-primary bg-accent"
-                          : "border-border hover:border-primary/40",
+                          ? "border-primary bg-accent ring-1 ring-primary"
+                          : "hover:bg-muted/50",
                       )}
                     >
                       <input
@@ -151,7 +153,7 @@ export function ResolveConflictDialog({
                           </span>
                           <StatusBadge status={accountStatusKind(account.status)} />
                         </span>
-                        <span className="block truncate text-sm text-muted-foreground">
+                        <span className="mt-0.5 block truncate text-sm text-muted-foreground">
                           {account.email}
                         </span>
                         {surnameDiffers(account.surname) ? (

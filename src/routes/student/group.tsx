@@ -3,10 +3,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Info, UsersRound } from "lucide-react";
 
 import { EmptyState } from "@/components/shared/EmptyState";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { PanelHeader } from "@/components/shared/PanelHeader";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { initials } from "@/lib/format";
 import { useSession } from "@/lib/session";
+import { cn } from "@/lib/utils";
 import { getStudentAssessments } from "@/services/peerly";
 
 export const Route = createFileRoute("/student/group")({
@@ -24,9 +27,9 @@ function MyGroupPage() {
 
   if (views.isPending) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-9 w-48" />
-        <Skeleton className="h-56 w-full rounded-lg" />
+      <div className="space-y-3">
+        <Skeleton className="h-24 w-full rounded-2xl" />
+        <Skeleton className="h-64 w-full rounded-2xl" />
       </div>
     );
   }
@@ -41,12 +44,10 @@ function MyGroupPage() {
 
   return (
     <>
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">My group</h1>
-        <p className="text-sm text-muted-foreground">
-          The people you'll be rating, and who'll be rating you.
-        </p>
-      </div>
+      <PageHeader
+        title="My group"
+        description="The people you'll be rating, and who'll be rating you."
+      />
 
       {groups.length === 0 ? (
         <EmptyState
@@ -55,59 +56,65 @@ function MyGroupPage() {
           description="Your lecturer allocates groups before an assessment opens."
         />
       ) : (
-        groups.map((view) => (
-          <Card key={view.group.id} className="overflow-hidden shadow-card">
-            <div className="flex flex-wrap items-center justify-between gap-2 bg-accent px-4 py-3 sm:px-5">
-              <div>
-                <p className="text-xs font-medium tracking-wide text-accent-foreground/70 uppercase">
-                  {view.klass.moduleCode} · {view.klass.name}
-                </p>
-                <h2 className="text-base font-semibold text-accent-foreground">
-                  Group {view.group.groupNumber}
-                </h2>
-              </div>
-              <span className="text-sm font-medium text-accent-foreground">
-                {view.members.length + 1} members
-              </span>
-            </div>
-
-            <ul className="divide-y">
-              <li className="flex items-center gap-3 px-4 py-3 sm:px-5">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
-                  {initials(user!.name, user!.surname)}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium text-foreground">
-                    {user!.name} {user!.surname}
+        // A lone group keeps the full width; two or more pair up on xl.
+        <div className={cn("grid gap-3", groups.length > 1 && "xl:grid-cols-2")}>
+          {groups.map((view) => (
+            <Card
+              key={view.group.id}
+              className="flex min-w-0 flex-col overflow-hidden rounded-2xl border-0 shadow-card"
+            >
+              <PanelHeader
+                eyebrow={`${view.klass.moduleCode} · ${view.klass.name}`}
+                title={`Group ${view.group.groupNumber}`}
+                actions={
+                  <span className="text-sm text-muted-foreground tabular-nums">
+                    {view.members.length + 1} members
                   </span>
-                  <span className="block text-xs text-muted-foreground">You</span>
-                </span>
-              </li>
+                }
+              />
 
-              {view.members.map((member) => (
-                <li key={member.id} className="flex items-center gap-3 px-4 py-3 sm:px-5">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold text-muted-foreground">
-                    {initials(member.name, member.surname)}
+              <ul className="divide-y">
+                <li className="flex items-center gap-3 px-5 py-3.5 sm:px-6">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
+                    {initials(user!.name, user!.surname)}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-medium text-foreground">
-                      {member.name} {member.surname}
+                    <span className="block text-sm font-semibold break-words text-foreground">
+                      {user!.name} {user!.surname}
                     </span>
-                    <span className="block text-xs text-muted-foreground">You'll rate them</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">You</span>
                   </span>
                 </li>
-              ))}
-            </ul>
-          </Card>
-        ))
+
+                {view.members.map((member) => (
+                  <li key={member.id} className="flex items-center gap-3 px-5 py-3.5 sm:px-6">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold text-muted-foreground">
+                      {initials(member.name, member.surname)}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold break-words text-foreground">
+                        {member.name} {member.surname}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-muted-foreground">
+                        You'll rate them
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ))}
+        </div>
       )}
 
-      <div className="flex gap-2.5 rounded-md bg-muted p-3.5 text-sm text-muted-foreground">
-        <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-        <p>
+      <Card className="flex items-start gap-3 rounded-2xl border-0 p-5 shadow-card sm:items-center sm:px-6">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+          <Info className="size-4" aria-hidden="true" />
+        </span>
+        <p className="min-w-0 text-sm text-foreground">
           Group members can't see what you rate them. Only your lecturer sees individual ratings.
         </p>
-      </div>
+      </Card>
     </>
   );
 }

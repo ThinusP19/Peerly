@@ -34,11 +34,11 @@ function ResetPasswordPage() {
         description="Reset links are valid for one hour."
       >
         <div className="space-y-5">
-          <div className="flex gap-3 rounded-md border border-warning/30 bg-warning-muted p-3.5 text-sm text-warning">
+          <div className="flex gap-2.5 rounded-lg border border-warning/30 bg-warning-muted p-3.5 text-sm text-warning">
             <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             <p>Request a new link and use it within the hour.</p>
           </div>
-          <Button asChild className="w-full">
+          <Button asChild className="h-11 w-full rounded-lg text-base font-semibold">
             <Link to="/forgot-password" search={{ as }}>
               Request a new link
             </Link>
@@ -52,11 +52,11 @@ function ResetPasswordPage() {
     return (
       <AuthShell title="Password changed" description="You can sign in with your new password now.">
         <div className="space-y-5">
-          <div className="flex gap-3 rounded-md border border-success/30 bg-success-muted p-3.5 text-sm text-success">
+          <div className="flex gap-2.5 rounded-lg border border-success/30 bg-success-muted p-3.5 text-sm text-success">
             <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             <p>Your password has been updated. The reset link you used is no longer valid.</p>
           </div>
-          <Button asChild className="w-full">
+          <Button asChild className="h-11 w-full rounded-lg text-base font-semibold">
             <Link to="/login" search={{ as }}>
               Go to sign in
             </Link>
@@ -91,7 +91,7 @@ function ResetPasswordPage() {
 
   return (
     <AuthShell title="Choose a new password" description="Pick something you haven't used before.">
-      <form onSubmit={handleSubmit} noValidate className="space-y-4">
+      <form onSubmit={handleSubmit} noValidate className="space-y-5">
         <FormField
           label="New password"
           error={errors.password}

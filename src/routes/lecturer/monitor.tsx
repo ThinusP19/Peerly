@@ -8,6 +8,7 @@ import { BusyButton } from "@/components/shared/BusyButton";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { PanelHeader } from "@/components/shared/PanelHeader";
 import { ProgressBar } from "@/components/shared/ProgressBar";
 import { StatCard } from "@/components/shared/StatCard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -63,7 +64,7 @@ function SubmissionMonitorPage() {
       key: "group",
       header: "Group",
       sortValue: (row) => row.group.groupNumber,
-      className: "font-medium whitespace-nowrap",
+      className: "font-semibold whitespace-nowrap text-foreground",
       cell: (row) => `Group ${row.group.groupNumber}`,
     },
     {
@@ -113,6 +114,7 @@ function SubmissionMonitorPage() {
     {
       key: "status",
       header: "Status",
+      className: "whitespace-nowrap",
       cell: (row) =>
         row.outstanding.length === 0 ? (
           <StatusBadge status="submitted" label="Complete" />
@@ -124,10 +126,14 @@ function SubmissionMonitorPage() {
 
   if (assessmentQuery.isPending) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-10 w-80" />
-        <Skeleton className="h-28 w-full rounded-lg" />
-        <Skeleton className="h-64 w-full rounded-lg" />
+      <div className="space-y-3">
+        <Skeleton className="h-24 rounded-2xl" />
+        <div className="grid gap-3 sm:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <Skeleton key={index} className="h-28 rounded-2xl" />
+          ))}
+        </div>
+        <Skeleton className="h-96 rounded-2xl" />
       </div>
     );
   }
@@ -166,7 +172,7 @@ function SubmissionMonitorPage() {
         actions={<StatusBadge status={assessment.status} className="px-3 py-1 text-sm" />}
       />
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-3">
         <StatCard
           label="Submitted"
           value={submitted}
@@ -192,99 +198,116 @@ function SubmissionMonitorPage() {
       </div>
 
       {needsResolution.length ? (
-        <Card className="space-y-3 border-warning/30 bg-warning-muted/30 p-4 shadow-card">
-          <div className="flex gap-2.5">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
-            <div>
-              <p className="font-medium text-foreground">
-                {needsResolution.length} class list{" "}
-                {needsResolution.length === 1 ? "entry needs" : "entries need"} resolving
-              </p>
-              <p className="text-sm text-muted-foreground">
-                These students aren't in a group, so they can't rate anyone and nobody can rate
-                them.
-              </p>
+        <Card className="space-y-4 rounded-2xl border border-warning/25 p-5 shadow-card sm:px-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex gap-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-warning-muted text-warning">
+                <AlertTriangle className="size-4" aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <h2 className="font-semibold text-foreground">
+                  {needsResolution.length} class list{" "}
+                  {needsResolution.length === 1 ? "entry needs" : "entries need"} resolving
+                </h2>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  These students aren't in a group, so they can't rate anyone and nobody can rate
+                  them.
+                </p>
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Button asChild variant="outline" className="h-10 px-4">
+                <Link to="/lecturer/classes">Resolve on the class list</Link>
+              </Button>
             </div>
           </div>
 
-          <ul className="space-y-2">
+          <ul className="divide-y rounded-xl border bg-card">
             {needsResolution.map((row) => (
               <li
                 key={row.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-card px-3 py-2"
+                className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5"
               >
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-foreground">
+                  <p className="text-sm font-semibold text-foreground">
                     {row.importedName} {row.importedSurname}
                   </p>
-                  <p className="text-xs tabular-nums text-muted-foreground">{row.studentNumber}</p>
+                  <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
+                    {row.studentNumber}
+                  </p>
                 </div>
                 <StatusBadge status={row.matchStatus} />
               </li>
             ))}
           </ul>
-
-          <Button asChild variant="outline" size="sm">
-            <Link to="/lecturer/classes">Resolve on the class list</Link>
-          </Button>
         </Card>
       ) : null}
 
-      <div>
-        <h2 className="mb-3 font-semibold text-foreground">Per-group breakdown</h2>
+      <Card className="flex min-h-0 flex-col overflow-hidden rounded-2xl border-0 shadow-card">
+        <PanelHeader
+          title="Per-group breakdown"
+          size="lg"
+          count={progressQuery.isPending ? undefined : rows.length}
+        />
         <DataTable
           columns={columns}
           rows={rows}
           getRowKey={(row) => row.group.id}
           loading={progressQuery.isPending}
           caption="Submission progress for each group"
+          className="rounded-none shadow-none"
           empty={
             <EmptyState
               title="No groups in this assessment"
               description="Edit the assessment setup to choose which groups take part."
+              className="rounded-none bg-transparent shadow-none"
             />
           }
         />
-      </div>
+      </Card>
 
-      <Card className="shadow-card">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
-          <div>
-            <h2 className="font-semibold text-foreground">Outstanding students</h2>
-            <p className="text-sm text-muted-foreground">
-              {outstanding.length
-                ? "A reminder goes only to the students listed here."
-                : "Everyone has submitted."}
-            </p>
-          </div>
-          <BusyButton
-            busy={reminding}
-            busyLabel="Sending…"
-            disabled={outstanding.length === 0 || assessment.status !== "open"}
-            onClick={async () => {
-              setReminding(true);
-              await new Promise((resolve) => setTimeout(resolve, 900));
-              setReminding(false);
-              toast.success(
-                `Reminder sent to ${outstanding.length} outstanding ${outstanding.length === 1 ? "student" : "students"}.`,
-              );
-            }}
-          >
-            <BellRing aria-hidden="true" />
-            Send reminder
-          </BusyButton>
-        </div>
+      <Card className="flex min-h-0 flex-col overflow-hidden rounded-2xl border-0 shadow-card">
+        <PanelHeader
+          title="Outstanding students"
+          count={progressQuery.isPending ? undefined : outstanding.length}
+          description={
+            outstanding.length
+              ? "A reminder goes only to the students listed here."
+              : "Everyone has submitted."
+          }
+          actions={
+            <BusyButton
+              busy={reminding}
+              busyLabel="Sending…"
+              disabled={outstanding.length === 0 || assessment.status !== "open"}
+              className="h-10 px-4"
+              onClick={async () => {
+                setReminding(true);
+                await new Promise((resolve) => setTimeout(resolve, 900));
+                setReminding(false);
+                toast.success(
+                  `Reminder sent to ${outstanding.length} outstanding ${outstanding.length === 1 ? "student" : "students"}.`,
+                );
+              }}
+            >
+              <BellRing aria-hidden="true" />
+              Send reminder
+            </BusyButton>
+          }
+        />
 
         {progressQuery.isPending ? (
-          <div className="space-y-2 p-5">
+          <div className="space-y-2 px-5 py-5 sm:px-6">
             {Array.from({ length: 4 }).map((_, index) => (
               <Skeleton key={index} className="h-5 w-full" />
             ))}
           </div>
         ) : outstanding.length === 0 ? (
-          <div className="flex items-center gap-2.5 p-5 text-sm text-success">
-            <CheckCircle2 className="size-4 shrink-0" aria-hidden="true" />
-            Every student in this assessment has submitted.
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-10 text-center">
+            <CheckCircle2 className="size-6 text-success" aria-hidden="true" />
+            <p className="text-sm text-muted-foreground">
+              Every student in this assessment has submitted.
+            </p>
           </div>
         ) : (
           <ul className="divide-y">
@@ -292,13 +315,13 @@ function SubmissionMonitorPage() {
               row.outstanding.map((student) => (
                 <li
                   key={student.id}
-                  className="flex flex-wrap items-center justify-between gap-2 px-5 py-3"
+                  className="flex flex-wrap items-center justify-between gap-2 px-5 py-3.5 sm:px-6"
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground">
+                    <p className="text-sm font-semibold text-foreground">
                       {student.name} {student.surname}
                     </p>
-                    <p className="text-xs tabular-nums text-muted-foreground">
+                    <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
                       {student.studentNumber} · Group {row.group.groupNumber}
                     </p>
                   </div>

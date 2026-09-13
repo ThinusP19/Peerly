@@ -12,6 +12,7 @@ import { FormField } from "@/components/shared/FormField";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatCard } from "@/components/shared/StatCard";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -110,10 +111,12 @@ function ResultsPage() {
       sortValue: (row) => `${row.student.surname} ${row.student.name}`,
       cell: (row) => (
         <div className="min-w-0">
-          <p className="font-medium text-foreground">
+          <p className="font-semibold whitespace-nowrap text-foreground">
             {row.student.name} {row.student.surname}
           </p>
-          <p className="text-xs tabular-nums text-muted-foreground">{row.student.studentNumber}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+            {row.student.studentNumber}
+          </p>
         </div>
       ),
     },
@@ -158,7 +161,7 @@ function ResultsPage() {
       header: "Final mark",
       sortValue: (row) => finalMarkOf(row),
       align: "right",
-      className: "tabular-nums font-medium",
+      className: "whitespace-nowrap tabular-nums font-semibold",
       cell: (row) => (
         <span className="inline-flex items-center gap-1.5">
           {row.result.override ? (
@@ -178,8 +181,9 @@ function ResultsPage() {
       sortValue: (row) => (row.result.override ? 1 : 0),
       cell: (row) =>
         row.result.override ? (
-          <span className="inline-flex items-center gap-1.5 rounded-md border border-primary/25 bg-accent px-2 py-0.5 text-xs font-medium text-accent-foreground">
-            <PencilLine className="size-3.5" aria-hidden="true" />
+          // Same pill and "info" tone as StatusBadge.
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-primary/25 bg-accent px-2 py-0.5 text-xs font-medium whitespace-nowrap text-accent-foreground">
+            <PencilLine className="size-3.5 shrink-0" aria-hidden="true" />
             Overridden
           </span>
         ) : (
@@ -195,10 +199,15 @@ function ResultsPage() {
 
   if (assessmentQuery.isPending || rowsQuery.isPending) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-10 w-80" />
-        <Skeleton className="h-28 w-full rounded-lg" />
-        <Skeleton className="h-96 w-full rounded-lg" />
+      <div className="space-y-3">
+        <Skeleton className="h-24 rounded-2xl" />
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Skeleton className="h-28 rounded-2xl" />
+          <Skeleton className="h-28 rounded-2xl" />
+          <Skeleton className="h-28 rounded-2xl" />
+          <Skeleton className="h-28 rounded-2xl" />
+        </div>
+        <Skeleton className="h-96 rounded-2xl" />
       </div>
     );
   }
@@ -234,7 +243,7 @@ function ResultsPage() {
           </>
         }
         actions={
-          <Button asChild>
+          <Button asChild className="h-10 px-4">
             <Link to="/lecturer/export">
               <Download aria-hidden="true" />
               Export
@@ -243,7 +252,7 @@ function ResultsPage() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Submission rate"
           value={all.length ? `${Math.round((submittedCount / all.length) * 100)}%` : "-"}
@@ -266,62 +275,67 @@ function ResultsPage() {
         />
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <Select value={filter} onValueChange={(value) => setFilter(value as Filter)}>
-          <SelectTrigger className="w-full sm:w-52" aria-label="Filter results">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All students</SelectItem>
-            <SelectItem value="flagged">Flagged only</SelectItem>
-            <SelectItem value="overridden">Overridden only</SelectItem>
-          </SelectContent>
-        </Select>
+      {/* One panel: the filter toolbar, then the results table flush beneath it. */}
+      <Card className="overflow-hidden rounded-2xl border-0 shadow-card">
+        <div className="flex flex-col gap-3 border-b px-5 py-3 sm:flex-row sm:items-center sm:px-6">
+          <Select value={filter} onValueChange={(value) => setFilter(value as Filter)}>
+            <SelectTrigger className="h-10 w-full rounded-lg sm:w-52" aria-label="Filter results">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All students</SelectItem>
+              <SelectItem value="flagged">Flagged only</SelectItem>
+              <SelectItem value="overridden">Overridden only</SelectItem>
+            </SelectContent>
+          </Select>
 
-        <Select value={groupFilter} onValueChange={setGroupFilter}>
-          <SelectTrigger className="w-full sm:w-44" aria-label="Filter by group">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All groups</SelectItem>
-            {groupNumbers.map((number) => (
-              <SelectItem key={number} value={String(number)}>
-                Group {number}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <Select value={groupFilter} onValueChange={setGroupFilter}>
+            <SelectTrigger className="h-10 w-full rounded-lg sm:w-44" aria-label="Filter by group">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All groups</SelectItem>
+              {groupNumbers.map((number) => (
+                <SelectItem key={number} value={String(number)}>
+                  Group {number}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <p className="text-sm text-muted-foreground sm:ml-auto" aria-live="polite">
-          Showing {rows.length} of {all.length} students
-        </p>
-      </div>
+          <p className="text-sm text-muted-foreground sm:ml-auto" aria-live="polite">
+            Showing {rows.length} of {all.length} students
+          </p>
+        </div>
 
-      <DataTable
-        columns={columns}
-        rows={rows}
-        getRowKey={(row) => row.student.id}
-        onRowClick={setDrillDown}
-        caption="Individual results for this assessment"
-        empty={
-          <EmptyState
-            title="No students match those filters"
-            action={
-              filtersApplied ? (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setFilter("all");
-                    setGroupFilter("all");
-                  }}
-                >
-                  Clear filters
-                </Button>
-              ) : undefined
-            }
-          />
-        }
-      />
+        <DataTable
+          columns={columns}
+          rows={rows}
+          getRowKey={(row) => row.student.id}
+          onRowClick={setDrillDown}
+          caption="Individual results for this assessment"
+          className="rounded-none shadow-none"
+          empty={
+            <EmptyState
+              title="No students match those filters"
+              action={
+                filtersApplied ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setFilter("all");
+                      setGroupFilter("all");
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                ) : undefined
+              }
+              className="rounded-none bg-transparent shadow-none"
+            />
+          }
+        />
+      </Card>
 
       {/* Drill-down: the ratings that produced this student's mark. */}
       <Sheet open={Boolean(drillDown)} onOpenChange={(open) => !open && setDrillDown(null)}>
@@ -339,36 +353,44 @@ function ResultsPage() {
               </SheetHeader>
 
               <div className="mt-5 space-y-5">
-                <dl className="grid grid-cols-2 gap-3 rounded-md border p-3.5 text-sm">
-                  <div>
-                    <dt className="text-muted-foreground">Mean received</dt>
-                    <dd className="text-lg font-semibold tabular-nums text-foreground">
+                <dl className="grid grid-cols-2 gap-3 rounded-xl border p-4 text-sm">
+                  <div className="min-w-0">
+                    <dt className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                      Mean received
+                    </dt>
+                    <dd className="mt-1 text-lg font-semibold text-foreground tabular-nums">
                       {formatMark(drillDown.result.meanReceived)}
                     </dd>
                   </div>
-                  <div>
-                    <dt className="text-muted-foreground">Adjustment factor</dt>
-                    <dd className="text-lg font-semibold tabular-nums text-foreground">
+                  <div className="min-w-0">
+                    <dt className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                      Adjustment factor
+                    </dt>
+                    <dd className="mt-1 text-lg font-semibold text-foreground tabular-nums">
                       × {formatFactor(drillDown.result.adjustmentFactor)}
                     </dd>
                   </div>
-                  <div>
-                    <dt className="text-muted-foreground">Group base mark</dt>
-                    <dd className="text-lg font-semibold tabular-nums text-foreground">
+                  <div className="min-w-0">
+                    <dt className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                      Group base mark
+                    </dt>
+                    <dd className="mt-1 text-lg font-semibold text-foreground tabular-nums">
                       {formatMark(drillDown.baseMark)}
                     </dd>
                   </div>
-                  <div>
-                    <dt className="text-muted-foreground">Final mark</dt>
-                    <dd className="text-lg font-semibold tabular-nums text-primary">
+                  <div className="min-w-0">
+                    <dt className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                      Final mark
+                    </dt>
+                    <dd className="mt-1 text-lg font-semibold text-primary tabular-nums">
                       {formatMark(finalMarkOf(drillDown))}
                     </dd>
                   </div>
                 </dl>
 
                 {drillDown.result.override ? (
-                  <div className="space-y-1.5 rounded-md border border-primary/25 bg-accent p-3.5 text-sm">
-                    <p className="font-medium text-accent-foreground">
+                  <div className="space-y-1.5 rounded-xl border border-primary/25 bg-accent p-4 text-sm">
+                    <p className="font-semibold text-accent-foreground">
                       Overridden from {formatMark(drillDown.result.finalMark)} to{" "}
                       {formatMark(drillDown.result.override.mark)}
                     </p>
@@ -396,26 +418,26 @@ function ResultsPage() {
                       Nobody in this group rated this student.
                     </p>
                   ) : (
-                    <ul className="divide-y rounded-md border">
+                    <ul className="divide-y rounded-xl border">
                       {drillDown.received.map((entry) => {
                         const option = (optionsQuery.data ?? []).find(
                           (o) => o.id === entry.ratingOptionId,
                         );
                         return (
-                          <li key={entry.evaluator.id} className="space-y-1 p-3">
+                          <li key={entry.evaluator.id} className="space-y-2 px-4 py-3">
                             <div className="flex flex-wrap items-baseline justify-between gap-2">
                               <p className="text-sm text-muted-foreground">
                                 from {entry.evaluator.name} {entry.evaluator.surname}
                               </p>
-                              <p className="text-sm font-medium text-foreground">
+                              <p className="text-sm font-semibold text-foreground">
                                 {option?.label}{" "}
-                                <span className="text-xs tabular-nums text-muted-foreground">
+                                <span className="text-xs font-normal text-muted-foreground tabular-nums">
                                   ({option?.hiddenValue})
                                 </span>
                               </p>
                             </div>
                             {entry.comment ? (
-                              <p className="rounded-md bg-muted p-2 text-sm text-foreground">
+                              <p className="rounded-lg bg-muted px-3 py-2 text-sm text-foreground">
                                 “{entry.comment}”
                               </p>
                             ) : null}
@@ -427,7 +449,7 @@ function ResultsPage() {
                 </div>
 
                 <Button
-                  className="w-full"
+                  className="h-10 w-full"
                   onClick={() => {
                     setOverriding(drillDown);
                     setDrillDown(null);
@@ -521,7 +543,7 @@ function OverrideDialog({
           <DialogTitle>Override this student's mark</DialogTitle>
           <DialogDescription asChild>
             <div className="space-y-2 text-sm text-muted-foreground">
-              <p className="font-medium text-foreground">
+              <p className="font-semibold text-foreground">
                 {row?.student.name} {row?.student.surname} · {row?.student.studentNumber} · Group{" "}
                 {row?.group.groupNumber}
               </p>
@@ -533,10 +555,10 @@ function OverrideDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="my-4 space-y-4">
+        <div className="space-y-4">
           <div className="space-y-1.5">
             <p className="text-sm font-medium text-foreground">Calculated mark</p>
-            <div className="rounded-md border bg-muted px-3 py-2 text-sm tabular-nums text-muted-foreground">
+            <div className="rounded-lg border bg-muted px-3 py-2 text-sm text-muted-foreground tabular-nums">
               {formatMark(calculated)} - group mark {formatMark(row?.baseMark)} × adjustment{" "}
               {formatFactor(row?.result.adjustmentFactor ?? 0)}
             </div>

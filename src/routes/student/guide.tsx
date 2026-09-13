@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Eye, Scale, ShieldCheck } from "lucide-react";
 
+import { PageHeader } from "@/components/shared/PageHeader";
+import { PanelHeader } from "@/components/shared/PanelHeader";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getStudentRatingOptions } from "@/services/peerly";
@@ -36,18 +38,20 @@ function RatingGuidePage() {
   });
 
   return (
-    <>
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">How rating works</h1>
-        <p className="text-sm text-muted-foreground">
-          You choose a phrase for each group member - never a number or a score out of five.
-        </p>
-      </div>
+    // Long reading copy: capped like the evaluation flow.
+    <div className="mx-auto w-full max-w-3xl space-y-3">
+      <PageHeader
+        title="How rating works"
+        description="You choose a phrase for each group member - never a number or a score out of five."
+      />
 
       <div className="grid gap-3 sm:grid-cols-3">
         {principles.map((principle) => (
-          <Card key={principle.title} className="space-y-2 p-4 shadow-card">
-            <span className="flex size-8 items-center justify-center rounded-md bg-accent text-accent-foreground">
+          <Card
+            key={principle.title}
+            className="min-w-0 space-y-2 rounded-2xl border-0 p-5 shadow-card sm:px-6"
+          >
+            <span className="flex size-8 items-center justify-center rounded-lg bg-accent text-accent-foreground">
               <principle.icon className="size-4" aria-hidden="true" />
             </span>
             <p className="text-sm font-semibold text-foreground">{principle.title}</p>
@@ -56,38 +60,40 @@ function RatingGuidePage() {
         ))}
       </div>
 
-      <Card className="overflow-hidden shadow-card">
-        <div className="border-b bg-accent px-4 py-3 sm:px-5">
-          <h2 className="font-semibold text-accent-foreground">The nine options</h2>
-          <p className="text-sm text-accent-foreground/80">
-            Listed strongest first. Pick the one that fits, not the one that's kindest.
-          </p>
-        </div>
+      <Card className="overflow-hidden rounded-2xl border-0 shadow-card">
+        <PanelHeader
+          title="The nine options"
+          size="lg"
+          description="Listed strongest first. Pick the one that fits, not the one that's kindest."
+          count={options.data?.length}
+        />
 
         {options.isPending ? (
-          <div className="space-y-3 p-5">
+          <div className="space-y-3 px-5 py-5 sm:px-6">
             {Array.from({ length: 4 }).map((_, index) => (
-              <Skeleton key={index} className="h-10 w-full" />
+              <Skeleton key={index} className="h-10 w-full rounded-lg" />
             ))}
           </div>
         ) : (
           <ol className="divide-y">
             {(options.data ?? []).map((option) => (
-              <li key={option.id} className="flex gap-3 p-4 sm:px-5">
-                <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold tabular-nums text-muted-foreground">
+              <li key={option.id} className="flex items-start gap-3 px-5 py-3.5 sm:px-6">
+                <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-xs font-semibold text-muted-foreground tabular-nums">
                   {option.order}
                 </span>
                 <span className="min-w-0">
                   <span className="block text-sm font-semibold text-foreground">
                     {option.label}
                   </span>
-                  <span className="block text-sm text-muted-foreground">{option.description}</span>
+                  <span className="mt-0.5 block text-sm text-muted-foreground">
+                    {option.description}
+                  </span>
                 </span>
               </li>
             ))}
           </ol>
         )}
       </Card>
-    </>
+    </div>
   );
 }

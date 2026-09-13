@@ -121,7 +121,7 @@ export const studentAssessmentStateLabel: Record<StudentAssessmentState, string>
   "not-started": "Not started",
   "in-progress": "In progress",
   submitted: "Submitted",
-  "closed-missed": "Closed – not submitted",
+  "closed-missed": "Closed - not submitted",
 };
 
 export function studentAssessmentState(
@@ -259,5 +259,5 @@ export const studentStateBadge: Record<
   "not-started": { status: "not-started", label: "Not started" },
   "in-progress": { status: "in-progress", label: "In progress" },
   submitted: { status: "submitted", label: "Submitted" },
-  "closed-missed": { status: "missed", label: "Closed – not submitted" },
+  "closed-missed": { status: "missed", label: "Closed - not submitted" },
 };

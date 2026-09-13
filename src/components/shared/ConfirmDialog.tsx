@@ -67,14 +67,14 @@ export function ConfirmDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription asChild>
             <div className="space-y-2 text-sm text-muted-foreground">
-              <p className="font-medium text-foreground">{objectName}</p>
+              <p className="font-semibold text-foreground">{objectName}</p>
               <div>{description}</div>
             </div>
           </DialogDescription>
         </DialogHeader>
 
         {consequence ? (
-          <div className="flex gap-2.5 rounded-md border border-warning/30 bg-warning-muted p-3 text-sm text-warning">
+          <div className="flex gap-2.5 rounded-lg border border-warning/30 bg-warning-muted p-3 text-sm text-warning">
             <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             <div>{consequence}</div>
           </div>

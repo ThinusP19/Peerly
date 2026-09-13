@@ -4,6 +4,8 @@ import { toast } from "sonner";
 
 import { BusyButton } from "@/components/shared/BusyButton";
 import { FormField } from "@/components/shared/FormField";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { PanelHeader } from "@/components/shared/PanelHeader";
 import { PasswordInput } from "@/components/shared/PasswordInput";
 import { PasswordRules } from "@/components/shared/PasswordRules";
 import { StatusBadge, accountStatusKind } from "@/components/shared/StatusBadge";
@@ -34,11 +36,8 @@ export function AccountSettings() {
   if (!user) return null;
 
   return (
-    <div className="space-y-3">
-      <Card className="rounded-2xl border-0 px-6 py-5 shadow-card">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Settings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Your account details and password.</p>
-      </Card>
+    <>
+      <PageHeader title="Settings" description="Your account details and password." />
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-3">
         <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-xl bg-card p-1 shadow-card sm:inline-flex sm:w-auto">
@@ -65,7 +64,7 @@ export function AccountSettings() {
           <PasswordPanel user={user} />
         </TabsContent>
       </Tabs>
-    </div>
+    </>
   );
 }
 
@@ -79,7 +78,7 @@ function ProfilePanel({ user }: { user: User }) {
 
   return (
     <Card className="overflow-hidden rounded-2xl border-0 shadow-card">
-      <div className="flex flex-wrap items-center gap-4 border-b px-6 py-5">
+      <div className="flex flex-wrap items-center gap-4 border-b px-5 py-5 sm:px-6">
         <Avatar className="size-14">
           <AvatarFallback className="bg-primary text-lg font-semibold text-primary-foreground">
             {initials(user.name, user.surname)}
@@ -98,7 +97,7 @@ function ProfilePanel({ user }: { user: User }) {
         {rows.map((row) => (
           <div
             key={row.label}
-            className="flex flex-col gap-1 px-6 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6"
+            className="flex flex-col gap-1 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6"
           >
             <dt className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
               {row.label}
@@ -108,7 +107,7 @@ function ProfilePanel({ user }: { user: User }) {
         ))}
       </dl>
 
-      <p className="border-t bg-muted/40 px-6 py-3 text-xs text-muted-foreground">
+      <p className="border-t bg-muted/40 px-5 py-3 text-xs text-muted-foreground sm:px-6">
         These details come from your university records. To change them, contact{" "}
         {changeContact[user.role]}.
       </p>
@@ -172,17 +171,16 @@ function PasswordPanel({ user }: { user: User }) {
 
   return (
     <Card className="overflow-hidden rounded-2xl border-0 shadow-card">
-      <div className="border-b px-6 py-5">
-        <h2 className="text-lg font-semibold text-foreground">Change password</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          You'll need your current password. Changing it signs you out on every other device.
-        </p>
-      </div>
+      <PanelHeader
+        title="Change password"
+        size="lg"
+        description="You'll need your current password. Changing it signs you out on every other device."
+      />
 
       <form
         onSubmit={handleSubmit}
         noValidate
-        className="grid gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1fr)_17rem]"
+        className="grid gap-6 px-5 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_17rem]"
       >
         <div className="space-y-4">
           <FormField label="Current password" error={errors.current} required>
@@ -218,7 +216,12 @@ function PasswordPanel({ user }: { user: User }) {
             )}
           </FormField>
 
-          <BusyButton type="submit" busy={busy} busyLabel="Changing password…">
+          <BusyButton
+            type="submit"
+            busy={busy}
+            busyLabel="Changing password…"
+            className="h-10 w-full px-4 sm:w-auto"
+          >
             Change password
           </BusyButton>
         </div>

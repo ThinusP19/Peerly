@@ -32,6 +32,9 @@ const alignClass = {
 /**
  * The one table used across every list screen: optional client-side sorting,
  * a skeleton loading state, and an empty state slot.
+ *
+ * Renders as its own tile. Inside a panel card, pass
+ * `className="rounded-none shadow-none"` so it sits flush under the header.
  */
 export function DataTable<T>({
   columns,
@@ -85,7 +88,9 @@ export function DataTable<T>({
   }
 
   return (
-    <div className={cn("w-full overflow-x-auto rounded-lg border bg-card shadow-card", className)}>
+    <div
+      className={cn("relative w-full overflow-hidden rounded-2xl bg-card shadow-card", className)}
+    >
       <Table>
         {caption ? <caption className="sr-only">{caption}</caption> : null}
         <TableHeader>
@@ -96,11 +101,7 @@ export function DataTable<T>({
               return (
                 <TableHead
                   key={column.key}
-                  className={cn(
-                    "whitespace-nowrap",
-                    alignClass[column.align ?? "left"],
-                    column.headerClassName,
-                  )}
+                  className={cn(alignClass[column.align ?? "left"], column.headerClassName)}
                   aria-sort={
                     active ? (sort.direction === "asc" ? "ascending" : "descending") : undefined
                   }
@@ -110,7 +111,7 @@ export function DataTable<T>({
                       type="button"
                       onClick={() => toggleSort(column.key)}
                       className={cn(
-                        "inline-flex cursor-pointer items-center gap-1.5 rounded-sm font-medium transition-colors hover:text-foreground",
+                        "inline-flex cursor-pointer items-center gap-1.5 rounded-sm font-semibold tracking-wider uppercase transition-colors hover:text-foreground",
                         active ? "text-foreground" : "text-muted-foreground",
                       )}
                     >

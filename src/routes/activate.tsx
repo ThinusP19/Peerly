@@ -108,7 +108,7 @@ function ActivatePage() {
         }
       >
         <div className="space-y-5">
-          <div className="flex gap-3 rounded-md border border-success/30 bg-success-muted p-3.5 text-sm text-success">
+          <div className="flex gap-2.5 rounded-lg border border-success/30 bg-success-muted p-3.5 text-sm text-success">
             <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             <p>
               {staff
@@ -116,7 +116,7 @@ function ActivatePage() {
                 : "Your email address is confirmed. Your lecturer will match you to a class list before your first assessment opens."}
             </p>
           </div>
-          <Button asChild className="w-full">
+          <Button asChild className="h-11 w-full rounded-lg text-base font-semibold">
             <Link to="/login" search={{ as: staff ? "lecturer" : "student" }}>
               Go to sign in
             </Link>
@@ -126,7 +126,7 @@ function ActivatePage() {
             <Link
               to="/activate"
               search={{ token: "expired" }}
-              className="font-medium text-primary hover:underline"
+              className="font-semibold text-primary hover:underline"
             >
               Open an expired link
             </Link>
@@ -142,7 +142,7 @@ function ActivatePage() {
       description="Activation links are only valid for 24 hours."
     >
       <div className="space-y-5">
-        <div className="flex gap-3 rounded-md border border-warning/30 bg-warning-muted p-3.5 text-sm text-warning">
+        <div className="flex gap-2.5 rounded-lg border border-warning/30 bg-warning-muted p-3.5 text-sm text-warning">
           <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           <p>
             We couldn't activate your account with this link. It may have already been used, or it
@@ -150,18 +150,26 @@ function ActivatePage() {
           </p>
         </div>
 
-        <BusyButton
-          className="w-full"
-          busy={resending}
-          busyLabel="Sending a new link…"
-          onClick={resend}
-        >
-          Send me a new link
-        </BusyButton>
+        <div className="flex flex-col gap-3">
+          <BusyButton
+            className="h-11 w-full rounded-lg text-base font-semibold"
+            busy={resending}
+            busyLabel="Sending a new link…"
+            onClick={resend}
+          >
+            Send me a new link
+          </BusyButton>
 
-        <Button asChild variant="outline" className="w-full">
-          <Link to="/login">Back to sign in</Link>
-        </Button>
+          <Button asChild variant="outline" className="h-11 w-full rounded-lg">
+            {/* A bare /login bounces to role selection, so say which sign-in to open. */}
+            <Link
+              to="/login"
+              search={{ as: email?.endsWith("@nwu.ac.za") ? "lecturer" : "student" }}
+            >
+              Back to sign in
+            </Link>
+          </Button>
+        </div>
       </div>
     </AuthShell>
   );
@@ -202,7 +210,7 @@ function SetPassword({ account, onDone }: { account: ActivationAccount; onDone: 
         </>
       }
     >
-      <form onSubmit={handleSubmit} noValidate className="space-y-4">
+      <form onSubmit={handleSubmit} noValidate className="space-y-5">
         <FormField label="Password" error={errors.password} required>
           {(props) => (
             <PasswordInput

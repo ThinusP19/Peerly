@@ -1,17 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { Download, FileSpreadsheet, Info, Table2 } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { BusyButton } from "@/components/shared/BusyButton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { PanelHeader } from "@/components/shared/PanelHeader";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateTimeLong } from "@/lib/format";
 import { useSession } from "@/lib/session";
+import { cn } from "@/lib/utils";
 import { classes } from "@/mocks/data";
 import {
   getAssessment,
@@ -49,9 +51,10 @@ function ExportPage() {
 
   if (assessmentQuery.isPending || rowsQuery.isPending) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-10 w-80" />
-        <Skeleton className="h-64 w-full rounded-lg" />
+      <div className="space-y-3">
+        <Skeleton className="h-24 rounded-2xl" />
+        <Skeleton className="h-64 rounded-2xl" />
+        <Skeleton className="h-96 rounded-2xl" />
       </div>
     );
   }
@@ -79,6 +82,33 @@ function ExportPage() {
   const overridden = rows.filter((row) => row.result.override).length;
   const flagged = rows.filter((row) => row.result.flags.length > 0).length;
 
+  const worksheets = [
+    {
+      title: "Worksheet 1 - Results",
+      body: "One row per student: student number, name, group, mean received rating, adjustment factor, group base mark, final individual mark, flags and any override with its reason.",
+      rowCount: rows.length,
+    },
+    {
+      title: "Worksheet 2 - Raw Ratings",
+      body: "One row per rating given: evaluator, student evaluated, the descriptive label, its scale value and any comment. This is the evidence behind every adjustment.",
+      rowCount: ratings.length,
+    },
+  ];
+
+  const headerRows: Array<{ label: string; value: ReactNode; className?: string }> = [
+    { label: "Class", value: `${klass?.moduleCode} - ${klass?.name}` },
+    { label: "Academic period", value: klass?.academicPeriod },
+    { label: "Assessment", value: assessment.name },
+    { label: "Generated", value: formatDateTimeLong(generatedAt), className: "tabular-nums" },
+    {
+      label: "Calculation run id",
+      value: assessment.calculationRunId ?? "not calculated yet",
+      className: "font-mono text-xs break-all",
+    },
+    { label: "Overrides included", value: overridden, className: "tabular-nums" },
+    { label: "Flagged students", value: flagged, className: "tabular-nums" },
+  ];
+
   return (
     <>
       <PageHeader
@@ -88,90 +118,62 @@ function ExportPage() {
         description="A single .xlsx workbook with two worksheets - one for the marks you'll upload, one for the raw ratings behind them."
       />
 
-      <Card className="space-y-4 p-5 shadow-card">
-        <h2 className="font-semibold text-foreground">What's in the file</h2>
+      <Card className="overflow-hidden rounded-2xl border-0 shadow-card">
+        <PanelHeader title="What's in the file" />
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-2 rounded-md border p-4">
-            <div className="flex items-center gap-2">
-              <Table2 className="size-4 text-primary" aria-hidden="true" />
-              <p className="font-medium text-foreground">Worksheet 1 - Results</p>
+        <div className="grid gap-3 px-5 py-5 sm:grid-cols-2 sm:px-6">
+          {worksheets.map((sheet) => (
+            <div key={sheet.title} className="flex min-w-0 flex-col gap-3 rounded-xl border p-4">
+              <div className="flex items-center gap-3">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+                  <Table2 className="size-4" aria-hidden="true" />
+                </span>
+                <p className="min-w-0 flex-1 text-sm font-semibold text-foreground">
+                  {sheet.title}
+                </p>
+                <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-xs font-semibold whitespace-nowrap text-accent-foreground tabular-nums">
+                  {sheet.rowCount} rows
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground">{sheet.body}</p>
             </div>
-            <p className="text-sm text-muted-foreground">
-              One row per student: student number, name, group, mean received rating, adjustment
-              factor, group base mark, final individual mark, flags and any override with its
-              reason.
-            </p>
-            <p className="text-sm font-medium tabular-nums text-foreground">{rows.length} rows</p>
-          </div>
-
-          <div className="space-y-2 rounded-md border p-4">
-            <div className="flex items-center gap-2">
-              <Table2 className="size-4 text-primary" aria-hidden="true" />
-              <p className="font-medium text-foreground">Worksheet 2 - Raw Ratings</p>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              One row per rating given: evaluator, student evaluated, the descriptive label, its
-              scale value and any comment. This is the evidence behind every adjustment.
-            </p>
-            <p className="text-sm font-medium tabular-nums text-foreground">
-              {ratings.length} rows
-            </p>
-          </div>
+          ))}
         </div>
       </Card>
 
-      <Card className="space-y-4 p-5 shadow-card">
-        <h2 className="font-semibold text-foreground">Header information</h2>
-        <p className="text-sm text-muted-foreground">
-          These lines are written at the top of the Results worksheet so the file can always be
-          traced back to a specific calculation.
-        </p>
+      <Card className="overflow-hidden rounded-2xl border-0 shadow-card">
+        <PanelHeader
+          title="Header information"
+          description="These lines are written at the top of the Results worksheet so the file can always be traced back to a specific calculation."
+        />
 
-        <dl className="divide-y rounded-md border text-sm">
-          <div className="flex flex-wrap justify-between gap-2 px-3.5 py-2.5">
-            <dt className="text-muted-foreground">Class</dt>
-            <dd className="font-medium text-foreground">
-              {klass?.moduleCode} - {klass?.name}
-            </dd>
-          </div>
-          <div className="flex flex-wrap justify-between gap-2 px-3.5 py-2.5">
-            <dt className="text-muted-foreground">Academic period</dt>
-            <dd className="font-medium text-foreground">{klass?.academicPeriod}</dd>
-          </div>
-          <div className="flex flex-wrap justify-between gap-2 px-3.5 py-2.5">
-            <dt className="text-muted-foreground">Assessment</dt>
-            <dd className="font-medium text-foreground">{assessment.name}</dd>
-          </div>
-          <div className="flex flex-wrap justify-between gap-2 px-3.5 py-2.5">
-            <dt className="text-muted-foreground">Generated</dt>
-            <dd className="font-medium tabular-nums text-foreground">
-              {formatDateTimeLong(generatedAt)}
-            </dd>
-          </div>
-          <div className="flex flex-wrap justify-between gap-2 px-3.5 py-2.5">
-            <dt className="text-muted-foreground">Calculation run id</dt>
-            <dd className="font-mono text-xs text-foreground">
-              {assessment.calculationRunId ?? "not calculated yet"}
-            </dd>
-          </div>
-          <div className="flex flex-wrap justify-between gap-2 px-3.5 py-2.5">
-            <dt className="text-muted-foreground">Overrides included</dt>
-            <dd className="font-medium tabular-nums text-foreground">{overridden}</dd>
-          </div>
-          <div className="flex flex-wrap justify-between gap-2 px-3.5 py-2.5">
-            <dt className="text-muted-foreground">Flagged students</dt>
-            <dd className="font-medium tabular-nums text-foreground">{flagged}</dd>
-          </div>
+        <dl className="divide-y">
+          {headerRows.map((row) => (
+            <div
+              key={row.label}
+              className="flex flex-col gap-1 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6"
+            >
+              <dt className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                {row.label}
+              </dt>
+              <dd
+                className={cn("text-sm break-words text-foreground sm:text-right", row.className)}
+              >
+                {row.value}
+              </dd>
+            </div>
+          ))}
         </dl>
       </Card>
 
-      <Card className="flex flex-col gap-3 p-5 shadow-card sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex gap-2.5">
-          <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <div className="text-sm">
-            <p className="font-medium text-foreground">{fileName}</p>
-            <p className="text-muted-foreground">
+      <Card className="flex flex-col gap-4 rounded-2xl border-0 p-5 shadow-card sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <div className="flex min-w-0 gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+            <Info className="size-4" aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="font-semibold break-all text-foreground">{fileName}</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">
               Exporting is recorded in the audit log. Students never see this file.
             </p>
           </div>
@@ -180,6 +182,7 @@ function ExportPage() {
         <BusyButton
           busy={busy}
           busyLabel="Building the workbook…"
+          className="h-10 shrink-0 px-4"
           onClick={async () => {
             setBusy(true);
             await new Promise((resolve) => setTimeout(resolve, 1200));
