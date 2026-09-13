@@ -204,6 +204,17 @@
     outline: 2px solid var(--color-ring);
     outline-offset: 2px;
   }
+
+  /* Scrollbars are hidden app-wide. Scrolling itself still works with the
+     wheel, trackpad, touch and keyboard, so layouts must never rely on a
+     visible bar to show there is more (no sideways-scrolling tables). */
+  * {
+    scrollbar-width: none;
+  }
+
+  *::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /*

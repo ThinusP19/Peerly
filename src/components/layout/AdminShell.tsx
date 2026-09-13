@@ -250,7 +250,7 @@ function UserMenu() {
               {initials(user.name, user.surname)}
             </AvatarFallback>
           </Avatar>
-          <span className="hidden text-sm font-semibold text-foreground sm:block">
+          <span className="hidden text-sm font-semibold whitespace-nowrap text-foreground sm:block">
             {user.name} {user.surname}
           </span>
           <ChevronDown className="size-4 text-muted-foreground" aria-hidden="true" />
@@ -341,8 +341,8 @@ function AdminShellInner({
               <BrandMark className="size-7" />
               <span className="text-lg font-semibold tracking-tight text-foreground">Peerly</span>
             </Link>
-            <span className="hidden h-5 w-px bg-border sm:block" aria-hidden="true" />
-            <span className="hidden text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase sm:block">
+            <span className="hidden h-5 w-px bg-border lg:block" aria-hidden="true" />
+            <span className="hidden text-xs font-semibold tracking-[0.14em] whitespace-nowrap text-muted-foreground uppercase lg:block">
               NWU Peer Assessment System
             </span>
 
@@ -359,7 +359,9 @@ function AdminShellInner({
           ) : null}
         </header>
 
-        <main className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">{children}</main>
+        {/* Full width, with the same 12px gutters the sidebar and top bar use,
+            so every panel lines up as one set of tiles. */}
+        <main className="space-y-3 p-3 lg:pl-0">{children}</main>
       </div>
     </div>
   );
