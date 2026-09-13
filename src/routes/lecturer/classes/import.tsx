@@ -95,7 +95,8 @@ function ImportPage() {
   const errorRows = rows.filter((row) => row.errors.length > 0);
   const validRows = rows.filter((row) => row.errors.length === 0);
 
-  const stepIndex = steps.findIndex((s) => s.key === step);
+  // The last step is the confirmation itself, so it's current while that dialog is open.
+  const stepIndex = confirmOpen ? steps.length - 1 : steps.findIndex((s) => s.key === step);
 
   const goToPreview = () => {
     const used = Object.values(mapping);

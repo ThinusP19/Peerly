@@ -372,8 +372,9 @@ function AssessmentDetailPage() {
           </p>
         }
         confirmLabel="Extend deadline"
+        // An extension has to move the closing time later; anything else isn't an extension.
+        confirmDisabled={!newClosesAt || new Date(newClosesAt) <= new Date(assessment.closesAt)}
         onConfirm={async () => {
-          if (!newClosesAt) return;
           await updateAssessment(assessment.id, { closesAt: new Date(newClosesAt).toISOString() });
           await refresh();
           toast.success(
@@ -381,7 +382,16 @@ function AssessmentDetailPage() {
           );
         }}
       >
-        <FormField label="New closing date and time" required>
+        <FormField
+          label="New closing date and time"
+          required
+          hint="Has to be later than the current closing time."
+          error={
+            newClosesAt && new Date(newClosesAt) < new Date(assessment.closesAt)
+              ? "That's earlier than the current closing time. Choose a later date."
+              : undefined
+          }
+        >
           {(props) => (
             <Input
               {...props}

@@ -1,6 +1,6 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { AlertTriangle, Shuffle, TriangleAlert } from "lucide-react";
+import { AlertTriangle, Lock, Shuffle, TriangleAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -25,7 +25,7 @@ import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { classes, enrolments, users } from "@/mocks/data";
 import type { Group } from "@/mocks/types";
-import { confirmGroups, proposeGroups } from "@/services/peerly";
+import { confirmGroups, getAssessments, getSubmissions, proposeGroups } from "@/services/peerly";
 
 export const Route = createFileRoute("/lecturer/groups/generate")({
   component: GenerateGroupsPage,
@@ -42,6 +42,21 @@ function GenerateGroupsPage() {
   const eligible = enrolments.filter(
     (e) => e.classId === activeClassId && e.matchStatus === "matched",
   ).length;
+
+  // The same lock as the Groups page: once students have started rating in an
+  // open assessment, regrouping would orphan ratings that already exist. This
+  // page can be opened directly, so it enforces the rule too.
+  const assessmentsQuery = useQuery({
+    queryKey: ["assessments", activeClassId],
+    queryFn: () => getAssessments(activeClassId),
+  });
+  const openAssessment = (assessmentsQuery.data ?? []).find((a) => a.status === "open");
+  const openSubmissions = useQuery({
+    queryKey: ["submissions", openAssessment?.id],
+    queryFn: () => getSubmissions(openAssessment!.id),
+    enabled: Boolean(openAssessment),
+  });
+  const locked = Boolean(openAssessment && (openSubmissions.data?.length ?? 0) > 0);
 
   const [mode, setMode] = useState<Mode>("count");
   const [groupCount, setGroupCount] = useState("6");
@@ -113,6 +128,26 @@ function GenerateGroupsPage() {
             : "Select a class in the header first."
         }
       />
+
+      {locked ? (
+        <Card
+          role="alert"
+          className="flex gap-3 rounded-2xl border border-warning/25 p-5 shadow-card sm:px-6"
+        >
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-warning-muted text-warning">
+            <Lock className="size-4" aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="font-semibold text-foreground">
+              Groups are locked while an assessment runs
+            </h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              “{openAssessment?.name}” is open and {openSubmissions.data?.length} students have
+              already submitted. Close that assessment before generating new groups.
+            </p>
+          </div>
+        </Card>
+      ) : null}
 
       <Card className="overflow-hidden rounded-2xl border-0 shadow-card">
         <PanelHeader
@@ -217,6 +252,7 @@ function GenerateGroupsPage() {
             busy={generating}
             busyLabel="Allocating students…"
             onClick={generate}
+            disabled={locked}
             className="h-10 px-4"
           >
             <Shuffle aria-hidden="true" />
@@ -237,7 +273,7 @@ function GenerateGroupsPage() {
             </div>
             <Button
               onClick={() => setConfirmOpen(true)}
-              disabled={smallGroups.length > 0}
+              disabled={locked || smallGroups.length > 0}
               className="h-10 shrink-0 px-4"
             >
               Confirm these groups

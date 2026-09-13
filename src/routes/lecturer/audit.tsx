@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { ScrollText } from "lucide-react";
 
 import { AuditLogView } from "@/components/shared/AuditLogView";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { useSession } from "@/lib/session";
 import { classes } from "@/mocks/data";
@@ -23,8 +25,17 @@ function LecturerAuditPage() {
             : "Select a class in the header to see its audit log."
         }
       />
-      {/* Scoped to the active class - a lecturer never sees another class's history. */}
-      <AuditLogView classId={activeClassId} />
+      {/* Scoped to the active class - a lecturer never sees another class's history,
+          so with no class selected there is nothing to show. */}
+      {klass ? (
+        <AuditLogView classId={klass.id} />
+      ) : (
+        <EmptyState
+          icon={ScrollText}
+          title="No class selected"
+          description="Choose a class in the header to see everything that has happened in it."
+        />
+      )}
     </>
   );
 }
