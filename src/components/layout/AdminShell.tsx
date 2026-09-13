@@ -212,6 +212,21 @@ function ContextSelector() {
  * No notification feed exists yet, so the bell says so honestly rather than
  * showing an unread dot for messages that aren't there.
  */
+function CurrentSection({ role }: { role: Role }) {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const items: readonly NavItem[] = role === "admin" ? adminNav : lecturerNav;
+  // Same match the sidebar uses to highlight its active item.
+  const current = items.find((item) =>
+    item.exact ? pathname === item.to : pathname.startsWith(item.to),
+  );
+
+  return (
+    <span className="hidden text-lg font-semibold tracking-tight whitespace-nowrap text-foreground lg:block">
+      {current?.label ?? "Peerly"}
+    </span>
+  );
+}
+
 function NotificationsMenu() {
   return (
     <DropdownMenu>
@@ -337,10 +352,13 @@ function AdminShellInner({
               </SheetContent>
             </Sheet>
 
-            <Link to={homeFor(role)} className="flex items-center gap-2.5">
+            {/* The logo only shows here below lg. From lg the sidebar already
+                carries it, so the top bar names the current section instead. */}
+            <Link to={homeFor(role)} className="flex items-center gap-2.5 lg:hidden">
               <BrandMark className="size-7" />
               <span className="text-lg font-semibold tracking-tight text-foreground">Peerly</span>
             </Link>
+            <CurrentSection role={role} />
             <span className="hidden h-5 w-px bg-border lg:block" aria-hidden="true" />
             <span className="hidden text-xs font-semibold tracking-[0.14em] whitespace-nowrap text-muted-foreground uppercase lg:block">
               NWU Peer Assessment System
