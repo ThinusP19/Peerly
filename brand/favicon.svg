@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="5.5 6.25 53 53" width="64" height="64" role="img" aria-label="Peerly">
+  <!-- Transparent favicon: the glyph alone, cropped tight so it fills the tab
+       slot. Plum on light browser chrome, lavender on dark, where plum would
+       all but vanish. -->
+  <style>
+    .t { stroke: #462A69; }
+    .n { fill: #462A69; }
+    @media (prefers-color-scheme: dark) {
+      .t { stroke: #D9C8F5; }
+      .n { fill: #D9C8F5; }
+    }
+  </style>
+  <path class="t" d="M15 33 L27 45 L49 20.5" fill="none" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle class="n" cx="15" cy="33" r="7.5"/>
+  <circle class="n" cx="27" cy="45" r="7.5"/>
+  <circle class="n" cx="49" cy="20.5" r="7.5"/>
+</svg>

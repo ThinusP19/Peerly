@@ -9,11 +9,14 @@ import pngToIco from "png-to-ico";
 const here = dirname(fileURLToPath(import.meta.url));
 const pub = join(here, "../public");
 
-const mark = await readFile(join(here, "mark.svg"));
+// favicon.svg      transparent, follows the OS light/dark theme - modern tabs
+// mark-small.svg   transparent, fixed mid purple - bitmap favicons (16–48px)
+// mark.svg         on its plum tile - home-screen icons, because iOS and
+//                  Android fill a transparent icon with black
+const favicon = await readFile(join(here, "favicon.svg"));
 const markSmall = await readFile(join(here, "mark-small.svg"));
+const mark = await readFile(join(here, "mark.svg"));
 
-// Below ~64px the linked variant loses its detail, so small sizes use the
-// simplified mark. Same silhouette either way.
 const png = (size) =>
   sharp(size <= 48 ? markSmall : mark, { density: 384 })
     .resize(size, size)
@@ -21,7 +24,7 @@ const png = (size) =>
 
 // Favicons. The .ico carries 16/32/48 so older browsers and Windows pick a
 // crisp size instead of downsampling one bitmap badly.
-await writeFile(join(pub, "favicon.svg"), mark);
+await writeFile(join(pub, "favicon.svg"), favicon);
 for (const size of [16, 32, 48, 180, 192, 512]) {
   const name = size === 180 ? "apple-touch-icon.png" : `icon-${size}.png`;
   await png(size).toFile(join(pub, name));

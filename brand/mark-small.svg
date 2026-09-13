@@ -1,11 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Peerly">
-  <!-- Small-size variant. The connecting links in mark.svg turn to mud below
-       about 48px, so they are dropped here and the nodes are enlarged and
-       spread. Same silhouette, legible at 16px. -->
-  <rect width="64" height="64" rx="13" fill="#4F46E5"/>
-  <g fill="#FFFFFF">
-    <circle cx="32" cy="18.5" r="9.5"/>
-    <circle cx="16" cy="45.5" r="9.5"/>
-    <circle cx="48" cy="45.5" r="9.5"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="5.5 6.25 53 53" width="64" height="64" role="img" aria-label="Peerly">
+  <!-- Transparent bitmap favicons (16/32/48 PNG and the .ico). A bitmap can't
+       follow the OS theme like favicon.svg does, so this uses a mid purple
+       that holds up on both light and dark browser chrome. -->
+  <path d="M15 33 L27 45 L49 20.5" fill="none" stroke="#6B389B" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="#6B389B">
+    <circle cx="15" cy="33" r="7.5"/>
+    <circle cx="27" cy="45" r="7.5"/>
+    <circle cx="49" cy="20.5" r="7.5"/>
   </g>
 </svg>

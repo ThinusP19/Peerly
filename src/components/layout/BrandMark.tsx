@@ -1,10 +1,11 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Peerly's mark: three peers around a shared piece of work.
+ * Peerly's mark: three peers linked into a tick. Mirrors brand/mark.svg, but
+ * transparent - just the glyph, in the surrounding brand colour, no tile.
  *
- * `tone="onDark"` inverts it for the indigo sidebar, where an indigo tile would
- * disappear into the background.
+ * `tone="onDark"` switches it to the light sidebar foreground for the indigo
+ * sidebars. Override the colour with a `text-*` class when neither fits.
  */
 export function BrandMark({
   className,
@@ -14,29 +15,27 @@ export function BrandMark({
   tone?: "default" | "onDark";
 }) {
   return (
-    <span
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
       className={cn(
-        "flex size-8 shrink-0 items-center justify-center rounded-md",
-        tone === "onDark"
-          ? "bg-sidebar-primary text-sidebar-primary-foreground"
-          : "bg-primary text-primary-foreground",
+        "size-7 shrink-0",
+        tone === "onDark" ? "text-sidebar-primary" : "text-primary",
         className,
       )}
-      aria-hidden="true"
     >
-      <svg viewBox="0 0 24 24" fill="none" className="size-5">
-        <circle cx="12" cy="6.5" r="2.6" fill="currentColor" />
-        <circle cx="6" cy="16.5" r="2.6" fill="currentColor" />
-        <circle cx="18" cy="16.5" r="2.6" fill="currentColor" />
-        <path
-          d="M12 9.6v2.2m0 0-4.2 2.4M12 11.8l4.2 2.4"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          opacity="0.7"
-        />
-      </svg>
-    </span>
+      <path
+        d="M4 12.5l5.75 5.75L20 6.5"
+        stroke="currentColor"
+        strokeWidth="3.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="4" cy="12.5" r="3.25" fill="currentColor" />
+      <circle cx="9.75" cy="18.25" r="3.25" fill="currentColor" />
+      <circle cx="20" cy="6.5" r="3.25" fill="currentColor" />
+    </svg>
   );
 }
 

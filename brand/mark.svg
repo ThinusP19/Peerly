@@ -1,16 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Peerly">
-  <rect width="64" height="64" rx="14" fill="#4F46E5"/>
-  <!-- Three peers around shared work. Weights are set for legibility at 16px:
-       the links are thick enough to survive downsampling, the nodes large
-       enough not to disappear. -->
-  <g stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" opacity="0.55">
-    <path d="M32 22 L18 44"/>
-    <path d="M32 22 L46 44"/>
-    <path d="M18 44 L46 44"/>
-  </g>
-  <g fill="#FFFFFF">
-    <circle cx="32" cy="21" r="7.5"/>
-    <circle cx="18" cy="44" r="7.5"/>
-    <circle cx="46" cy="44" r="7.5"/>
-  </g>
+  <!-- Three peers, linked into a tick: peer assessment in one shape. The
+       middle node carries the lavender accent so the tick still reads as
+       people at large sizes. -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5A3A8A"/>
+      <stop offset="1" stop-color="#3A2160"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#tile)"/>
+  <path d="M16 33 L27.5 44.5 L48 21" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="16" cy="33" r="6.5" fill="#FFFFFF"/>
+  <circle cx="27.5" cy="44.5" r="6.5" fill="#D9C8F5"/>
+  <circle cx="48" cy="21" r="6.5" fill="#FFFFFF"/>
 </svg>
