@@ -22,6 +22,7 @@ import { Route as StudentRouteRouteImport } from './routes/student/route'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminAccountsRouteImport } from './routes/admin/accounts'
 import { Route as AdminAuditRouteImport } from './routes/admin/audit'
+import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as LecturerIndexRouteImport } from './routes/lecturer/index'
 import { Route as LecturerAuditRouteImport } from './routes/lecturer/audit'
 import { Route as LecturerExportRouteImport } from './routes/lecturer/export'
@@ -29,9 +30,11 @@ import { Route as LecturerMarksRouteImport } from './routes/lecturer/marks'
 import { Route as LecturerMatrixRouteImport } from './routes/lecturer/matrix'
 import { Route as LecturerMonitorRouteImport } from './routes/lecturer/monitor'
 import { Route as LecturerResultsRouteImport } from './routes/lecturer/results'
+import { Route as LecturerSettingsRouteImport } from './routes/lecturer/settings'
 import { Route as StudentIndexRouteImport } from './routes/student/index'
 import { Route as StudentGroupRouteImport } from './routes/student/group'
 import { Route as StudentGuideRouteImport } from './routes/student/guide'
+import { Route as StudentSettingsRouteImport } from './routes/student/settings'
 import { Route as LecturerAssessmentsIndexRouteImport } from './routes/lecturer/assessments/index'
 import { Route as LecturerAssessmentsNewRouteImport } from './routes/lecturer/assessments/new'
 import { Route as LecturerClassesIndexRouteImport } from './routes/lecturer/classes/index'
@@ -109,6 +112,11 @@ const AdminAuditRoute = AdminAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const LecturerIndexRoute = LecturerIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -144,6 +152,11 @@ const LecturerResultsRoute = LecturerResultsRouteImport.update({
   path: '/results',
   getParentRoute: () => LecturerRouteRoute,
 } as any)
+const LecturerSettingsRoute = LecturerSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => LecturerRouteRoute,
+} as any)
 const StudentIndexRoute = StudentIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -157,6 +170,11 @@ const StudentGroupRoute = StudentGroupRouteImport.update({
 const StudentGuideRoute = StudentGuideRouteImport.update({
   id: '/guide',
   path: '/guide',
+  getParentRoute: () => StudentRouteRoute,
+} as any)
+const StudentSettingsRoute = StudentSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => StudentRouteRoute,
 } as any)
 const LecturerAssessmentsIndexRoute =
@@ -234,14 +252,17 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/admin/accounts': typeof AdminAccountsRoute
   '/admin/audit': typeof AdminAuditRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/lecturer/audit': typeof LecturerAuditRoute
   '/lecturer/export': typeof LecturerExportRoute
   '/lecturer/marks': typeof LecturerMarksRoute
   '/lecturer/matrix': typeof LecturerMatrixRoute
   '/lecturer/monitor': typeof LecturerMonitorRoute
   '/lecturer/results': typeof LecturerResultsRoute
+  '/lecturer/settings': typeof LecturerSettingsRoute
   '/student/group': typeof StudentGroupRoute
   '/student/guide': typeof StudentGuideRoute
+  '/student/settings': typeof StudentSettingsRoute
   '/admin/': typeof AdminIndexRoute
   '/lecturer/': typeof LecturerIndexRoute
   '/student/': typeof StudentIndexRoute
@@ -267,14 +288,17 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/admin/accounts': typeof AdminAccountsRoute
   '/admin/audit': typeof AdminAuditRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/lecturer/audit': typeof LecturerAuditRoute
   '/lecturer/export': typeof LecturerExportRoute
   '/lecturer/marks': typeof LecturerMarksRoute
   '/lecturer/matrix': typeof LecturerMatrixRoute
   '/lecturer/monitor': typeof LecturerMonitorRoute
   '/lecturer/results': typeof LecturerResultsRoute
+  '/lecturer/settings': typeof LecturerSettingsRoute
   '/student/group': typeof StudentGroupRoute
   '/student/guide': typeof StudentGuideRoute
+  '/student/settings': typeof StudentSettingsRoute
   '/admin': typeof AdminIndexRoute
   '/lecturer': typeof LecturerIndexRoute
   '/student': typeof StudentIndexRoute
@@ -304,14 +328,17 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/admin/accounts': typeof AdminAccountsRoute
   '/admin/audit': typeof AdminAuditRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/lecturer/audit': typeof LecturerAuditRoute
   '/lecturer/export': typeof LecturerExportRoute
   '/lecturer/marks': typeof LecturerMarksRoute
   '/lecturer/matrix': typeof LecturerMatrixRoute
   '/lecturer/monitor': typeof LecturerMonitorRoute
   '/lecturer/results': typeof LecturerResultsRoute
+  '/lecturer/settings': typeof LecturerSettingsRoute
   '/student/group': typeof StudentGroupRoute
   '/student/guide': typeof StudentGuideRoute
+  '/student/settings': typeof StudentSettingsRoute
   '/admin/': typeof AdminIndexRoute
   '/lecturer/': typeof LecturerIndexRoute
   '/student/': typeof StudentIndexRoute
@@ -342,14 +369,17 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/admin/accounts'
     | '/admin/audit'
+    | '/admin/settings'
     | '/lecturer/audit'
     | '/lecturer/export'
     | '/lecturer/marks'
     | '/lecturer/matrix'
     | '/lecturer/monitor'
     | '/lecturer/results'
+    | '/lecturer/settings'
     | '/student/group'
     | '/student/guide'
+    | '/student/settings'
     | '/admin/'
     | '/lecturer/'
     | '/student/'
@@ -375,14 +405,17 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/admin/accounts'
     | '/admin/audit'
+    | '/admin/settings'
     | '/lecturer/audit'
     | '/lecturer/export'
     | '/lecturer/marks'
     | '/lecturer/matrix'
     | '/lecturer/monitor'
     | '/lecturer/results'
+    | '/lecturer/settings'
     | '/student/group'
     | '/student/guide'
+    | '/student/settings'
     | '/admin'
     | '/lecturer'
     | '/student'
@@ -411,14 +444,17 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/admin/accounts'
     | '/admin/audit'
+    | '/admin/settings'
     | '/lecturer/audit'
     | '/lecturer/export'
     | '/lecturer/marks'
     | '/lecturer/matrix'
     | '/lecturer/monitor'
     | '/lecturer/results'
+    | '/lecturer/settings'
     | '/student/group'
     | '/student/guide'
+    | '/student/settings'
     | '/admin/'
     | '/lecturer/'
     | '/student/'
@@ -541,6 +577,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAuditRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/lecturer/': {
       id: '/lecturer/'
       path: '/'
@@ -590,6 +633,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LecturerResultsRouteImport
       parentRoute: typeof LecturerRouteRoute
     }
+    '/lecturer/settings': {
+      id: '/lecturer/settings'
+      path: '/settings'
+      fullPath: '/lecturer/settings'
+      preLoaderRoute: typeof LecturerSettingsRouteImport
+      parentRoute: typeof LecturerRouteRoute
+    }
     '/student/': {
       id: '/student/'
       path: '/'
@@ -609,6 +659,13 @@ declare module '@tanstack/react-router' {
       path: '/guide'
       fullPath: '/student/guide'
       preLoaderRoute: typeof StudentGuideRouteImport
+      parentRoute: typeof StudentRouteRoute
+    }
+    '/student/settings': {
+      id: '/student/settings'
+      path: '/settings'
+      fullPath: '/student/settings'
+      preLoaderRoute: typeof StudentSettingsRouteImport
       parentRoute: typeof StudentRouteRoute
     }
     '/lecturer/assessments/': {
@@ -694,12 +751,14 @@ declare module '@tanstack/react-router' {
 interface AdminRouteRouteChildren {
   AdminAccountsRoute: typeof AdminAccountsRoute
   AdminAuditRoute: typeof AdminAuditRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminAccountsRoute: AdminAccountsRoute,
   AdminAuditRoute: AdminAuditRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 
@@ -714,6 +773,7 @@ interface LecturerRouteRouteChildren {
   LecturerMatrixRoute: typeof LecturerMatrixRoute
   LecturerMonitorRoute: typeof LecturerMonitorRoute
   LecturerResultsRoute: typeof LecturerResultsRoute
+  LecturerSettingsRoute: typeof LecturerSettingsRoute
   LecturerIndexRoute: typeof LecturerIndexRoute
   LecturerAssessmentsNewRoute: typeof LecturerAssessmentsNewRoute
   LecturerClassesImportRoute: typeof LecturerClassesImportRoute
@@ -732,6 +792,7 @@ const LecturerRouteRouteChildren: LecturerRouteRouteChildren = {
   LecturerMatrixRoute: LecturerMatrixRoute,
   LecturerMonitorRoute: LecturerMonitorRoute,
   LecturerResultsRoute: LecturerResultsRoute,
+  LecturerSettingsRoute: LecturerSettingsRoute,
   LecturerIndexRoute: LecturerIndexRoute,
   LecturerAssessmentsNewRoute: LecturerAssessmentsNewRoute,
   LecturerClassesImportRoute: LecturerClassesImportRoute,
@@ -752,6 +813,7 @@ const LecturerRouteRouteWithChildren = LecturerRouteRoute._addFileChildren(
 interface StudentRouteRouteChildren {
   StudentGroupRoute: typeof StudentGroupRoute
   StudentGuideRoute: typeof StudentGuideRoute
+  StudentSettingsRoute: typeof StudentSettingsRoute
   StudentIndexRoute: typeof StudentIndexRoute
   StudentEvaluateAssessmentIdReviewRoute: typeof StudentEvaluateAssessmentIdReviewRoute
   StudentEvaluateAssessmentIdSubmittedRoute: typeof StudentEvaluateAssessmentIdSubmittedRoute
@@ -761,6 +823,7 @@ interface StudentRouteRouteChildren {
 const StudentRouteRouteChildren: StudentRouteRouteChildren = {
   StudentGroupRoute: StudentGroupRoute,
   StudentGuideRoute: StudentGuideRoute,
+  StudentSettingsRoute: StudentSettingsRoute,
   StudentIndexRoute: StudentIndexRoute,
   StudentEvaluateAssessmentIdReviewRoute:
     StudentEvaluateAssessmentIdReviewRoute,

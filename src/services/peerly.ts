@@ -5,6 +5,7 @@
  * states are visible. To move to the real Node.js/Express backend, replace the
  * bodies with `fetch()` calls - the signatures and return types stay the same.
  */
+import { passwordChecks } from "@/lib/password";
 import {
   allGroups,
   assessments,
@@ -17,6 +18,7 @@ import {
   importPreviewRows,
   peerRatings,
   ratingOptions,
+  secondClassGroups,
   staffUsers,
   studentUsers,
   submissions,
@@ -25,6 +27,7 @@ import {
 import type {
   Assessment,
   AuditEntry,
+  AuditEventType,
   CalculatedResult,
   Class,
   Enrolment,
@@ -106,7 +109,10 @@ export const createStaffAccount = (input: Omit<User, "id" | "createdAt" | "statu
     status: "unverified",
     createdAt: new Date().toISOString(),
   };
+  // Keep the combined list in step too, as registerAccount does - activation and
+  // sign-in look accounts up there.
   staffUsers.push(account);
+  users.push(account);
   return delay(account);
 };
 
@@ -646,4 +652,278 @@ export const activateAccount = (email: string): Promise<User | null> => {
   }
 
   return delay(user, 600);
+};
+
+/** What an activation link needs to know about its account. */
+export interface ActivationAccount {
+  name: string;
+  email: string;
+  role: Role;
+}
+
+/**
+ * Looks up the account an activation link belongs to, so the page knows whether
+ * the holder sets a password now (Admin Portal accounts, FR-01/FR-03) or already
+ * chose one at registration (students).
+ */
+export const getActivationAccount = (email: string): Promise<ActivationAccount | null> => {
+  const user = users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
+  return delay(user ? { name: user.name, email: user.email, role: user.role } : null, 700);
+};
+
+/* ------------------------------ audit log ---------------------------- */
+
+/** Appends an audit entry (FR-27). Nothing in the app edits or removes one. */
+function recordAudit(
+  actor: Pick<User, "name" | "surname" | "role">,
+  eventType: AuditEventType,
+  objectDescription: string,
+  detail: string,
+  classId?: string,
+) {
+  auditEntries.push({
+    id: `aud-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+    timestamp: new Date().toISOString(),
+    actorName: `${actor.name} ${actor.surname}`,
+    actorRole: actor.role,
+    eventType,
+    objectDescription,
+    detail,
+    classId,
+  });
+}
+
+/* ------------------------------- classes ----------------------------- */
+
+export class ClassError extends Error {
+  constructor(
+    override readonly message: string,
+    readonly field: "moduleCode" | "name" | "academicPeriod",
+  ) {
+    super(message);
+  }
+}
+
+/** FR-08: a lecturer creates a class. Its class list is imported afterwards. */
+export const createClass = (
+  input: { moduleCode: string; name: string; academicPeriod: string },
+  lecturer: User,
+): Promise<Class> => {
+  const moduleCode = input.moduleCode.trim().toUpperCase();
+  const duplicate = classes.some(
+    (c) =>
+      c.lecturerId === lecturer.id &&
+      c.moduleCode === moduleCode &&
+      c.academicPeriod === input.academicPeriod,
+  );
+  if (duplicate) {
+    throw new ClassError(
+      `You already have ${moduleCode} for ${input.academicPeriod}.`,
+      "moduleCode",
+    );
+  }
+
+  const klass: Class = {
+    id: `cls-${Math.random().toString(36).slice(2, 8)}`,
+    moduleCode,
+    name: input.name.trim(),
+    academicPeriod: input.academicPeriod,
+    lecturerId: lecturer.id,
+  };
+  classes.push(klass);
+  recordAudit(
+    lecturer,
+    "class.created",
+    `${klass.moduleCode} - ${klass.name}`,
+    `Created for ${klass.academicPeriod}`,
+    klass.id,
+  );
+  return delay(klass, 650);
+};
+
+/* ---------------------------- match conflicts ------------------------ */
+
+/** Registered student accounts that claim an enrolment's student number (FR-04). */
+export const getConflictCandidates = (enrolmentId: string): Promise<User[]> => {
+  const enrolment = enrolments.find((e) => e.id === enrolmentId);
+  return delay(
+    enrolment ? studentUsers.filter((u) => u.studentNumber === enrolment.studentNumber) : [],
+    350,
+  );
+};
+
+export type ConflictDecision = { kind: "link"; userId: string } | { kind: "reject" };
+
+/**
+ * FR-04: a lecturer settles a Conflict by linking the class-list entry to one
+ * account, or to none. Linking is what grants that account the class's data.
+ */
+export const resolveEnrolmentConflict = (
+  enrolmentId: string,
+  decision: ConflictDecision,
+  lecturer: User,
+): Promise<Enrolment> => {
+  const enrolment = enrolments.find((e) => e.id === enrolmentId);
+  if (!enrolment || enrolment.matchStatus !== "conflict") {
+    throw new Error("This entry no longer has a conflict to resolve.");
+  }
+  const listed = `${enrolment.importedName} ${enrolment.importedSurname} (${enrolment.studentNumber})`;
+
+  if (decision.kind === "link") {
+    const account = studentUsers.find((u) => u.id === decision.userId);
+    if (!account) throw new Error("That account no longer exists.");
+    enrolment.matchStatus = "matched";
+    enrolment.userId = account.id;
+    enrolment.matchNote = undefined;
+    recordAudit(
+      lecturer,
+      "enrolment.resolved",
+      listed,
+      `Linked to ${account.name} ${account.surname} (${account.email})`,
+      enrolment.classId,
+    );
+  } else {
+    enrolment.matchStatus = "unmatched";
+    enrolment.userId = undefined;
+    enrolment.matchNote =
+      "Not linked: the conflict was reviewed and no account was matched to this entry.";
+    recordAudit(
+      lecturer,
+      "enrolment.resolved",
+      listed,
+      "Reviewed and left unmatched",
+      enrolment.classId,
+    );
+  }
+
+  return delay(enrolment, 600);
+};
+
+/* -------------------------------- deletion --------------------------- */
+
+/** Removes every item matching `predicate` from `list`, in place. */
+function removeWhere<T>(list: T[], predicate: (item: T) => boolean) {
+  for (let i = list.length - 1; i >= 0; i -= 1) {
+    if (predicate(list[i])) list.splice(i, 1);
+  }
+}
+
+function deleteAssessmentRecords(assessmentId: string) {
+  const submissionIds = new Set(
+    submissions.filter((s) => s.assessmentId === assessmentId).map((s) => s.id),
+  );
+  removeWhere(peerRatings, (r) => submissionIds.has(r.submissionId));
+  removeWhere(submissions, (s) => s.assessmentId === assessmentId);
+  removeWhere(groupMarks, (m) => m.assessmentId === assessmentId);
+  removeWhere(calculatedResults, (r) => r.assessmentId === assessmentId);
+  removeWhere(assessments, (a) => a.id === assessmentId);
+}
+
+/**
+ * Whether an assessment holds ratings or marks that were never exported, in
+ * which case deleting it must be confirmed a second time (FR-28).
+ */
+export const hasUnexportedAssessmentData = (assessment: Assessment) =>
+  !assessment.exportedAt &&
+  (Boolean(assessment.calculatedAt) ||
+    submissions.some((s) => s.assessmentId === assessment.id && s.status === "submitted"));
+
+export const hasUnexportedClassData = (classId: string) =>
+  assessments.some((a) => a.classId === classId && hasUnexportedAssessmentData(a));
+
+/**
+ * FR-28: permanently deletes an assessment with its submissions, ratings,
+ * comments, base marks and results. The audit entry about the deletion stays.
+ */
+export const deleteAssessment = (assessmentId: string, lecturer: User) => {
+  const assessment = assessments.find((a) => a.id === assessmentId);
+  if (!assessment) return delay(null);
+  const klass = classes.find((c) => c.id === assessment.classId);
+  const unexported = hasUnexportedAssessmentData(assessment);
+
+  deleteAssessmentRecords(assessmentId);
+  recordAudit(
+    lecturer,
+    "assessment.deleted",
+    `${klass?.moduleCode ?? ""} · ${assessment.name}`,
+    unexported ? "Deleted without an export, confirmed twice" : "Deleted",
+    assessment.classId,
+  );
+  return delay(assessment, 700);
+};
+
+/** FR-28: permanently deletes a class with its class list, groups and assessments. */
+export const deleteClass = (classId: string, lecturer: User) => {
+  const klass = classes.find((c) => c.id === classId);
+  if (!klass) return delay(null);
+  const classAssessments = assessments.filter((a) => a.classId === classId);
+  const unexported = hasUnexportedClassData(classId);
+
+  classAssessments.forEach((a) => deleteAssessmentRecords(a.id));
+  removeWhere(enrolments, (e) => e.classId === classId);
+  // Groups live in three lists; clear the class from each.
+  for (const list of [groups, secondClassGroups, allGroups]) {
+    removeWhere(list, (g) => g.classId === classId);
+  }
+  removeWhere(classes, (c) => c.id === classId);
+
+  recordAudit(
+    lecturer,
+    "class.deleted",
+    `${klass.moduleCode} - ${klass.name}`,
+    `Deleted with its class list, groups and ${classAssessments.length} assessment(s)${
+      unexported ? ", including data never exported (confirmed twice)" : ""
+    }`,
+    classId,
+  );
+  return delay(klass, 800);
+};
+
+/** FR-25: records that an assessment's results have been exported. */
+export const markResultsExported = (assessmentId: string, lecturer: User) => {
+  const assessment = assessments.find((a) => a.id === assessmentId);
+  if (!assessment) return delay(null);
+  const klass = classes.find((c) => c.id === assessment.classId);
+  assessment.exportedAt = new Date().toISOString();
+  recordAudit(
+    lecturer,
+    "results.exported",
+    `${klass?.moduleCode ?? ""} · ${assessment.name}`,
+    `Exported calculation run ${assessment.calculationRunId ?? "(not calculated)"}`,
+    assessment.classId,
+  );
+  return delay(assessment, 300);
+};
+
+/* -------------------------------- passwords -------------------------- */
+
+export class PasswordChangeError extends Error {
+  constructor(
+    override readonly message: string,
+    readonly field: "current" | "next",
+  ) {
+    super(message);
+  }
+}
+
+/**
+ * FR-06: change a known password. The current password comes first, the new
+ * one must meet SR-02, and every other session for the account ends (SR-05).
+ * In the prototype any current password is accepted, as it is at sign-in.
+ */
+export const changePassword = (user: User, current: string, next: string) => {
+  if (!current) throw new PasswordChangeError("Enter your current password.", "current");
+  const failed = passwordChecks(next, user).find((check) => !check.ok);
+  if (failed) throw new PasswordChangeError(failed.error, "next");
+  if (current === next) {
+    throw new PasswordChangeError("Choose a password different from your current one.", "next");
+  }
+
+  recordAudit(
+    user,
+    "password.changed",
+    `${user.name} ${user.surname} · ${user.email}`,
+    "Password changed; other sessions signed out",
+  );
+  return delay(true, 700);
 };

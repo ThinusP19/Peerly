@@ -13,14 +13,19 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateTimeLong } from "@/lib/format";
 import { useSession } from "@/lib/session";
 import { classes } from "@/mocks/data";
-import { getAssessment, getPeerRatings, getResultRows } from "@/services/peerly";
+import {
+  getAssessment,
+  getPeerRatings,
+  getResultRows,
+  markResultsExported,
+} from "@/services/peerly";
 
 export const Route = createFileRoute("/lecturer/export")({
   component: ExportPage,
 });
 
 function ExportPage() {
-  const { activeAssessmentId, activeClassId } = useSession();
+  const { user, activeAssessmentId, activeClassId } = useSession();
   const klass = classes.find((c) => c.id === activeClassId);
 
   const assessmentQuery = useQuery({
@@ -178,6 +183,7 @@ function ExportPage() {
           onClick={async () => {
             setBusy(true);
             await new Promise((resolve) => setTimeout(resolve, 1200));
+            if (user) await markResultsExported(assessment.id, user);
             setBusy(false);
             toast.success(`${fileName} downloaded`);
           }}

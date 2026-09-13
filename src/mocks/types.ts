@@ -61,6 +61,8 @@ export interface Assessment {
   maxMark: number;
   calculatedAt?: string;
   calculationRunId?: string;
+  /** When the results were last exported (FR-25). Deleting without one asks twice (FR-28). */
+  exportedAt?: string;
 }
 
 export interface RatingOption {
@@ -136,7 +138,12 @@ export type AuditEventType =
   | "marks.entered"
   | "marks.calculated"
   | "mark.overridden"
-  | "results.exported";
+  | "results.exported"
+  | "class.created"
+  | "class.deleted"
+  | "assessment.deleted"
+  | "enrolment.resolved"
+  | "password.changed";
 
 export interface AuditEntry {
   id: string;

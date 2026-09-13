@@ -1,5 +1,12 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { BookOpen, ClipboardList, LogOut, UsersRound, type LucideIcon } from "lucide-react";
+import {
+  BookOpen,
+  ClipboardList,
+  LogOut,
+  Settings,
+  UsersRound,
+  type LucideIcon,
+} from "lucide-react";
 import type { ReactNode } from "react";
 
 import { BrandLockup, BrandMark } from "@/components/layout/BrandMark";
@@ -10,7 +17,7 @@ import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
-  to: "/student" | "/student/group" | "/student/guide";
+  to: "/student" | "/student/group" | "/student/guide" | "/student/settings";
   label: string;
   icon: LucideIcon;
   exact?: boolean;
@@ -20,6 +27,7 @@ const nav: NavItem[] = [
   { to: "/student", label: "Assessments", icon: ClipboardList, exact: true },
   { to: "/student/group", label: "My group", icon: UsersRound },
   { to: "/student/guide", label: "How rating works", icon: BookOpen },
+  { to: "/student/settings", label: "Settings", icon: Settings },
 ];
 
 function useActive() {

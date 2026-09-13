@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { MoreHorizontal, Search, ShieldAlert, UserPlus, Users } from "lucide-react";
 import { useMemo, useState, type FormEvent } from "react";
 import { toast } from "sonner";
@@ -376,6 +376,7 @@ function AccountFormDialog({
   const [errors, setErrors] = useState<Partial<Record<keyof AccountForm, string>>>({});
   const [busy, setBusy] = useState(false);
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   // Seed the form when a different account is opened for editing.
   const seedKey = mode === "edit" ? (account?.id ?? null) : open ? "create" : null;
@@ -426,7 +427,13 @@ function AccountFormDialog({
       toast.success(`${payload.name} ${payload.surname}'s details have been updated.`);
     } else {
       await createStaffAccount(payload);
-      toast.success(`Account created. An activation link has been sent to ${payload.email}.`);
+      // No real email in the prototype, so offer the link the email would carry.
+      toast.success(`Account created. An activation link has been sent to ${payload.email}.`, {
+        action: {
+          label: "Open activation link",
+          onClick: () => navigate({ to: "/activate", search: { email: payload.email } }),
+        },
+      });
     }
 
     await onSaved();

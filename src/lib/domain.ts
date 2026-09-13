@@ -89,6 +89,11 @@ export const auditEventMeta: Record<AuditEventType, string> = {
   "marks.calculated": "Marks calculated",
   "mark.overridden": "Mark overridden",
   "results.exported": "Results exported",
+  "class.created": "Class created",
+  "class.deleted": "Class deleted",
+  "assessment.deleted": "Assessment deleted",
+  "enrolment.resolved": "Match conflict resolved",
+  "password.changed": "Password changed",
 };
 
 /* ------------------------------------------------------------------ *

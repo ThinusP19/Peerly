@@ -1,8 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
-import { Link, createFileRoute } from "@tanstack/react-router";
-import { AlertTriangle, Link2Off, Search, UploadCloud, Users } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { AlertTriangle, Link2Off, Plus, Search, UploadCloud, Users } from "lucide-react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 
+import { CreateClassDialog } from "@/components/lecturer/CreateClassDialog";
+import { ResolveConflictDialog } from "@/components/lecturer/ResolveConflictDialog";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { DangerZone, UnexportedAcknowledgement } from "@/components/shared/DangerZone";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -19,16 +24,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useSession } from "@/lib/session";
-import { classes } from "@/mocks/data";
+import { allGroups, assessments, classes } from "@/mocks/data";
 import type { MatchStatus } from "@/mocks/types";
-import { getEnrolmentRows, type EnrolmentRow } from "@/services/peerly";
+import {
+  deleteClass,
+  getEnrolmentRows,
+  hasUnexportedClassData,
+  type EnrolmentRow,
+} from "@/services/peerly";
 
 export const Route = createFileRoute("/lecturer/classes/")({
   component: ClassListPage,
 });
 
 function ClassListPage() {
-  const { activeClassId } = useSession();
+  const { user, activeClassId, setActiveClassId, setActiveAssessmentId } = useSession();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const klass = classes.find((c) => c.id === activeClassId);
 
   const rows = useQuery({
@@ -38,6 +50,10 @@ function ClassListPage() {
 
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<MatchStatus | "all">("all");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [resolving, setResolving] = useState<EnrolmentRow | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [acknowledged, setAcknowledged] = useState(false);
 
   const all = useMemo(() => rows.data ?? [], [rows.data]);
   const matched = all.filter((row) => row.matchStatus === "matched");
@@ -103,9 +119,28 @@ function ClassListPage() {
       className: "text-muted-foreground",
       cell: (row) => row.matchNote ?? "Matched to a registered Peerly account.",
     },
+    {
+      key: "actions",
+      header: <span className="sr-only">Actions</span>,
+      align: "right",
+      cell: (row) =>
+        row.matchStatus === "conflict" ? (
+          <Button size="sm" variant="outline" onClick={() => setResolving(row)}>
+            Resolve
+            <span className="sr-only">
+              {" "}
+              conflict for {row.importedName} {row.importedSurname}
+            </span>
+          </Button>
+        ) : null,
+    },
   ];
 
   const filtersApplied = Boolean(search.trim()) || status !== "all";
+
+  const classGroups = klass ? allGroups.filter((g) => g.classId === klass.id).length : 0;
+  const classAssessments = klass ? assessments.filter((a) => a.classId === klass.id).length : 0;
+  const unexported = klass ? hasUnexportedClassData(klass.id) : false;
 
   return (
     <>
@@ -114,15 +149,23 @@ function ClassListPage() {
         description={
           klass
             ? `${klass.moduleCode} - ${klass.name} · ${klass.academicPeriod}`
-            : "Select a class in the header to see its class list."
+            : "Select a class in the header to see its class list, or create a new one."
         }
         actions={
-          <Button asChild>
-            <Link to="/lecturer/classes/import">
-              <UploadCloud aria-hidden="true" />
-              Import a new list
-            </Link>
-          </Button>
+          <>
+            <Button variant="outline" onClick={() => setCreateOpen(true)}>
+              <Plus aria-hidden="true" />
+              New class
+            </Button>
+            {klass ? (
+              <Button asChild>
+                <Link to="/lecturer/classes/import">
+                  <UploadCloud aria-hidden="true" />
+                  Import a new list
+                </Link>
+              </Button>
+            ) : null}
+          </>
         }
       />
 
@@ -167,9 +210,18 @@ function ClassListPage() {
               account. They can't be put into a group or rate anyone until that's resolved.
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setStatus("unmatched")}>
-            Show unmatched
-          </Button>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            {conflicts.length > 0 ? (
+              <Button variant="outline" size="sm" onClick={() => setStatus("conflict")}>
+                Show conflicts
+              </Button>
+            ) : null}
+            {unmatched.length > 0 ? (
+              <Button variant="outline" size="sm" onClick={() => setStatus("unmatched")}>
+                Show unmatched
+              </Button>
+            ) : null}
+          </div>
         </Card>
       ) : null}
 
@@ -246,6 +298,70 @@ function ClassListPage() {
           />
         }
       />
+
+      {klass ? (
+        <DangerZone
+          title="Delete this class"
+          description={`Permanently removes ${klass.moduleCode}, its class list, groups and every assessment in it, with all ratings and marks.`}
+          actionLabel="Delete class"
+          onAction={() => {
+            setAcknowledged(false);
+            setDeleteOpen(true);
+          }}
+        />
+      ) : null}
+
+      <CreateClassDialog open={createOpen} onOpenChange={setCreateOpen} />
+
+      <ResolveConflictDialog row={resolving} onOpenChange={(open) => !open && setResolving(null)} />
+
+      {klass ? (
+        <ConfirmDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          title="Delete this class permanently?"
+          objectName={`${klass.moduleCode} - ${klass.name} · ${klass.academicPeriod}`}
+          description={
+            <p>
+              This removes the class list ({all.length} students), {classGroups}{" "}
+              {classGroups === 1 ? "group" : "groups"} and {classAssessments}{" "}
+              {classAssessments === 1 ? "assessment" : "assessments"}, with every submission,
+              rating, comment, base mark and calculated result.
+            </p>
+          }
+          consequence={
+            <p>
+              This can't be undone. The audit log records that the class was deleted and by whom,
+              but none of its data.
+            </p>
+          }
+          destructive
+          confirmLabel="Delete class"
+          confirmDisabled={unexported && !acknowledged}
+          onConfirm={async () => {
+            if (!user) return;
+            const deleted = klass;
+            await deleteClass(deleted.id, user);
+            const next = classes.find((c) => c.lecturerId === user.id);
+            if (next) {
+              setActiveClassId(next.id);
+              const firstAssessment = assessments.find((a) => a.classId === next.id);
+              if (firstAssessment) setActiveAssessmentId(firstAssessment.id);
+            }
+            navigate({ to: "/lecturer" });
+            void queryClient.invalidateQueries();
+            toast.success(`${deleted.moduleCode} has been deleted.`);
+          }}
+        >
+          {unexported ? (
+            <UnexportedAcknowledgement
+              subject="This class's"
+              checked={acknowledged}
+              onCheckedChange={setAcknowledged}
+            />
+          ) : null}
+        </ConfirmDialog>
+      ) : null}
     </>
   );
 }

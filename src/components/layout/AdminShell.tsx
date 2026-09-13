@@ -10,6 +10,7 @@ import {
   LogOut,
   Menu,
   ScrollText,
+  Settings,
   Sigma,
   Users,
   UsersRound,
@@ -60,12 +61,14 @@ const lecturerNav = [
   { to: "/lecturer/marks", label: "Marks & Calculation", icon: Sigma },
   { to: "/lecturer/results", label: "Results & Export", icon: ScrollText },
   { to: "/lecturer/audit", label: "Audit Log", icon: ScrollText },
+  { to: "/lecturer/settings", label: "Settings", icon: Settings },
 ] as const satisfies readonly NavItem[];
 
 const adminNav = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/admin/accounts", label: "Lecturer & Admin Accounts", icon: Users },
   { to: "/admin/audit", label: "Audit Log", icon: ScrollText },
+  { to: "/admin/settings", label: "Settings", icon: Settings },
 ] as const satisfies readonly NavItem[];
 
 const homeFor = (role: Role) => (role === "admin" ? "/admin" : "/lecturer");
@@ -324,7 +327,9 @@ function AdminShellInner({
   // The dashboard spans every class, so it has no class/assessment context.
   // Every other lecturer page works inside one, so the switchers sit under the
   // top bar there.
-  const showContext = role === "lecturer" && pathname !== "/lecturer";
+  // The class/assessment selector only means something on pages that show class data.
+  const showContext =
+    role === "lecturer" && pathname !== "/lecturer" && !pathname.startsWith("/lecturer/settings");
 
   return (
     <div className="min-h-screen bg-background">

@@ -277,7 +277,7 @@ export const enrolments: Enrolment[] = studentUsers.map((student, i) => {
       matchStatus === "unmatched"
         ? "No registered Peerly account uses this student number yet."
         : matchStatus === "conflict"
-          ? "Two accounts claim this student number - surname on the class list does not match either."
+          ? "A registered account uses this student number, but its details need checking before it's linked."
           : undefined,
   };
 });

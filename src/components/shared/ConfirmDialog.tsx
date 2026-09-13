@@ -29,6 +29,7 @@ export function ConfirmDialog({
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   destructive = false,
+  confirmDisabled = false,
   onConfirm,
   children,
 }: {
@@ -42,6 +43,8 @@ export function ConfirmDialog({
   confirmLabel?: string;
   cancelLabel?: string;
   destructive?: boolean;
+  /** Keeps the confirm button disabled, e.g. until a second acknowledgement is ticked. */
+  confirmDisabled?: boolean;
   onConfirm: () => void | Promise<void>;
   children?: ReactNode;
 }) {
@@ -86,7 +89,7 @@ export function ConfirmDialog({
           <Button
             variant={destructive ? "destructive" : "default"}
             onClick={handleConfirm}
-            disabled={busy}
+            disabled={busy || confirmDisabled}
           >
             {busy ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
             {busy ? "Working…" : confirmLabel}

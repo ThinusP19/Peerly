@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   BarChart3,
   CalendarClock,
@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { DangerZone, UnexportedAcknowledgement } from "@/components/shared/DangerZone";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { FormField } from "@/components/shared/FormField";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -27,10 +28,12 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateTimeLong, formatDeadline } from "@/lib/format";
 import { useSession } from "@/lib/session";
-import { allGroups, classes } from "@/mocks/data";
+import { allGroups, assessments, classes } from "@/mocks/data";
 import {
+  deleteAssessment,
   getAssessment,
   getSubmissions,
+  hasUnexportedAssessmentData,
   setAssessmentStatus,
   updateAssessment,
 } from "@/services/peerly";
@@ -44,7 +47,8 @@ type PendingAction = "open" | "close" | "reopen" | null;
 function AssessmentDetailPage() {
   const { assessmentId } = Route.useParams();
   const queryClient = useQueryClient();
-  const { setActiveAssessmentId, setActiveClassId } = useSession();
+  const navigate = useNavigate();
+  const { user, setActiveAssessmentId, setActiveClassId } = useSession();
 
   const assessmentQuery = useQuery({
     queryKey: ["assessment", assessmentId],
@@ -60,6 +64,8 @@ function AssessmentDetailPage() {
   const [pending, setPending] = useState<PendingAction>(null);
   const [extendOpen, setExtendOpen] = useState(false);
   const [newClosesAt, setNewClosesAt] = useState("");
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [acknowledged, setAcknowledged] = useState(false);
 
   // Keep the header's context selector in step with whatever is being viewed.
   useEffect(() => {
@@ -98,6 +104,7 @@ function AssessmentDetailPage() {
   const expected = groups.flatMap((g) => g.memberStudentIds).length;
   const submitted = (submissionsQuery.data ?? []).filter((s) => s.status === "submitted").length;
   const calculated = Boolean(assessment.calculatedAt);
+  const unexported = hasUnexportedAssessmentData(assessment);
 
   const refresh = () => queryClient.invalidateQueries();
 
@@ -241,6 +248,16 @@ function AssessmentDetailPage() {
         </div>
       </Card>
 
+      <DangerZone
+        title="Delete this assessment"
+        description="Permanently removes it with every submission, rating, comment, base mark and calculated result."
+        actionLabel="Delete assessment"
+        onAction={() => {
+          setAcknowledged(false);
+          setDeleteOpen(true);
+        }}
+      />
+
       {/* --- Status change confirmations --- */}
       <ConfirmDialog
         open={pending === "open"}
@@ -359,6 +376,49 @@ function AssessmentDetailPage() {
             />
           )}
         </FormField>
+      </ConfirmDialog>
+
+      {/* --- Deletion (FR-28) --- */}
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete this assessment permanently?"
+        objectName={`${klass?.moduleCode ?? ""} · ${assessment.name}`}
+        description={
+          <p>
+            This removes {submitted} submitted {submitted === 1 ? "evaluation" : "evaluations"} with
+            all their ratings and comments
+            {calculated ? ", the group base marks and the calculated marks" : ""}. Students will no
+            longer see it.
+          </p>
+        }
+        consequence={
+          <p>
+            This can't be undone. The audit log records that it was deleted and by whom, but none of
+            its data.
+          </p>
+        }
+        destructive
+        confirmLabel="Delete assessment"
+        confirmDisabled={unexported && !acknowledged}
+        onConfirm={async () => {
+          if (!user) return;
+          const name = assessment.name;
+          await deleteAssessment(assessment.id, user);
+          const next = assessments.find((a) => a.classId === assessment.classId);
+          if (next) setActiveAssessmentId(next.id);
+          navigate({ to: "/lecturer/assessments" });
+          void queryClient.invalidateQueries();
+          toast.success(`“${name}” has been deleted.`);
+        }}
+      >
+        {unexported ? (
+          <UnexportedAcknowledgement
+            subject="This assessment's"
+            checked={acknowledged}
+            onCheckedChange={setAcknowledged}
+          />
+        ) : null}
       </ConfirmDialog>
     </>
   );
