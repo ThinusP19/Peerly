@@ -313,12 +313,16 @@ function AdminShellInner({
 
   return (
     <div className="min-h-screen bg-background">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 bg-sidebar lg:block">
+      {/* Floats: inset from the window edges with rounded corners. */}
+      <aside className="fixed inset-y-3 left-3 z-30 hidden w-64 overflow-hidden rounded-2xl bg-sidebar shadow-raised lg:block">
         <SidebarBody role={role} />
       </aside>
 
-      <div className="lg:pl-64">
-        <header className="sticky top-0 z-20 border-b bg-card">
+      {/* 17.5rem = 0.75rem inset + 16rem sidebar + 0.75rem gap. */}
+      <div className="lg:pl-70">
+        {/* The top bar floats the same way: inset, rounded, and it stays put
+            with a small gap above it as the page scrolls. */}
+        <header className="sticky top-3 z-20 mx-3 mt-3 overflow-hidden rounded-2xl border bg-card shadow-card lg:ml-0">
           <div className="flex h-16 items-center gap-3 px-4 sm:px-6 lg:px-8">
             <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
               <SheetTrigger asChild>
@@ -349,7 +353,7 @@ function AdminShellInner({
           </div>
 
           {showContext ? (
-            <div className="border-t bg-background/60 px-4 py-2.5 sm:px-6 lg:px-8">
+            <div className="border-t bg-muted/40 px-4 py-2.5 sm:px-6 lg:px-8">
               <ContextSelector />
             </div>
           ) : null}
