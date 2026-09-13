@@ -37,3 +37,6 @@ server/node_modules
 
 # Browser-test snapshots from the Playwright MCP tools
 .playwright-mcp/
+
+# Local environment files: credentials never go in the repository
+.env

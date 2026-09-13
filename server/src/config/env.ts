@@ -15,24 +15,64 @@ const csv = (value: string) =>
     .map((part) => part.trim().toLowerCase())
     .filter(Boolean);
 
-const schema = z.object({
-  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  PORT: z.coerce.number().int().positive().default(4000),
-  DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
-  CORS_ORIGINS: z.string().default("http://localhost:8080"),
+/** A blank value in .env (e.g. `SMTP_HOST=`) counts as not set. */
+const optional = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value) => value || undefined);
 
-  // IS-01 - the definitive domain list is still awaiting Sponsor confirmation.
-  STUDENT_EMAIL_DOMAINS: z.string().default("mynwu.ac.za"),
-  STAFF_EMAIL_DOMAINS: z.string().default("nwu.ac.za"),
+/** Settings that must be filled in before real email can be sent. */
+const requiredForSmtp = ["SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD", "MAIL_FROM_ADDRESS"] as const;
 
-  // SR-05
-  SESSION_IDLE_MINUTES: z.coerce.number().int().positive().default(30),
-  SESSION_ABSOLUTE_MINUTES: z.coerce.number().int().positive().default(720),
+const schema = z
+  .object({
+    NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+    PORT: z.coerce.number().int().positive().default(4000),
+    DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
+    CORS_ORIGINS: z.string().default("http://127.0.0.1:7331,http://localhost:7331"),
 
-  // FR-03, FR-06
-  ACTIVATION_TOKEN_MINUTES: z.coerce.number().int().positive().default(1440),
-  RECOVERY_TOKEN_MINUTES: z.coerce.number().int().positive().default(60),
-});
+    // IS-01 - the definitive domain list is still awaiting Sponsor confirmation.
+    STUDENT_EMAIL_DOMAINS: z.string().default("mynwu.ac.za"),
+    STAFF_EMAIL_DOMAINS: z.string().default("nwu.ac.za"),
+
+    // SR-05
+    SESSION_IDLE_MINUTES: z.coerce.number().int().positive().default(30),
+    SESSION_ABSOLUTE_MINUTES: z.coerce.number().int().positive().default(720),
+
+    // FR-03, FR-06
+    ACTIVATION_TOKEN_MINUTES: z.coerce.number().int().positive().default(1440),
+    RECOVERY_TOKEN_MINUTES: z.coerce.number().int().positive().default(60),
+    // Lifetime of the 6-digit code sent at registration.
+    EMAIL_CODE_MINUTES: z.coerce.number().int().positive().default(10),
+
+    // Base URL of the web app, for links inside emails.
+    APP_URL: z.url().default("http://127.0.0.1:7331"),
+
+    // CI-05. "log" prints emails to the console instead of sending them. It is
+    // the default so the API runs without SMTP credentials.
+    MAIL_TRANSPORT: z.enum(["log", "smtp"]).default("log"),
+    SMTP_HOST: optional,
+    SMTP_PORT: z.coerce.number().int().positive().default(587),
+    SMTP_SECURE: z.enum(["true", "false"]).default("false"),
+    SMTP_USER: optional,
+    SMTP_PASSWORD: optional,
+    MAIL_FROM_NAME: z.string().default("Peerly"),
+    MAIL_FROM_ADDRESS: optional,
+    MAIL_REPLY_TO: optional,
+  })
+  .superRefine((value, ctx) => {
+    if (value.MAIL_TRANSPORT !== "smtp") return;
+    for (const key of requiredForSmtp) {
+      if (!value[key]) {
+        ctx.addIssue({
+          code: "custom",
+          path: [key],
+          message: `${key} is required when MAIL_TRANSPORT=smtp`,
+        });
+      }
+    }
+  });
 
 const parsed = schema.safeParse(process.env);
 
@@ -51,6 +91,7 @@ export const env = {
   port: raw.PORT,
   databaseUrl: raw.DATABASE_URL,
   corsOrigins: csv(raw.CORS_ORIGINS),
+  appUrl: raw.APP_URL,
   studentEmailDomains: csv(raw.STUDENT_EMAIL_DOMAINS),
   staffEmailDomains: csv(raw.STAFF_EMAIL_DOMAINS),
   session: {
@@ -60,6 +101,19 @@ export const env = {
   tokens: {
     activationMinutes: raw.ACTIVATION_TOKEN_MINUTES,
     recoveryMinutes: raw.RECOVERY_TOKEN_MINUTES,
+    emailCodeMinutes: raw.EMAIL_CODE_MINUTES,
+  },
+  mail: {
+    transport: raw.MAIL_TRANSPORT,
+    from: { name: raw.MAIL_FROM_NAME, address: raw.MAIL_FROM_ADDRESS },
+    replyTo: raw.MAIL_REPLY_TO,
+    smtp: {
+      host: raw.SMTP_HOST,
+      port: raw.SMTP_PORT,
+      secure: raw.SMTP_SECURE === "true",
+      user: raw.SMTP_USER,
+      password: raw.SMTP_PASSWORD,
+    },
   },
 } as const;
 
