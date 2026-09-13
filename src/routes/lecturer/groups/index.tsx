@@ -62,7 +62,7 @@ function GroupsOverview() {
         title="Groups"
         description={
           klass
-            ? `Confirmed groups for ${klass.moduleCode} — ${klass.name}.`
+            ? `Confirmed groups for ${klass.moduleCode} - ${klass.name}.`
             : "Select a class in the header to see its groups."
         }
         actions={

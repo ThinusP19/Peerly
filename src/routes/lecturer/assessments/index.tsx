@@ -109,7 +109,7 @@ function AssessmentListPage() {
         title="Assessments"
         description={
           klass
-            ? `Peer assessments for ${klass.moduleCode} — ${klass.name}.`
+            ? `Peer assessments for ${klass.moduleCode} - ${klass.name}.`
             : "Select a class in the header to see its assessments."
         }
         actions={

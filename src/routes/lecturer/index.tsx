@@ -106,7 +106,7 @@ function ClassCard({ summary, onOpen }: { summary: ClassSummary; onOpen: () => v
           {klass.academicPeriod}
         </p>
         <h2 className="text-lg font-semibold text-foreground">
-          {klass.moduleCode} — {klass.name}
+          {klass.moduleCode} - {klass.name}
         </h2>
       </div>
 
@@ -136,7 +136,7 @@ function ClassCard({ summary, onOpen }: { summary: ClassSummary; onOpen: () => v
           <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           <p>
             {needsAttention} {needsAttention === 1 ? "student needs" : "students need"} attention on
-            the class list — {summary.unmatchedCount} unmatched, {summary.conflictCount}{" "}
+            the class list - {summary.unmatchedCount} unmatched, {summary.conflictCount}{" "}
             conflicting.
           </p>
         </div>

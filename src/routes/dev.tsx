@@ -14,7 +14,7 @@ export const Route = createFileRoute("/dev")({
 const screens = [
   { to: "/login", label: "Sign in" },
   { to: "/register", label: "Student registration" },
-  { to: "/activate", label: "Account activation — success" },
+  { to: "/activate", label: "Account activation - success" },
   { to: "/forgot-password", label: "Forgot password" },
   { to: "/reset-password", label: "Reset password" },
 ] as const;
@@ -57,7 +57,7 @@ function DevPage() {
             Jump into any role
           </h1>
           <p className="text-sm text-muted-foreground">
-            This page exists only in the prototype. Pick a persona to sign in as — every screen in
+            This page exists only in the prototype. Pick a persona to sign in as - every screen in
             the two portals is reachable from there. The same switcher is pinned to the corner of
             every screen.
           </p>
@@ -104,19 +104,19 @@ function DevPage() {
             ))}
             <Button asChild variant="outline" size="sm">
               <Link to="/activate" search={{ token: "expired" }}>
-                Account activation — expired
+                Account activation - expired
               </Link>
             </Button>
             <Button asChild variant="outline" size="sm">
               <Link to="/reset-password" search={{ token: "expired" }}>
-                Reset password — expired link
+                Reset password - expired link
               </Link>
             </Button>
           </div>
         </div>
 
         <p className="text-xs text-muted-foreground">
-          All data is mock data held in memory — nothing is sent anywhere, and a page refresh resets
+          All data is mock data held in memory - nothing is sent anywhere, and a page refresh resets
           any changes you make.
         </p>
       </div>

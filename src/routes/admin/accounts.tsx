@@ -406,7 +406,7 @@ function AccountFormDialog({
     if (!form.email.trim()) {
       next.email = "Enter an institutional email address.";
     } else if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) {
-      next.email = "This doesn't look like an email address — check for a missing @ or full stop.";
+      next.email = "This doesn't look like an email address - check for a missing @ or full stop.";
     } else if (!form.email.trim().toLowerCase().endsWith("nwu.ac.za")) {
       next.email = "Staff accounts must use an institutional address ending in nwu.ac.za.";
     }
@@ -492,7 +492,7 @@ function AccountFormDialog({
               label="Role"
               hint={
                 form.role === "admin"
-                  ? "Administrators manage staff accounts only — they cannot see marks."
+                  ? "Administrators manage staff accounts only - they cannot see marks."
                   : "Lecturers manage their own classes, groups, assessments and marks."
               }
               required

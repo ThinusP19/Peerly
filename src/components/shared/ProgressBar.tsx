@@ -8,7 +8,7 @@ const tones = {
 } as const;
 
 /**
- * Progress is always accompanied by a text value — the bar is never the only
+ * Progress is always accompanied by a text value - the bar is never the only
  * way to read the number.
  */
 export function ProgressBar({

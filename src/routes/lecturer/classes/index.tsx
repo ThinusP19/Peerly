@@ -113,7 +113,7 @@ function ClassListPage() {
         title="Class list"
         description={
           klass
-            ? `${klass.moduleCode} — ${klass.name} · ${klass.academicPeriod}`
+            ? `${klass.moduleCode} - ${klass.name} · ${klass.academicPeriod}`
             : "Select a class in the header to see its class list."
         }
         actions={

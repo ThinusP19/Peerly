@@ -15,14 +15,14 @@ import {
  * Confirmation gate for irreversible actions.
  *
  * Built on Dialog rather than AlertDialog so the dialog stays open (and the
- * confirm button stays busy) while the action runs — Radix's AlertDialogAction
+ * confirm button stays busy) while the action runs - Radix's AlertDialogAction
  * closes on click, which would hide the busy state.
  */
 export function ConfirmDialog({
   open,
   onOpenChange,
   title,
-  /** Name the exact object being acted on, e.g. "Group 4 — Phase 2". */
+  /** Name the exact object being acted on, e.g. "Group 4 - Phase 2". */
   objectName,
   description,
   consequence,

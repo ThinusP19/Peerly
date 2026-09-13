@@ -20,7 +20,7 @@ export function FullPageLoading({ label = "Loading Peerly…" }: { label?: strin
  * Keeps each portal to its own roles.
  *
  * The session is restored from localStorage after the first paint, so this must
- * wait for `hydrated` before redirecting — otherwise a signed-in user gets
+ * wait for `hydrated` before redirecting - otherwise a signed-in user gets
  * bounced to the login screen on every refresh.
  */
 export function RoleGuard({ allow, children }: { allow: Role[]; children: ReactNode }) {

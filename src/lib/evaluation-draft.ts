@@ -77,7 +77,7 @@ export function useEvaluationDraft(assessmentId: string, studentId: string | und
       try {
         window.localStorage.setItem(storageKey(assessmentId, studentId), JSON.stringify(next));
       } catch {
-        /* prototype only — ignore unwritable storage */
+        /* prototype only - ignore unwritable storage */
       }
       setJustSaved(true);
       if (saveTimer.current) clearTimeout(saveTimer.current);

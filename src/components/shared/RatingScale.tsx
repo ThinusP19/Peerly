@@ -8,7 +8,7 @@ import type { StudentRatingOption } from "@/mocks/types";
  * The nine descriptive rating options.
  *
  * The label and its behavioural description are always shown together, inline.
- * This takes `StudentRatingOption`, which has no `hiddenValue` field at all —
+ * This takes `StudentRatingOption`, which has no `hiddenValue` field at all -
  * the numeric scale is lecturer-only and appears just in the matrix and the
  * results drill-down.
  */

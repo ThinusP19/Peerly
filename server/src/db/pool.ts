@@ -32,8 +32,8 @@ export async function query<T extends pg.QueryResultRow = pg.QueryResultRow>(
 }
 
 /**
- * Runs `fn` inside a single transaction, so a multi-record operation — a class
- * list commit, a group confirmation, a submission, a calculation run — either
+ * Runs `fn` inside a single transaction, so a multi-record operation - a class
+ * list commit, a group confirmation, a submission, a calculation run - either
  * lands whole or not at all (OR-05).
  */
 export async function withTransaction<T>(fn: (sql: pg.PoolClient) => Promise<T>): Promise<T> {

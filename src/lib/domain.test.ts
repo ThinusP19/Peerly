@@ -19,7 +19,7 @@ import type {
 } from "@/mocks/types";
 
 /* ------------------------------------------------------------------ *
- * Fixtures — deliberately small so an expected value can be worked out
+ * Fixtures - deliberately small so an expected value can be worked out
  * by hand and checked against the FSD rather than against the code.
  * ------------------------------------------------------------------ */
 
@@ -65,7 +65,7 @@ const assessment = (status: Assessment["status"]): Assessment => ({
 });
 
 /* ------------------------------------------------------------------ *
- * buildMatrix — FR-19
+ * buildMatrix - FR-19
  * ------------------------------------------------------------------ */
 
 describe("buildMatrix (FR-19)", () => {
@@ -96,7 +96,7 @@ describe("buildMatrix (FR-19)", () => {
   it("distinguishes a non-submitting evaluator from a low rating (user story 9)", () => {
     const missing = matrix.rows.find((row) => row.evaluatorId === "s3")!;
     expect(missing.submitted).toBe(false);
-    // Its cells must be empty rather than zero — a blank readable as 0 would
+    // Its cells must be empty rather than zero - a blank readable as 0 would
     // silently drag the evaluated students' means down.
     expect(missing.cells.every((cell) => cell.ratingOption === undefined)).toBe(true);
     expect(missing.rowMean).toBeNull();
@@ -126,7 +126,7 @@ describe("buildMatrix (FR-19)", () => {
 });
 
 /* ------------------------------------------------------------------ *
- * deviationFrom — FR-19 highlighting
+ * deviationFrom - FR-19 highlighting
  * ------------------------------------------------------------------ */
 
 describe("deviationFrom (FR-19)", () => {
@@ -154,7 +154,7 @@ describe("deviationFrom (FR-19)", () => {
 });
 
 /* ------------------------------------------------------------------ *
- * submissionProgress — FR-18
+ * submissionProgress - FR-18
  * ------------------------------------------------------------------ */
 
 describe("submissionProgress (FR-18)", () => {
@@ -179,7 +179,7 @@ describe("submissionProgress (FR-18)", () => {
 });
 
 /* ------------------------------------------------------------------ *
- * studentAssessmentState — FR-14
+ * studentAssessmentState - FR-14
  * ------------------------------------------------------------------ */
 
 describe("studentAssessmentState (FR-14)", () => {
@@ -205,13 +205,13 @@ describe("studentAssessmentState (FR-14)", () => {
     expect(studentAssessmentState(assessment("closed"), undefined)).toBe("closed-missed");
   });
 
-  it("keeps a submitted state after closure — closing must not erase a submission", () => {
+  it("keeps a submitted state after closure - closing must not erase a submission", () => {
     expect(studentAssessmentState(assessment("closed"), submission("s1"))).toBe("submitted");
   });
 });
 
 /* ------------------------------------------------------------------ *
- * Enrolment and group lookup — FR-04, BR-10
+ * Enrolment and group lookup - FR-04, BR-10
  * ------------------------------------------------------------------ */
 
 describe("enrolmentForUser (FR-04)", () => {

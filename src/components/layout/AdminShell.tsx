@@ -131,7 +131,7 @@ function ContextSelector() {
         <SelectContent>
           {owned.map((klass) => (
             <SelectItem key={klass.id} value={klass.id}>
-              {klass.moduleCode} — {klass.name}
+              {klass.moduleCode} - {klass.name}
             </SelectItem>
           ))}
         </SelectContent>
@@ -178,7 +178,7 @@ function UserBlock() {
 }
 
 /**
- * Admin Portal shell — shared by the System Administrator and Lecturer roles.
+ * Admin Portal shell - shared by the System Administrator and Lecturer roles.
  * Desktop-first with a persistent sidebar; the sidebar collapses into a sheet
  * below `lg`, so it stays usable down to tablet width.
  */

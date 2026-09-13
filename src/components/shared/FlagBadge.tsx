@@ -14,7 +14,7 @@ const tones = {
 const icons = { warning: AlertTriangle, danger: Flag, neutral: Info } as const;
 
 /**
- * A result flag. Colour is never the only signal — every flag carries an icon
+ * A result flag. Colour is never the only signal - every flag carries an icon
  * and its label, and the popover explains in plain language why it fired.
  */
 export function FlagBadge({ flag, className }: { flag: ResultFlag; className?: string }) {
@@ -29,7 +29,7 @@ export function FlagBadge({ flag, className }: { flag: ResultFlag; className?: s
           tones[meta.tone],
           className,
         )}
-        aria-label={`${meta.label} — why was this flagged?`}
+        aria-label={`${meta.label} - why was this flagged?`}
       >
         <Icon className="size-3.5 shrink-0" aria-hidden="true" />
         {meta.label}

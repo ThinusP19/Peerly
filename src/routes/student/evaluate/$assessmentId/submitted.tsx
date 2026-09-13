@@ -39,7 +39,7 @@ function SubmittedPage() {
     [options.data],
   );
 
-  // Nothing to confirm if they haven't actually submitted — send them to the form.
+  // Nothing to confirm if they haven't actually submitted - send them to the form.
   useEffect(() => {
     if (hydrated && !isSubmitted) {
       navigate({
@@ -98,7 +98,7 @@ function SubmittedPage() {
             <div className="flex flex-wrap justify-between gap-2">
               <dt className="text-muted-foreground">Submitted at</dt>
               <dd className="font-medium tabular-nums text-foreground">
-                {draft.submittedAt ? formatDateTimeLong(draft.submittedAt) : "—"}
+                {draft.submittedAt ? formatDateTimeLong(draft.submittedAt) : "-"}
               </dd>
             </div>
             <div className="flex flex-wrap justify-between gap-2">

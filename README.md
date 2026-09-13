@@ -2,19 +2,19 @@
 
 1. What we're building
 
-Peerly is a web app that automates student peer assessments for group projects. Right now this project needs is a UI-only prototype — no real backend, no real auth, no real database. Build it as a polished, fully-clickable React app with realistic mock data so it can later be lifted into VS Code and wired to a real Node.js/Express + PostgreSQL backend. Structure everything (types, mock data, "service" functions) so swapping mock data for real API calls later is a small change, not a rewrite.
+Peerly is a web app that automates student peer assessments for group projects. Right now this project needs is a UI-only prototype - no real backend, no real auth, no real database. Build it as a polished, fully-clickable React app with realistic mock data so it can later be lifted into VS Code and wired to a real Node.js/Express + PostgreSQL backend. Structure everything (types, mock data, "service" functions) so swapping mock data for real API calls later is a small change, not a rewrite.
 
 Peerly has two portals:
 
-Admin Portal — shared by two roles: System Administrator (manages lecturer/admin accounts only) and Lecturer (manages classes, groups, assessments, marks, exports). Desktop-first, usable down to tablet width.
+Admin Portal - shared by two roles: System Administrator (manages lecturer/admin accounts only) and Lecturer (manages classes, groups, assessments, marks, exports). Desktop-first, usable down to tablet width.
 
-Student Portal — students register, log in, and evaluate their group members using word-based (not numeric) ratings. Must work perfectly on mobile from 360px width up.
+Student Portal - students register, log in, and evaluate their group members using word-based (not numeric) ratings. Must work perfectly on mobile from 360px width up.
 
-Since this is a prototype, add a small role switcher (e.g. a dropdown in a dev-only corner widget or a /dev route) that lets me jump between "logged in as Admin / Lecturer / Student" without a real login, so all screens are reachable for review. Still build the actual Login/Register/Forgot-password screens as real UI — they just don't need working auth logic.
+Since this is a prototype, add a small role switcher (e.g. a dropdown in a dev-only corner widget or a /dev route) that lets me jump between "logged in as Admin / Lecturer / Student" without a real login, so all screens are reachable for review. Still build the actual Login/Register/Forgot-password screens as real UI - they just don't need working auth logic.
 
 2. Tech & build rules
 
-React + Vite + TypeScript + Tailwind CSS. Use shadcn/ui components as the base component library, extended/themed for this app — don't hand-roll basics like buttons, dialogs, dropdowns, toasts, tabs, tables from scratch.
+React + Vite + TypeScript + Tailwind CSS. Use shadcn/ui components as the base component library, extended/themed for this app - don't hand-roll basics like buttons, dialogs, dropdowns, toasts, tabs, tables from scratch.
 
 React Router for navigation, with a distinct layout/shell per portal.
 
@@ -24,15 +24,15 @@ No real backend calls, no Supabase wiring, no real email sending. Where an actio
 
 lucide-react for icons.
 
-Keep components small and reusable; this app has a LOT of screens that share patterns (tables with filters, confirmation dialogs, status badges, stat cards) — build the shared pieces once.
+Keep components small and reusable; this app has a LOT of screens that share patterns (tables with filters, confirmation dialogs, status badges, stat cards) - build the shared pieces once.
 
 3. Design system
 
-Tone: professional, academic, calm, trustworthy — this app touches students' marks, so it should never feel flashy or "startup-y." Think clean university admin tooling, not a marketing site.
+Tone: professional, academic, calm, trustworthy - this app touches students' marks, so it should never feel flashy or "startup-y." Think clean university admin tooling, not a marketing site.
 
 Font: Inter (or system-ui fallback).
 
-Colour: A single indigo/blue primary (e.g. #4F46E5 range) for actions and active states, a neutral slate/gray scale for structure, and clear semantic colours used consistently everywhere: green = submitted/success/matched, amber/yellow = outstanding/pending/warning, red = flagged/conflict/error/overdue, gray = not started/inactive. Every semantic colour must also carry an icon or text label — never colour alone (accessibility requirement).
+Colour: A single indigo/blue primary (e.g. #4F46E5 range) for actions and active states, a neutral slate/gray scale for structure, and clear semantic colours used consistently everywhere: green = submitted/success/matched, amber/yellow = outstanding/pending/warning, red = flagged/conflict/error/overdue, gray = not started/inactive. Every semantic colour must also carry an icon or text label - never colour alone (accessibility requirement).
 
 Layout: rounded-lg cards with soft shadows, generous whitespace, 8px spacing scale. Sidebar navigation for the Admin Portal (desktop), simple top nav + bottom-safe layout for the Student Portal (mobile-first).
 
@@ -56,7 +56,7 @@ Status badges: Draft / Open / Closed, Submitted / Outstanding / Not started, Mat
 
 Admin Portal shell (sidebar, shown after "login" as Lecturer or Admin):
 
-Header: app logo/name, current user name + role badge, current class/assessment context selector (a lecturer can manage multiple classes — always show which one is active), sign out.
+Header: app logo/name, current user name + role badge, current class/assessment context selector (a lecturer can manage multiple classes - always show which one is active), sign out.
 
 Sidebar (Lecturer): Dashboard, Classes, Groups, Assessments, Submission Monitor, Evaluation Matrix, Marks & Calculation, Results & Export, Audit Log.
 
@@ -76,73 +76,73 @@ For every screen below, populate it generously with realistic mock data (fake st
 
 5.1 Shared / Auth
 
-Login — email + password, "forgot password" link, error state (generic "invalid credentials" message — don't reveal which field was wrong), link to student registration.
+Login - email + password, "forgot password" link, error state (generic "invalid credentials" message - don't reveal which field was wrong), link to student registration.
 
-Student Register — student number, name, surname, institutional email, password + confirm, a POPIA-style data-notice checkbox ("I understand what data is collected and why") that must be ticked to submit.
+Student Register - student number, name, surname, institutional email, password + confirm, a POPIA-style data-notice checkbox ("I understand what data is collected and why") that must be ticked to submit.
 
-Account Activation — landing page for an emailed activation link; show three states (verifying spinner → success with "go to login" → expired/invalid with a "resend link" button).
+Account Activation - landing page for an emailed activation link; show three states (verifying spinner → success with "go to login" → expired/invalid with a "resend link" button).
 
-Forgot / Reset Password — request screen (email input, generic confirmation message regardless of whether the email exists), then a reset screen (new password + confirm) reached via a mock token link.
+Forgot / Reset Password - request screen (email input, generic confirmation message regardless of whether the email exists), then a reset screen (new password + confirm) reached via a mock token link.
 
 5.2 System Administrator
 
-Admin Dashboard — simple overview: total lecturer accounts, active vs deactivated count, recent account-related audit events.
+Admin Dashboard - simple overview: total lecturer accounts, active vs deactivated count, recent account-related audit events.
 
-Lecturer & Admin Accounts — a table (name, email, role, status, date created) with search/filter by role/status, a "Create account" button opening a form dialog (name, surname, institutional email, role), row actions to view/edit details and to Activate/Deactivate (behind a ConfirmDialog naming the person). Deactivating the last active admin should show a blocking error state, not silently succeed.
+Lecturer & Admin Accounts - a table (name, email, role, status, date created) with search/filter by role/status, a "Create account" button opening a form dialog (name, surname, institutional email, role), row actions to view/edit details and to Activate/Deactivate (behind a ConfirmDialog naming the person). Deactivating the last active admin should show a blocking error state, not silently succeed.
 
-5.3 Lecturer — Classes & Groups
+5.3 Lecturer - Classes & Groups
 
-Lecturer Dashboard — cards per class the lecturer owns (module code, class name, student count, group count, active assessment status), quick links into each.
+Lecturer Dashboard - cards per class the lecturer owns (module code, class name, student count, group count, active assessment status), quick links into each.
 
-Class List Import — step flow: (1) drag-and-drop / browse .csv or .xlsx upload with a note on accepted formats and 5MB limit, (2) column-mapping confirmation if headers are ambiguous, (3) a preview table of parsed rows with a validation summary banner (X valid, Y errors) and every error row highlighted with row number + field + plain-language reason, (4) a Confirm/Cancel step behind a ConfirmDialog. Show a realistic example: ~30 rows, a couple with deliberate errors (missing email, duplicate student number) to demonstrate the validation UI.
+Class List Import - step flow: (1) drag-and-drop / browse .csv or .xlsx upload with a note on accepted formats and 5MB limit, (2) column-mapping confirmation if headers are ambiguous, (3) a preview table of parsed rows with a validation summary banner (X valid, Y errors) and every error row highlighted with row number + field + plain-language reason, (4) a Confirm/Cancel step behind a ConfirmDialog. Show a realistic example: ~30 rows, a couple with deliberate errors (missing email, duplicate student number) to demonstrate the validation UI.
 
-Group Generation & Review — form to choose "number of groups" OR "target group size" (radio toggle, mutually exclusive), a "Generate" action producing a proposed allocation shown as group cards/columns with drag-or-dropdown-based member reassignment, warnings for groups under 2 members, and a Confirm step.
+Group Generation & Review - form to choose "number of groups" OR "target group size" (radio toggle, mutually exclusive), a "Generate" action producing a proposed allocation shown as group cards/columns with drag-or-dropdown-based member reassignment, warnings for groups under 2 members, and a Confirm step.
 
-Groups Overview — read view of confirmed groups per class/assessment with member lists and an "Edit" entry point back into the review UI (disabled/explained once an assessment is open and has submissions, per business rules).
+Groups Overview - read view of confirmed groups per class/assessment with member lists and an "Edit" entry point back into the review UI (disabled/explained once an assessment is open and has submissions, per business rules).
 
-5.4 Lecturer — Assessments
+5.4 Lecturer - Assessments
 
-Assessment List — table of assessments per class: name, dates, status badge (Draft/Open/Closed), submission progress mini-bar, actions.
+Assessment List - table of assessments per class: name, dates, status badge (Draft/Open/Closed), submission progress mini-bar, actions.
 
-Assessment Setup (Create/Edit) — form: name, description, class (locked to current), group multi-select (checkboxes per group), opening/closing date-time pickers, rating-scale display (read-only preview of the 9 descriptive options, see Section 6), Save as Draft.
+Assessment Setup (Create/Edit) - form: name, description, class (locked to current), group multi-select (checkboxes per group), opening/closing date-time pickers, rating-scale display (read-only preview of the 9 descriptive options, see Section 6), Save as Draft.
 
-Assessment Detail / Status — shows current status prominently, Activate/Close/Extend/Re-open actions each behind a ConfirmDialog with consequence text (e.g. re-opening after calculation warns that results will be invalidated), and quick links to Monitor / Matrix / Marks for this assessment.
+Assessment Detail / Status - shows current status prominently, Activate/Close/Extend/Re-open actions each behind a ConfirmDialog with consequence text (e.g. re-opening after calculation warns that results will be invalidated), and quick links to Monitor / Matrix / Marks for this assessment.
 
-5.5 Lecturer — Monitoring & Matrix
+5.5 Lecturer - Monitoring & Matrix
 
-Submission Monitor — per-assessment view: overall submitted/outstanding/total stat row, a per-group breakdown table, an "Outstanding students" list (name, student number), badges for Unmatched / Conflict enrolments needing resolution, and a "Send reminder" action (disabled/mocked) limited to outstanding students.
+Submission Monitor - per-assessment view: overall submitted/outstanding/total stat row, a per-group breakdown table, an "Outstanding students" list (name, student number), badges for Unmatched / Conflict enrolments needing resolution, and a "Send reminder" action (disabled/mocked) limited to outstanding students.
 
-Evaluation Matrix — the centerpiece screen. A group-selector, then a square grid: rows = evaluators, columns = evaluated, cells show the descriptive rating label (lecturer view may also show the numeric value in small text since this view is lecturer-only). Diagonal cells marked "—" (self, n/a). Row and column means, group mean. Non-submitting evaluators shown as a visually distinct "outstanding" row (not blank cells that could read as zero). Highlight cells materially above/below the group mean with both colour AND an icon (up/down arrow). Include free-rider / anomaly badges on affected students (uniform-rating, reciprocal-extremes, isolated-outlier, incomplete-group, low-mean flags) with a tooltip/popover explaining the reason. Matrix scrolls horizontally on small screens without breaking layout.
+Evaluation Matrix - the centerpiece screen. A group-selector, then a square grid: rows = evaluators, columns = evaluated, cells show the descriptive rating label (lecturer view may also show the numeric value in small text since this view is lecturer-only). Diagonal cells marked "-" (self, n/a). Row and column means, group mean. Non-submitting evaluators shown as a visually distinct "outstanding" row (not blank cells that could read as zero). Highlight cells materially above/below the group mean with both colour AND an icon (up/down arrow). Include free-rider / anomaly badges on affected students (uniform-rating, reciprocal-extremes, isolated-outlier, incomplete-group, low-mean flags) with a tooltip/popover explaining the reason. Matrix scrolls horizontally on small screens without breaking layout.
 
-Audit Log — filterable table (date range, event type) of audit entries for the lecturer's classes: timestamp, actor, event type, object, brief before/after.
+Audit Log - filterable table (date range, event type) of audit entries for the lecturer's classes: timestamp, actor, event type, object, brief before/after.
 
-5.6 Lecturer — Marks & Results
+5.6 Lecturer - Marks & Results
 
-Group Mark Entry — table of groups in an assessment with an editable base-mark input per group (validated numeric, 0–max, correct decimal places), a clear "outstanding" indicator for groups without a mark yet, save-as-you-go behaviour, and a "Calculate marks" button that's disabled until every group has a mark.
+Group Mark Entry - table of groups in an assessment with an editable base-mark input per group (validated numeric, 0–max, correct decimal places), a clear "outstanding" indicator for groups without a mark yet, save-as-you-go behaviour, and a "Calculate marks" button that's disabled until every group has a mark.
 
-Results Summary — one row per student: group, mean received rating, adjustment factor, group base mark, final individual mark, flags, override indicator. Sortable columns, filters (flagged only / overridden only / by group), summary stat cards at top (submission rate, mean adjustment factor, mean final mark). Clicking a row opens a drill-down panel/drawer showing the ratings that produced that student's mark.
+Results Summary - one row per student: group, mean received rating, adjustment factor, group base mark, final individual mark, flags, override indicator. Sortable columns, filters (flagged only / overridden only / by group), summary stat cards at top (submission rate, mean adjustment factor, mean final mark). Clicking a row opens a drill-down panel/drawer showing the ratings that produced that student's mark.
 
-Mark Override dialog — from the drill-down, an "Override mark" action: shows calculated mark (read-only), new mark input, mandatory reason textarea, Save disabled until reason is filled.
+Mark Override dialog - from the drill-down, an "Override mark" action: shows calculated mark (read-only), new mark input, mandatory reason textarea, Save disabled until reason is filled.
 
-Export — a simple screen summarising what will be exported (student count, two-worksheet explanation: Results + Raw Ratings), a header-info preview (class, assessment, timestamp, calculation run id), and an "Export to .xlsx" button (mock the download trigger with a toast: "peerly_CMPG323_export.xlsx downloaded").
+Export - a simple screen summarising what will be exported (student count, two-worksheet explanation: Results + Raw Ratings), a header-info preview (class, assessment, timestamp, calculation run id), and an "Export to .xlsx" button (mock the download trigger with a toast: "peerly_CMPG323_export.xlsx downloaded").
 
 5.7 Student Portal
 
-Student Dashboard — card(s) per assessment showing class, group, status (Not yet open / Not started / In progress / Submitted / Closed – not submitted), closing date/time prominently, and a primary CTA into the evaluation form. If the student's enrolment is Unmatched or Conflict, show a friendly full-page explanation state instead of an empty dashboard ("We couldn't match your account to a class list yet — here's why, here's what to do").
+Student Dashboard - card(s) per assessment showing class, group, status (Not yet open / Not started / In progress / Submitted / Closed – not submitted), closing date/time prominently, and a primary CTA into the evaluation form. If the student's enrolment is Unmatched or Conflict, show a friendly full-page explanation state instead of an empty dashboard ("We couldn't match your account to a class list yet - here's why, here's what to do").
 
-Peer Evaluation Form — one rating block per group member (excluding self): member name, then the 9 descriptive options shown as selectable cards/radio buttons each with its label + behavioural description visible inline (no tooltip, no hidden legend — see Section 6). No numbers shown anywhere. Optional short comment field per member (character-limited, e.g. 500). A sticky progress indicator ("3 of 5 rated"). Autosaves as a draft (show a subtle "saved" indicator).
+Peer Evaluation Form - one rating block per group member (excluding self): member name, then the 9 descriptive options shown as selectable cards/radio buttons each with its label + behavioural description visible inline (no tooltip, no hidden legend - see Section 6). No numbers shown anywhere. Optional short comment field per member (character-limited, e.g. 500). A sticky progress indicator ("3 of 5 rated"). Autosaves as a draft (show a subtle "saved" indicator).
 
-Review Screen — read-only restatement of every selection using the exact same wording as the form, with an "Edit" link back to each block, and a "Submit evaluation" primary action. Block submission with a clear message if anything is unrated.
+Review Screen - read-only restatement of every selection using the exact same wording as the form, with an "Edit" link back to each block, and a "Submit evaluation" primary action. Block submission with a clear message if anything is unrated.
 
-Submission Confirmation — unambiguous success state: what was submitted, exact timestamp, whether it can still be amended before the assessment closes, and a link back to the dashboard.
+Submission Confirmation - unambiguous success state: what was submitted, exact timestamp, whether it can still be amended before the assessment closes, and a link back to the dashboard.
 
-6. The rating scale (exact copy — use verbatim in the student-facing UI)
+6. The rating scale (exact copy - use verbatim in the student-facing UI)
 
 Show these as the selectable options on the evaluation form, in this order, label + description together, no numbers visible to students:
 
 LabelDescription shown to studentExcellentConsistently went above and beyond what was asked, took the lead, carried more than their share.Very goodConsistently did everything they were asked to do, and did it well.SatisfactoryUsually did what they were asked to do, at an acceptable standard.OrdinaryOften did what they were asked to do, but needed reminding.MarginalSometimes failed to attend meetings or to complete what was asked.DeficientOften failed to attend meetings or to complete what was asked.UnsatisfactoryConsistently failed to attend meetings or to complete what was asked.SuperficialContributed practically nothing to the work of the group.No contributionNever attended and contributed nothing at all.
 
-Hidden numeric values (100, 87.5, 75, 62.5, 50, 37.5, 25, 12.5, 0) may appear ONLY in lecturer-facing views (matrix, drill-down) — never in any student-facing screen or mock "API response" shape a student role would see.
+Hidden numeric values (100, 87.5, 75, 62.5, 50, 37.5, 25, 12.5, 0) may appear ONLY in lecturer-facing views (matrix, drill-down) - never in any student-facing screen or mock "API response" shape a student role would see.
 
 7. Non-negotiable UX rules (carry through every relevant screen)
 
@@ -152,7 +152,7 @@ Irreversible actions always get a named ConfirmDialog (see Section 3).
 
 Actions that take a moment show a busy/disabled button state.
 
-Validation errors are inline, plain-language, next to the field — never a raw/technical message.
+Validation errors are inline, plain-language, next to the field - never a raw/technical message.
 
 Consistent terminology throughout: "group" (never "team"), "class" (never "module" as a label for the thing itself, though module code is a field), "assessment" (never "survey" or "form").
 
@@ -192,7 +192,7 @@ Shared components (Button, Input, Select, Dialog, ConfirmDialog, Toast, Badge, D
 
 Responsive: Admin Portal usable at tablet width and up; Student Portal usable from 360px up with no horizontal scroll (except the matrix, which is lecturer/desktop-only anyway).
 
-Realistic, generous mock data — this should look and feel like a real class's data, not three rows of "Test Student."
+Realistic, generous mock data - this should look and feel like a real class's data, not three rows of "Test Student."
 
 ---
 
@@ -242,9 +242,9 @@ account. Use the role switcher pinned to the corner of every screen, or:
 
 | Email                      | Role                                 |
 | -------------------------- | ------------------------------------ |
-| `anneke.vdmerwe@nwu.ac.za` | Lecturer — owns CMPG323 and CMPG315  |
+| `anneke.vdmerwe@nwu.ac.za` | Lecturer - owns CMPG323 and CMPG315  |
 | `riaan.botha@nwu.ac.za`    | System Administrator                 |
-| `41200893@mynwu.ac.za`     | Student — evaluation not yet started |
+| `41200893@mynwu.ac.za`     | Student - evaluation not yet started |
 
 ### Brand assets
 

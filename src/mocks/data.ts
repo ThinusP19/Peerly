@@ -25,7 +25,7 @@ function makeRng(seed: number) {
 }
 
 /* ------------------------------------------------------------------ *
- * Rating scale — exact student-facing copy. Order is fixed.
+ * Rating scale - exact student-facing copy. Order is fixed.
  * ------------------------------------------------------------------ */
 export const ratingOptions: RatingOption[] = [
   {
@@ -260,7 +260,7 @@ export const classes: Class[] = [
 ];
 
 /* ------------------------------------------------------------------ *
- * Enrolments — 30 rows, 28 matched, 1 unmatched, 1 conflict
+ * Enrolments - 30 rows, 28 matched, 1 unmatched, 1 conflict
  * ------------------------------------------------------------------ */
 export const enrolments: Enrolment[] = studentUsers.map((student, i) => {
   const matchStatus =
@@ -277,13 +277,13 @@ export const enrolments: Enrolment[] = studentUsers.map((student, i) => {
       matchStatus === "unmatched"
         ? "No registered Peerly account uses this student number yet."
         : matchStatus === "conflict"
-          ? "Two accounts claim this student number — surname on the class list does not match either."
+          ? "Two accounts claim this student number - surname on the class list does not match either."
           : undefined,
   };
 });
 
 /* ------------------------------------------------------------------ *
- * Groups — 6 groups for CMPG323 (matched students only)
+ * Groups - 6 groups for CMPG323 (matched students only)
  * ------------------------------------------------------------------ */
 const matchedStudentIds = enrolments
   .filter((e) => e.matchStatus === "matched")
@@ -336,7 +336,7 @@ export const assessments: Assessment[] = [
   {
     id: "asm-1",
     classId: "cls-1",
-    name: "Project Phase 2 — Peer Assessment",
+    name: "Project Phase 2 - Peer Assessment",
     description:
       "Rate each member of your group on their contribution to the Phase 2 system design and implementation.",
     groupIds: groups.map((g) => g.id),
@@ -348,7 +348,7 @@ export const assessments: Assessment[] = [
   {
     id: "asm-2",
     classId: "cls-1",
-    name: "Project Phase 1 — Peer Assessment",
+    name: "Project Phase 1 - Peer Assessment",
     description: "Peer assessment for the Phase 1 requirements and analysis deliverable.",
     groupIds: groups.map((g) => g.id),
     status: "closed",
@@ -361,7 +361,7 @@ export const assessments: Assessment[] = [
   {
     id: "asm-3",
     classId: "cls-1",
-    name: "Project Phase 3 — Peer Assessment",
+    name: "Project Phase 3 - Peer Assessment",
     description: "Final phase peer assessment. Not yet opened to students.",
     groupIds: groups.slice(0, 4).map((g) => g.id),
     status: "draft",
@@ -372,7 +372,7 @@ export const assessments: Assessment[] = [
   {
     id: "asm-4",
     classId: "cls-2",
-    name: "Network Design Practical — Peer Assessment",
+    name: "Network Design Practical - Peer Assessment",
     description: "Peer assessment for the subnetting and routing practical.",
     groupIds: secondClassGroups.map((g) => g.id),
     status: "draft",
@@ -470,7 +470,7 @@ groups.forEach((group) => {
 });
 
 /* ------------------------------------------------------------------ *
- * Group marks — group 5 deliberately missing a base mark
+ * Group marks - group 5 deliberately missing a base mark
  * ------------------------------------------------------------------ */
 export const groupMarks: GroupMark[] = groups.map((group) => ({
   assessmentId: "asm-1",
@@ -555,7 +555,7 @@ export const auditEntries: AuditEntry[] = [
     actorRole: "lecturer",
     eventType: "marks.entered",
     objectDescription: "CMPG323 · Phase 2 · Group 4 base mark",
-    detail: "Base mark changed from — to 77.0",
+    detail: "Base mark changed from - to 77.0",
     classId: "cls-1",
   },
   {
@@ -565,7 +565,7 @@ export const auditEntries: AuditEntry[] = [
     actorRole: "lecturer",
     eventType: "mark.overridden",
     objectDescription: `CMPG323 · Phase 2 · ${userName(byId(users, weakContributorId))}`,
-    detail: "Final mark changed from 41.3 to 52.0 — medical certificate on file",
+    detail: "Final mark changed from 41.3 to 52.0 - medical certificate on file",
     classId: "cls-1",
   },
   {
@@ -574,7 +574,7 @@ export const auditEntries: AuditEntry[] = [
     actorName: "Anneke van der Merwe",
     actorRole: "lecturer",
     eventType: "assessment.opened",
-    objectDescription: "CMPG323 · Project Phase 2 — Peer Assessment",
+    objectDescription: "CMPG323 · Project Phase 2 - Peer Assessment",
     detail: "Status changed from Draft to Open · closes 4 Sep 2026 22:00",
     classId: "cls-1",
   },
@@ -604,7 +604,7 @@ export const auditEntries: AuditEntry[] = [
     actorName: "Anneke van der Merwe",
     actorRole: "lecturer",
     eventType: "marks.calculated",
-    objectDescription: "CMPG323 · Project Phase 1 — Peer Assessment",
+    objectDescription: "CMPG323 · Project Phase 1 - Peer Assessment",
     detail: "Calculation run run-2026-07-26-01 · 28 individual marks produced",
     classId: "cls-1",
   },
@@ -634,7 +634,7 @@ export const auditEntries: AuditEntry[] = [
     actorRole: "admin",
     eventType: "account.deactivated",
     objectDescription: "Lecturer account · Nomvula Dlamini",
-    detail: "Status changed from Active to Deactivated — end of contract",
+    detail: "Status changed from Active to Deactivated - end of contract",
   },
   {
     id: "aud-10",
@@ -651,7 +651,7 @@ export const auditEntries: AuditEntry[] = [
     actorName: "System",
     actorRole: "lecturer",
     eventType: "assessment.closed",
-    objectDescription: "CMPG323 · Project Phase 1 — Peer Assessment",
+    objectDescription: "CMPG323 · Project Phase 1 - Peer Assessment",
     detail: "Status changed from Open to Closed at the scheduled closing time",
     classId: "cls-1",
   },
@@ -661,7 +661,7 @@ export const auditEntries: AuditEntry[] = [
     actorName: "Anneke van der Merwe",
     actorRole: "lecturer",
     eventType: "assessment.created",
-    objectDescription: "CMPG323 · Project Phase 3 — Peer Assessment",
+    objectDescription: "CMPG323 · Project Phase 3 - Peer Assessment",
     detail: "Draft created · 4 groups selected",
     classId: "cls-1",
   },

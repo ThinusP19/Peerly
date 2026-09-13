@@ -96,7 +96,7 @@ function StudentDashboard() {
     );
   }
 
-  // An unmatched or conflicting enrolment means we can't show any assessments —
+  // An unmatched or conflicting enrolment means we can't show any assessments -
   // explain what happened and what to do rather than showing an empty list.
   if (enrolment.data && enrolment.data.matchStatus !== "matched") {
     return <EnrolmentProblem enrolment={enrolment.data} />;
@@ -213,7 +213,7 @@ function ActionCard({
       >
         <CalendarClock className="size-4 shrink-0" aria-hidden="true" />
         <span className="font-semibold">Closes {formatDeadline(assessment.closesAt)}</span>
-        <span className="opacity-80">— {formatDateTimeLong(assessment.closesAt)}</span>
+        <span className="opacity-80">- {formatDateTimeLong(assessment.closesAt)}</span>
       </div>
 
       <div className="space-y-4 p-4 sm:p-5">
@@ -330,7 +330,7 @@ function EnrolmentProblem({ enrolment }: { enrolment: Enrolment }) {
               : "We couldn't match your account to a class list yet"}
           </h1>
           <p className="mx-auto max-w-md text-sm text-muted-foreground">
-            Your account is active, but it isn't linked to a class yet — so there's nothing for you
+            Your account is active, but it isn't linked to a class yet - so there's nothing for you
             to evaluate at the moment.
           </p>
         </div>
@@ -379,7 +379,7 @@ function EnrolmentProblem({ enrolment }: { enrolment: Enrolment }) {
               re-run the class list match.
             </li>
             <li>
-              Come back to this page afterwards — once you're matched, your assessments appear here
+              Come back to this page afterwards - once you're matched, your assessments appear here
               automatically.
             </li>
           </ol>

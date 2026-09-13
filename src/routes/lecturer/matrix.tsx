@@ -191,7 +191,7 @@ function MatrixPage() {
         <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
         <p>
           Rows are the student doing the rating; columns are the student being rated. The small
-          numbers are the scale values behind each label — these are lecturer-only and are never
+          numbers are the scale values behind each label - these are lecturer-only and are never
           shown to students.
         </p>
       </div>
@@ -269,8 +269,8 @@ function MatrixPage() {
                         key={cell.evaluatedId}
                         className="border-l bg-muted/50 px-3 py-2.5 text-center text-muted-foreground"
                       >
-                        <span aria-label="Not applicable — a student does not rate themselves">
-                          —
+                        <span aria-label="Not applicable - a student does not rate themselves">
+                          -
                         </span>
                       </td>
                     );

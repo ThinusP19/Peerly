@@ -46,7 +46,7 @@ function EvaluationForm() {
   const progress = useDraftProgress(draft, memberIds);
 
   // A submitted evaluation belongs on the confirmation screen, where it can be
-  // read back and — while the assessment is still open — amended.
+  // read back and - while the assessment is still open - amended.
   useEffect(() => {
     if (hydrated && isSubmitted) {
       navigate({
@@ -133,7 +133,7 @@ function EvaluationForm() {
           <span className="font-medium text-foreground">
             {formatDateTimeLong(assessment.closesAt)}
           </span>{" "}
-          ({formatDeadline(assessment.closesAt)}). Your answers save as you go — you can leave and
+          ({formatDeadline(assessment.closesAt)}). Your answers save as you go - you can leave and
           come back.
         </p>
       </div>

@@ -39,7 +39,7 @@ type Errors = Partial<Record<"name" | "groupIds" | "opensAt" | "closesAt" | "max
 
 /**
  * Create / edit form for an assessment. The class is fixed to whichever class
- * the lecturer is working in — moving an assessment between classes would
+ * the lecturer is working in - moving an assessment between classes would
  * orphan its groups.
  */
 export function AssessmentForm({
@@ -119,7 +119,7 @@ export function AssessmentForm({
               {...props}
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Project Phase 2 — Peer Assessment"
+              placeholder="Project Phase 2 - Peer Assessment"
             />
           )}
         </FormField>
@@ -144,7 +144,7 @@ export function AssessmentForm({
           <div className="flex items-center gap-2 rounded-md border bg-muted px-3 py-2 text-sm text-muted-foreground">
             <Info className="size-4 shrink-0" aria-hidden="true" />
             <span>
-              {klass ? `${klass.moduleCode} — ${klass.name}` : "No class selected"} · fixed to the
+              {klass ? `${klass.moduleCode} - ${klass.name}` : "No class selected"} · fixed to the
               class you're working in
             </span>
           </div>
@@ -280,7 +280,7 @@ export function AssessmentForm({
           <h2 className="font-semibold text-foreground">Rating scale</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Every assessment uses the same nine descriptive options. Students see the label and its
-            description — never a number. This scale can't be edited.
+            description - never a number. This scale can't be edited.
           </p>
         </div>
 

@@ -6,7 +6,7 @@ loadDotenv();
 /**
  * Everything the FSD calls configuration rather than a literal (OR-19) enters
  * here, and every secret comes from the environment rather than the repository
- * (SR-13). The process refuses to start on a bad value — a server running with
+ * (SR-13). The process refuses to start on a bad value - a server running with
  * a silently defaulted session lifetime is worse than one that will not boot.
  */
 const csv = (value: string) =>
@@ -21,7 +21,7 @@ const schema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   CORS_ORIGINS: z.string().default("http://localhost:8080"),
 
-  // IS-01 — the definitive domain list is still awaiting Sponsor confirmation.
+  // IS-01 - the definitive domain list is still awaiting Sponsor confirmation.
   STUDENT_EMAIL_DOMAINS: z.string().default("mynwu.ac.za"),
   STAFF_EMAIL_DOMAINS: z.string().default("nwu.ac.za"),
 

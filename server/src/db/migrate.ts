@@ -9,7 +9,7 @@ import { closePool, pool, withTransaction } from "./pool.ts";
 /**
  * Versioned SQL migrations (OR-21): any environment can be rebuilt to a known
  * state from the repository alone. Each file runs once, inside its own
- * transaction, and its checksum is recorded — so an already-applied migration
+ * transaction, and its checksum is recorded - so an already-applied migration
  * that is later edited is reported rather than silently ignored.
  */
 
@@ -56,7 +56,7 @@ async function up() {
     if (previous && previous !== migration.checksum) {
       throw new Error(
         `Migration ${migration.file} has already been applied but its contents have changed.\n` +
-          `Migrations are immutable once applied — add a new migration instead of editing this one.`,
+          `Migrations are immutable once applied - add a new migration instead of editing this one.`,
       );
     }
     if (previous) continue;

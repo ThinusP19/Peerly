@@ -58,7 +58,7 @@ function ExportPage() {
         <EmptyState
           icon={FileSpreadsheet}
           title="Nothing to export yet"
-          description="Calculate marks for this assessment first — the export always reflects the latest calculation run."
+          description="Calculate marks for this assessment first - the export always reflects the latest calculation run."
           action={
             <Button asChild>
               <Link to="/lecturer/marks">Go to marks & calculation</Link>
@@ -80,7 +80,7 @@ function ExportPage() {
         title="Export results"
         backTo="/lecturer/results"
         backLabel="Results"
-        description="A single .xlsx workbook with two worksheets — one for the marks you'll upload, one for the raw ratings behind them."
+        description="A single .xlsx workbook with two worksheets - one for the marks you'll upload, one for the raw ratings behind them."
       />
 
       <Card className="space-y-4 p-5 shadow-card">
@@ -90,7 +90,7 @@ function ExportPage() {
           <div className="space-y-2 rounded-md border p-4">
             <div className="flex items-center gap-2">
               <Table2 className="size-4 text-primary" aria-hidden="true" />
-              <p className="font-medium text-foreground">Worksheet 1 — Results</p>
+              <p className="font-medium text-foreground">Worksheet 1 - Results</p>
             </div>
             <p className="text-sm text-muted-foreground">
               One row per student: student number, name, group, mean received rating, adjustment
@@ -103,7 +103,7 @@ function ExportPage() {
           <div className="space-y-2 rounded-md border p-4">
             <div className="flex items-center gap-2">
               <Table2 className="size-4 text-primary" aria-hidden="true" />
-              <p className="font-medium text-foreground">Worksheet 2 — Raw Ratings</p>
+              <p className="font-medium text-foreground">Worksheet 2 - Raw Ratings</p>
             </div>
             <p className="text-sm text-muted-foreground">
               One row per rating given: evaluator, student evaluated, the descriptive label, its
@@ -127,7 +127,7 @@ function ExportPage() {
           <div className="flex flex-wrap justify-between gap-2 px-3.5 py-2.5">
             <dt className="text-muted-foreground">Class</dt>
             <dd className="font-medium text-foreground">
-              {klass?.moduleCode} — {klass?.name}
+              {klass?.moduleCode} - {klass?.name}
             </dd>
           </div>
           <div className="flex flex-wrap justify-between gap-2 px-3.5 py-2.5">

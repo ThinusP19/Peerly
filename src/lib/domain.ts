@@ -1,7 +1,7 @@
 /**
  * Derived domain logic shared across screens.
  *
- * Nothing here touches the network — it reshapes what `src/services/peerly.ts`
+ * Nothing here touches the network - it reshapes what `src/services/peerly.ts`
  * returns into the views the UI needs (student assessment state, the evaluation
  * matrix, flag copy). Keeping it separate means the screens stay presentational.
  */
@@ -18,7 +18,7 @@ import type {
 } from "@/mocks/types";
 
 /* ------------------------------------------------------------------ *
- * Result flags — every flag needs plain-language copy for the tooltip
+ * Result flags - every flag needs plain-language copy for the tooltip
  * ------------------------------------------------------------------ */
 export const resultFlagMeta: Record<
   ResultFlag,

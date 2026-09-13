@@ -109,7 +109,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (raw) setState({ ...defaultState, ...(JSON.parse(raw) as SessionState) });
     } catch {
-      /* prototype only — ignore unreadable storage */
+      /* prototype only - ignore unreadable storage */
     }
     setHydrated(true);
   }, []);

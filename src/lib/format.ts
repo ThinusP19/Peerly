@@ -6,7 +6,7 @@ export const formatDate = (iso: string) => format(new Date(iso), "d MMM yyyy");
 /** "4 Sep 2026, 22:00" */
 export const formatDateTime = (iso: string) => format(new Date(iso), "d MMM yyyy, HH:mm");
 
-/** "4 Sep 2026 at 22:00" — for prose, e.g. confirmation copy. */
+/** "4 Sep 2026 at 22:00" - for prose, e.g. confirmation copy. */
 export const formatDateTimeLong = (iso: string) => format(new Date(iso), "d MMMM yyyy 'at' HH:mm");
 
 /** "in 6 days" / "5 days ago" */
@@ -21,7 +21,7 @@ export const isOverdue = (iso: string) => isPast(new Date(iso));
 
 /** Marks render to one decimal place everywhere, so columns line up. */
 export const formatMark = (mark: number | null | undefined) =>
-  mark == null ? "—" : mark.toFixed(1);
+  mark == null ? "-" : mark.toFixed(1);
 
 /** Adjustment factors render to two decimals. */
 export const formatFactor = (factor: number) => factor.toFixed(2);

@@ -108,7 +108,7 @@ function GenerateGroupsPage() {
         backLabel="Groups"
         description={
           klass
-            ? `${klass.moduleCode} — ${eligible} matched students are available to allocate. Unmatched and conflicting students are left out until their class list entry is resolved.`
+            ? `${klass.moduleCode} - ${eligible} matched students are available to allocate. Unmatched and conflicting students are left out until their class list entry is resolved.`
             : "Select a class in the header first."
         }
       />
@@ -117,7 +117,7 @@ function GenerateGroupsPage() {
         <div>
           <h2 className="font-semibold text-foreground">How should the groups be built?</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Choose one of the two — the other is worked out for you.
+            Choose one of the two - the other is worked out for you.
           </p>
         </div>
 
@@ -239,7 +239,7 @@ function GenerateGroupsPage() {
                   fewer than 2 members
                 </p>
                 <p>
-                  Peer assessment needs at least two people in a group — nobody can rate anyone in a
+                  Peer assessment needs at least two people in a group - nobody can rate anyone in a
                   group of one. Move someone in, or generate again with fewer groups.
                 </p>
               </div>

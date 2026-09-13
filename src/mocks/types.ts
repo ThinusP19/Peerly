@@ -153,7 +153,7 @@ export interface AuditEntry {
  * The rating option shape a student is allowed to see.
  *
  * `hiddenValue` is deliberately absent: the numeric scale behind each label is
- * lecturer-only and must not appear in any student-facing screen — or in the
+ * lecturer-only and must not appear in any student-facing screen - or in the
  * API response a student role receives.
  */
 export type StudentRatingOption = Omit<RatingOption, "hiddenValue">;

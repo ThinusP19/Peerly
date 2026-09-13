@@ -108,7 +108,7 @@ function AssessmentDetailPage() {
         backTo="/lecturer/assessments"
         backLabel="Assessments"
         description={
-          klass ? `${klass.moduleCode} — ${klass.name} · ${klass.academicPeriod}` : undefined
+          klass ? `${klass.moduleCode} - ${klass.name} · ${klass.academicPeriod}` : undefined
         }
         actions={
           <Button asChild variant="outline">
@@ -311,7 +311,7 @@ function AssessmentDetailPage() {
           calculated ? (
             <p>
               Marks have already been calculated for this assessment (run{" "}
-              {assessment.calculationRunId}). Re-opening invalidates those results — you'll need to
+              {assessment.calculationRunId}). Re-opening invalidates those results - you'll need to
               calculate again, and any exports you've already shared will be out of date.
             </p>
           ) : (

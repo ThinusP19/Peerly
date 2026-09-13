@@ -31,7 +31,7 @@ function useActive() {
  * Student Portal shell.
  *
  * Sidebar from `lg` up; below that the same destinations become a bottom tab
- * bar rather than a hamburger — there are only three, and on a phone they
+ * bar rather than a hamburger - there are only three, and on a phone they
  * belong within thumb reach.
  */
 export function StudentShell({ children }: { children: ReactNode }) {
@@ -94,7 +94,7 @@ function StudentShellInner({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="lg:pl-60">
-        {/* Mobile top bar: identity and sign-out only — navigation lives at the
+        {/* Mobile top bar: identity and sign-out only - navigation lives at the
             bottom of the screen where a thumb can reach it. */}
         <header className="sticky top-0 z-20 border-b bg-card lg:hidden">
           <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-3">

@@ -76,7 +76,7 @@ export function errorHandler(error: unknown, _req: Request, res: Response, _next
     pgCode === PG_CHECK_VIOLATION
   ) {
     // The database refused the write because a business rule forbids it. That is
-    // a client error, not a server fault — but the constraint name is internal,
+    // a client error, not a server fault - but the constraint name is internal,
     // so it is logged rather than returned (OR-04).
     console.error(`[db] rule violation ${pgCode} on ${constraint ?? "unknown constraint"}`);
     res.status(409).json({

@@ -210,7 +210,7 @@ function ResultsPage() {
         <EmptyState
           icon={ScrollText}
           title="No results yet"
-          description="Enter a base mark for every group and calculate marks — the individual results will appear here."
+          description="Enter a base mark for every group and calculate marks - the individual results will appear here."
           action={
             <Button asChild>
               <Link to="/lecturer/marks">Go to marks & calculation</Link>
@@ -246,7 +246,7 @@ function ResultsPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Submission rate"
-          value={all.length ? `${Math.round((submittedCount / all.length) * 100)}%` : "—"}
+          value={all.length ? `${Math.round((submittedCount / all.length) * 100)}%` : "-"}
           hint={`${submittedCount} of ${all.length} students submitted`}
           icon={Users}
           tone={submittedCount === all.length ? "success" : "warning"}
@@ -499,7 +499,7 @@ function OverrideDialog({
       next.mark = "A final mark has to be between 0 and 100.";
     }
     if (!reasonGiven) {
-      next.reason = "Explain why you're changing this mark — it's kept in the audit log.";
+      next.reason = "Explain why you're changing this mark - it's kept in the audit log.";
     }
     setErrors(next);
     if (Object.keys(next).length) return;
@@ -537,7 +537,7 @@ function OverrideDialog({
           <div className="space-y-1.5">
             <p className="text-sm font-medium text-foreground">Calculated mark</p>
             <div className="rounded-md border bg-muted px-3 py-2 text-sm tabular-nums text-muted-foreground">
-              {formatMark(calculated)} — group mark {formatMark(row?.baseMark)} × adjustment{" "}
+              {formatMark(calculated)} - group mark {formatMark(row?.baseMark)} × adjustment{" "}
               {formatFactor(row?.result.adjustmentFactor ?? 0)}
             </div>
           </div>

@@ -2,7 +2,7 @@
  * Central hook for client-side error reporting.
  *
  * Deliberately local-only: nothing is sent off the machine. When a real
- * monitoring service is chosen, wire it here — this is the single place the
+ * monitoring service is chosen, wire it here - this is the single place the
  * application reports a caught error from.
  *
  * SR-14: never log a credential, session token or the content of a peer rating.

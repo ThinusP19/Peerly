@@ -216,7 +216,7 @@ function MarkEntryPage() {
                       }}
                       onBlur={(event) => save(group.id, event.target.value)}
                       className="w-32 tabular-nums"
-                      placeholder="—"
+                      placeholder="-"
                     />
                     {error ? (
                       <p id={errorId} role="alert" className="mt-1.5 text-sm text-danger">

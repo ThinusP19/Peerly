@@ -40,7 +40,7 @@ function RatingGuidePage() {
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">How rating works</h1>
         <p className="text-sm text-muted-foreground">
-          You choose a phrase for each group member — never a number or a score out of five.
+          You choose a phrase for each group member - never a number or a score out of five.
         </p>
       </div>
 

@@ -19,11 +19,11 @@ function LecturerAuditPage() {
         title="Audit log"
         description={
           klass
-            ? `Everything that has happened in ${klass.moduleCode} — ${klass.name}. Entries are append-only and can't be edited or deleted.`
+            ? `Everything that has happened in ${klass.moduleCode} - ${klass.name}. Entries are append-only and can't be edited or deleted.`
             : "Select a class in the header to see its audit log."
         }
       />
-      {/* Scoped to the active class — a lecturer never sees another class's history. */}
+      {/* Scoped to the active class - a lecturer never sees another class's history. */}
       <AuditLogView classId={activeClassId} />
     </>
   );

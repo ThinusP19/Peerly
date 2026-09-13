@@ -44,7 +44,7 @@ const steps = [
 
 type StepKey = (typeof steps)[number]["key"];
 
-/** Headers as they appear in a typical exported class list — deliberately messy. */
+/** Headers as they appear in a typical exported class list - deliberately messy. */
 const fileHeaders = ["Stud No.", "Given Name", "Family Name", "Email Address", "Programme"];
 
 type FieldKey = "studentNumber" | "name" | "surname" | "email";
@@ -113,7 +113,7 @@ function ImportPage() {
         backLabel="Class list"
         description={
           klass
-            ? `Importing into ${klass.moduleCode} — ${klass.name}. Existing students stay on the list; new rows are added.`
+            ? `Importing into ${klass.moduleCode} - ${klass.name}. Existing students stay on the list; new rows are added.`
             : "Select a class in the header first."
         }
       />

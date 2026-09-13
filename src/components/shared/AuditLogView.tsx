@@ -22,7 +22,7 @@ import { getAuditEntries } from "@/services/peerly";
 
 /**
  * The audit log is append-only: entries are never edited or deleted, so this
- * view is read-only by design. Both portals share it — the lecturer sees only
+ * view is read-only by design. Both portals share it - the lecturer sees only
  * events for their own classes.
  */
 export function AuditLogView({
