@@ -5,8 +5,8 @@ import { useState, type FormEvent } from "react";
 import { AuthShell } from "@/components/layout/AuthShell";
 import { BusyButton } from "@/components/shared/BusyButton";
 import { FormField } from "@/components/shared/FormField";
+import { PasswordInput } from "@/components/shared/PasswordInput";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/reset-password")({
   validateSearch: (search: Record<string, unknown>): { token?: string } => ({
@@ -91,9 +91,8 @@ function ResetPasswordPage() {
           required
         >
           {(props) => (
-            <Input
+            <PasswordInput
               {...props}
-              type="password"
               autoComplete="new-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
@@ -103,9 +102,8 @@ function ResetPasswordPage() {
 
         <FormField label="Confirm new password" error={errors.confirm} required>
           {(props) => (
-            <Input
+            <PasswordInput
               {...props}
-              type="password"
               autoComplete="new-password"
               value={confirm}
               onChange={(event) => setConfirm(event.target.value)}

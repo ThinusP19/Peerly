@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { AuthShell } from "@/components/layout/AuthShell";
 import { BusyButton } from "@/components/shared/BusyButton";
 import { FormField } from "@/components/shared/FormField";
+import { PasswordInput } from "@/components/shared/PasswordInput";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -411,9 +412,8 @@ function RegisterPage() {
               required
             >
               {(props) => (
-                <Input
+                <PasswordInput
                   {...props}
-                  type="password"
                   autoComplete="new-password"
                   value={form.password}
                   onChange={(event) => set("password")(event.target.value)}
@@ -423,9 +423,8 @@ function RegisterPage() {
 
             <FormField label="Confirm password" error={errors.confirm} required>
               {(props) => (
-                <Input
+                <PasswordInput
                   {...props}
-                  type="password"
                   autoComplete="new-password"
                   value={form.confirm}
                   onChange={(event) => set("confirm")(event.target.value)}

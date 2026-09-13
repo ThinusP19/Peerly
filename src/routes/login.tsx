@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { AuthShell } from "@/components/layout/AuthShell";
 import { BusyButton } from "@/components/shared/BusyButton";
 import { FormField } from "@/components/shared/FormField";
+import { PasswordInput } from "@/components/shared/PasswordInput";
 import { Input } from "@/components/ui/input";
 import { usePageTransition } from "@/hooks/use-page-transition";
 import { homePathForRole, useSession } from "@/lib/session";
@@ -166,9 +167,8 @@ function SignInForm({ audience }: { audience: Audience }) {
         <div className="space-y-2">
           <FormField label="Password" error={errors.password} required>
             {(props) => (
-              <Input
+              <PasswordInput
                 {...props}
-                type="password"
                 autoComplete="current-password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
