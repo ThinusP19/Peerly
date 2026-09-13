@@ -65,7 +65,7 @@ function StudentShellInner({ children }: { children: ReactNode }) {
                 className={cn(
                   "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                   active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-card"
+                    ? "bg-sidebar-primary font-semibold text-sidebar-primary-foreground shadow-card"
                     : "text-sidebar-foreground/85 hover:bg-sidebar-accent/45 hover:text-sidebar-accent-foreground",
                 )}
               >

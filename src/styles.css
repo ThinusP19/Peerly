@@ -75,20 +75,21 @@
 
 :root {
   --radius: 0.5rem;
-  --background: oklch(0.974 0.007 285);
+  --background: oklch(0.965 0.011 298);
   --foreground: oklch(0.21 0.03 265);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.21 0.03 265);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.21 0.03 265);
-  --primary: oklch(0.51 0.21 280);
-  --primary-foreground: oklch(0.99 0.005 280);
-  --secondary: oklch(0.963 0.011 285);
+  /* Plum brand, matching the sign-in screens and the favicon. */
+  --primary: oklch(0.353 0.107 302);
+  --primary-foreground: oklch(0.99 0.005 302);
+  --secondary: oklch(0.963 0.011 300);
   --secondary-foreground: oklch(0.28 0.03 265);
-  --muted: oklch(0.965 0.009 285);
+  --muted: oklch(0.958 0.012 300);
   --muted-foreground: oklch(0.5 0.025 265);
-  --accent: oklch(0.955 0.02 285);
-  --accent-foreground: oklch(0.36 0.14 280);
+  --accent: oklch(0.945 0.024 302);
+  --accent-foreground: oklch(0.353 0.107 302);
   --destructive: oklch(0.55 0.21 27);
   --destructive-foreground: oklch(0.99 0.003 265);
   --success: oklch(0.52 0.13 155);
@@ -102,25 +103,26 @@
   --danger-muted: oklch(0.96 0.03 25);
   --neutral-status: oklch(0.5 0.02 265);
   --neutral-status-muted: oklch(0.955 0.005 265);
-  --border: oklch(0.912 0.014 285);
+  --border: oklch(0.91 0.016 300);
   --input: oklch(0.9 0.012 265);
-  --ring: oklch(0.51 0.21 280);
-  --chart-1: oklch(0.51 0.21 280);
+  --ring: oklch(0.455 0.157 305);
+  --chart-1: oklch(0.455 0.157 305);
   --chart-2: oklch(0.52 0.13 155);
   --chart-3: oklch(0.55 0.13 70);
   --chart-4: oklch(0.53 0.2 25);
   --chart-5: oklch(0.5 0.02 265);
-  /* Deep indigo. The nav is the one place the brand colour gets to be a
-     surface rather than an accent, which is what stops the app reading as
-     grey-on-white. Every value below is contrast-checked against it. */
-  --sidebar: oklch(0.295 0.115 281);
-  --sidebar-foreground: oklch(0.88 0.032 286);
-  --sidebar-primary: oklch(0.99 0.005 285);
-  --sidebar-primary-foreground: oklch(0.3 0.12 281);
-  --sidebar-accent: oklch(0.405 0.145 282);
-  --sidebar-accent-foreground: oklch(0.99 0.008 285);
-  --sidebar-border: oklch(0.38 0.1 281);
-  --sidebar-ring: oklch(0.78 0.12 286);
+  /* Plum sidebar. The nav is the one place the brand colour gets to be a
+     surface rather than an accent. Active items are a white pill
+     (sidebar-primary) with plum text; hover and panels use the lighter
+     plum accent. Nav text is ~7:1 against the sidebar. */
+  --sidebar: oklch(0.353 0.107 302);
+  --sidebar-foreground: oklch(0.87 0.035 306);
+  --sidebar-primary: oklch(0.99 0.005 302);
+  --sidebar-primary-foreground: oklch(0.353 0.107 302);
+  --sidebar-accent: oklch(0.43 0.105 302);
+  --sidebar-accent-foreground: oklch(0.99 0.005 302);
+  --sidebar-border: oklch(0.45 0.09 302);
+  --sidebar-ring: oklch(0.8 0.08 305);
   /* Plum brand panel on the auth screens. Contrast against --auth-panel:
      heading ~11.7:1, body text ~7.3:1. */
   --auth-panel: oklch(0.353 0.107 302);
