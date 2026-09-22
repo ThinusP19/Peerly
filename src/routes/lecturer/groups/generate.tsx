@@ -25,7 +25,13 @@ import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { classes, enrolments, users } from "@/mocks/data";
 import type { Group } from "@/mocks/types";
-import { confirmGroups, getAssessments, getSubmissions, proposeGroups } from "@/services/peerly";
+import {
+  confirmGroups,
+  getAssessments,
+  getSubmissions,
+  GroupRegenerationError,
+  proposeGroups,
+} from "@/services/peerly";
 
 export const Route = createFileRoute("/lecturer/groups/generate")({
   component: GenerateGroupsPage,
@@ -51,12 +57,18 @@ function GenerateGroupsPage() {
     queryFn: () => getAssessments(activeClassId),
   });
   const openAssessment = (assessmentsQuery.data ?? []).find((a) => a.status === "open");
+  const closedAssessment = (assessmentsQuery.data ?? []).find((a) => a.status === "closed");
   const openSubmissions = useQuery({
     queryKey: ["submissions", openAssessment?.id],
     queryFn: () => getSubmissions(openAssessment!.id),
     enabled: Boolean(openAssessment),
   });
-  const locked = Boolean(openAssessment && (openSubmissions.data?.length ?? 0) > 0);
+  // Closed assessments always lock regeneration - their marks and results are
+  // keyed to the current groups. An open assessment only locks once students
+  // have actually started rating (otherwise nothing would be orphaned yet).
+  const locked = Boolean(
+    closedAssessment || (openAssessment && (openSubmissions.data?.length ?? 0) > 0),
+  );
 
   const [mode, setMode] = useState<Mode>("count");
   const [groupCount, setGroupCount] = useState("6");
@@ -142,8 +154,17 @@ function GenerateGroupsPage() {
               Groups are locked while an assessment runs
             </h2>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              “{openAssessment?.name}” is open and {openSubmissions.data?.length} students have
-              already submitted. Close that assessment before generating new groups.
+              {closedAssessment ? (
+                <>
+                  “{closedAssessment.name}” is closed and its results depend on the current groups.
+                  Regenerating would disconnect them.
+                </>
+              ) : (
+                <>
+                  “{openAssessment?.name}” is open and {openSubmissions.data?.length} students have
+                  already submitted. Close that assessment before generating new groups.
+                </>
+              )}
             </p>
           </div>
         </Card>
@@ -405,7 +426,16 @@ function GenerateGroupsPage() {
             }
             confirmLabel="Confirm groups"
             onConfirm={async () => {
-              await confirmGroups(activeClassId, proposed);
+              try {
+                await confirmGroups(activeClassId, proposed);
+              } catch (error) {
+                if (error instanceof GroupRegenerationError) {
+                  toast.error(error.message);
+                  await queryClient.invalidateQueries({ queryKey: ["assessments", activeClassId] });
+                  return;
+                }
+                throw error;
+              }
               await queryClient.invalidateQueries();
               toast.success(
                 `${proposed.length} groups confirmed for ${klass?.moduleCode ?? "the class"}.`,

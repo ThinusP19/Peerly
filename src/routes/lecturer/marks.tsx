@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, Check, Loader2, Sigma } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -68,19 +68,26 @@ function MarkEntryPage() {
   const [states, setStates] = useState<Record<string, RowState>>({});
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  // Seed the inputs once the saved marks arrive.
+  // Seed the inputs once the saved marks for *this* assessment arrive, and
+  // reseed whenever the lecturer switches to a different assessment - the
+  // previous guard only seeded once ever, so switching assessments left the
+  // old assessment's typed values on screen (see #6).
+  const seededAssessmentId = useRef<string | null>(null);
   useEffect(() => {
     if (!marksQuery.data) return;
-    setValues((current) => {
-      if (Object.keys(current).length) return current;
-      return Object.fromEntries(
+    if (seededAssessmentId.current === activeAssessmentId) return;
+    seededAssessmentId.current = activeAssessmentId;
+    setValues(
+      Object.fromEntries(
         marksQuery.data.map((mark) => [
           mark.groupId,
           mark.baseMark == null ? "" : String(mark.baseMark),
         ]),
-      );
-    });
-  }, [marksQuery.data]);
+      ),
+    );
+    setErrors({});
+    setStates({});
+  }, [activeAssessmentId, marksQuery.data]);
 
   const validate = (raw: string): string | null => {
     if (!raw.trim()) return null; // blank simply means "not entered yet"
@@ -114,7 +121,11 @@ function MarkEntryPage() {
     return raw != null && raw.trim() !== "" && !validate(raw);
   });
   const outstanding = groups.length - entered.length;
-  const canCalculate = groups.length > 0 && outstanding === 0;
+  // BR-06: calculation only runs once the assessment is closed - marks
+  // calculated while it's still open could change before the deadline, and a
+  // draft assessment has no real submissions to calculate from yet.
+  const stillOpen = assessment?.status !== "closed";
+  const canCalculate = groups.length > 0 && outstanding === 0 && !stillOpen;
 
   if (assessmentQuery.isPending || groupsQuery.isPending || marksQuery.isPending) {
     return (

@@ -195,7 +195,7 @@ function SetPassword({ account, onDone }: { account: ActivationAccount; onDone: 
     if (Object.keys(found).length) return;
 
     setBusy(true);
-    await activateAccount(account.email);
+    await activateAccount(account.email, password);
     setBusy(false);
     onDone();
   };

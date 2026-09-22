@@ -97,6 +97,11 @@ export const ratingOptions: RatingOption[] = [
 /* ------------------------------------------------------------------ *
  * Staff accounts
  * ------------------------------------------------------------------ */
+// Every seeded *active* account shares this password so the login screen
+// stays testable in the prototype. Unverified/inactive accounts have none -
+// they can't sign in yet regardless (see login.tsx's status check).
+export const DEMO_PASSWORD = "PeerlyDemo#26";
+
 export const staffUsers: User[] = [
   {
     id: "u-admin-1",
@@ -106,6 +111,7 @@ export const staffUsers: User[] = [
     email: "riaan.botha@nwu.ac.za",
     status: "active",
     createdAt: "2025-11-04T08:12:00Z",
+    password: DEMO_PASSWORD,
   },
   {
     id: "u-admin-2",
@@ -115,6 +121,7 @@ export const staffUsers: User[] = [
     email: "lerato.mokoena@nwu.ac.za",
     status: "active",
     createdAt: "2026-01-16T09:40:00Z",
+    password: DEMO_PASSWORD,
   },
   {
     id: "u-lec-1",
@@ -124,6 +131,7 @@ export const staffUsers: User[] = [
     email: "anneke.vdmerwe@nwu.ac.za",
     status: "active",
     createdAt: "2025-11-04T08:20:00Z",
+    password: DEMO_PASSWORD,
   },
   {
     id: "u-lec-2",
@@ -133,6 +141,7 @@ export const staffUsers: User[] = [
     email: "sipho.ndlovu@nwu.ac.za",
     status: "active",
     createdAt: "2025-12-02T11:05:00Z",
+    password: DEMO_PASSWORD,
   },
   {
     id: "u-lec-3",
@@ -142,6 +151,7 @@ export const staffUsers: User[] = [
     email: "marina.petrova@nwu.ac.za",
     status: "active",
     createdAt: "2026-02-11T07:55:00Z",
+    password: DEMO_PASSWORD,
   },
   {
     id: "u-lec-4",
@@ -169,6 +179,7 @@ export const staffUsers: User[] = [
     email: "kobus.fourie@nwu.ac.za",
     status: "active",
     createdAt: "2026-03-03T10:15:00Z",
+    password: DEMO_PASSWORD,
   },
   {
     id: "u-lec-7",
@@ -228,6 +239,7 @@ export const studentUsers: User[] = studentNames.map(([name, surname], i) => {
     studentNumber,
     status: "active" as const,
     createdAt: `2026-08-0${(i % 5) + 1}T07:${String(10 + (i % 45)).padStart(2, "0")}:00Z`,
+    password: DEMO_PASSWORD,
   };
 });
 

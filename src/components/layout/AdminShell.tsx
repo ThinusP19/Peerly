@@ -172,14 +172,7 @@ function ContextSelector() {
       <label className="sr-only" htmlFor="context-class">
         Active class
       </label>
-      <Select
-        value={activeClassId}
-        onValueChange={(value) => {
-          setActiveClassId(value);
-          const first = assessments.find((a) => a.classId === value);
-          if (first) setActiveAssessmentId(first.id);
-        }}
-      >
+      <Select value={activeClassId} onValueChange={setActiveClassId}>
         <SelectTrigger id="context-class" className="h-9 w-auto min-w-44 gap-2 bg-card">
           <SelectValue placeholder="Select a class" />
         </SelectTrigger>
