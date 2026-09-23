@@ -252,6 +252,69 @@ describe("updateAssessment", () => {
     const updated = await updateAssessment(assessmentId, { groupIds: [groupIds[0]!] }, user);
     expect(updated.groupIds).toEqual([groupIds[0]]);
   });
+
+  /**
+   * FR-27 is "every write", and this used to record only a moved closing time.
+   * A rename, a different maximum mark, a new opening time and a change to the
+   * participating groups all happened with no entry at all - and the last two
+   * decide who is assessed and what their mark is out of.
+   */
+  describe("every change reaches the audit trail (FR-27)", () => {
+    it("records a rename, with the name it had before", async () => {
+      const { user, assessmentId } = await make();
+
+      await updateAssessment(assessmentId, { name: "Phase 2 - revised" }, user);
+
+      const [entry] = await getAuditEntries({ eventType: "assessment.updated" });
+      expect(entry, "a rename must leave an entry").toBeDefined();
+      expect(entry!.detail).toContain("Phase 2");
+      expect(entry!.objectDescription).toContain("Phase 2 - revised");
+    });
+
+    it("records a change to the maximum mark", async () => {
+      const { user, assessmentId } = await make();
+
+      await updateAssessment(assessmentId, { maxMark: 50 }, user);
+
+      const [entry] = await getAuditEntries({ eventType: "assessment.updated" });
+      expect(entry, "a changed maximum mark must leave an entry").toBeDefined();
+      expect(entry!.detail).toMatch(/Maximum mark changed from 100 to 50/);
+    });
+
+    it("records a change to which groups take part", async () => {
+      const { user, assessmentId, groupIds } = await make();
+
+      await updateAssessment(assessmentId, { groupIds: [groupIds[0]!] }, user);
+
+      const [entry] = await getAuditEntries({ eventType: "assessment.updated" });
+      expect(entry, "changing who is assessed must leave an entry").toBeDefined();
+      expect(entry!.detail).toMatch(/Participating groups changed/);
+    });
+
+    it("names every field when several move at once, in one entry", async () => {
+      const { user, assessmentId } = await make();
+
+      await updateAssessment(
+        assessmentId,
+        { name: "Renamed", maxMark: 75, closesAt: "2026-10-21T20:00:00.000Z" },
+        user,
+      );
+
+      const entries = await getAuditEntries({ eventType: "assessment.updated" });
+      expect(entries).toHaveLength(1);
+      expect(entries[0]!.detail).toContain("Renamed from");
+      expect(entries[0]!.detail).toContain("Maximum mark changed");
+      expect(entries[0]!.detail).toContain("Closing time changed");
+    });
+
+    it("writes nothing when a save changes nothing", async () => {
+      const { user, assessmentId } = await make();
+
+      await updateAssessment(assessmentId, { name: "Phase 2" }, user);
+
+      expect(await getAuditEntries({ eventType: "assessment.updated" })).toHaveLength(0);
+    });
+  });
 });
 
 describe("setGroupBaseMark (FR-21)", () => {

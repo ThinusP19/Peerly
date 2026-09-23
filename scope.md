@@ -102,6 +102,12 @@ whole**, but it will not move when it is, unless the Sponsor changes one of the 
 
 Every write appends an audit entry, in the same transaction as the change it describes, so an
 entry can never survive a rolled-back write or be missing from one that landed.
+
+One exception was found on 2026-09-23, while testing by hand: `updateAssessment` wrote an entry
+only when the closing time changed, so four other editable fields - including the participating
+groups and the maximum mark - moved silently. Fixed and covered by tests. Worth recording as a
+caution: "every write is audited" held for every operation except one, and the gap was invisible
+from the requirement's own evidence, because the audit screen looked complete.
 `audit_entries` refuses `UPDATE` and `DELETE` at the database level, and has no foreign keys,
 so the record of a deletion outlives what was deleted (FR-28). Verified: a `DELETE` attempt
 returns `audit_entries is append-only: DELETE is not permitted`.
@@ -367,8 +373,8 @@ All are **Must have**. Status reflects whether the acceptance criteria are actua
 ### 3.2.10 Audit and data administration
 
 - [x] **FR-27** System audit logging - _Must_
-  - Evidence: `src/components/shared/AuditLogView.tsx` - filterable by event type and date range, shared by both portals, lecturer view scoped to the active class, presented as read-only.
-  - Gap: **no entry is ever written.** See critical gap 2.
+  - Evidence: `src/components/shared/AuditLogView.tsx` - filterable by event type and date range, shared by both portals, lecturer view scoped to the active class, presented as read-only. Entries are written by the operations themselves, in the same transaction as the change they describe, and `audit_entries` refuses `UPDATE` and `DELETE` at the database level.
+  - **Found and fixed 2026-09-23:** editing an assessment recorded an entry only when the closing time moved. A rename, a different maximum mark, a new opening time and a change to which groups take part all happened with no trail at all - the last two deciding who is assessed and what their mark is out of. Every changed field is now named in one entry, with its previous value. Five tests, mutation-checked.
 - [x] **FR-28** Data retention and deletion - _Should_
   - Nothing built. No deletion of an assessment or class, no retention period, no export-check before deletion.
 

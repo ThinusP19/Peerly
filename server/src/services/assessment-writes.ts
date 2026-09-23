@@ -163,19 +163,84 @@ export async function updateAssessment(
       }
     }
 
-    // An extension is the change most worth being able to account for later, so
-    // both times go on the trail rather than only the fact that something moved.
+    /**
+     * One entry naming every field that actually moved (FR-27).
+     *
+     * This used to record a change only when the closing time moved, so a
+     * rename, a different maximum mark, a new opening time or a change to which
+     * groups take part all happened with no trail at all - and the last two
+     * decide who is assessed and what their mark is out of. FR-27 is "every
+     * write", not "the write we thought was interesting".
+     *
+     * Both values are kept for each field, because knowing that something moved
+     * without knowing what it moved from is not an account of anything. An
+     * extension still reads in full, which is the change most often queried.
+     */
+    const moved: string[] = [];
+    const wasValues: Record<string, unknown> = {};
+    const nowValues: Record<string, unknown> = {};
+
+    const note = (field: string, was: unknown, now: unknown, sentence: string) => {
+      moved.push(sentence);
+      wasValues[field] = was;
+      nowValues[field] = now;
+    };
+
+    const name = changes.name?.trim() ?? before.name;
+    if (name !== before.name) note("name", before.name, name, `Renamed from "${before.name}".`);
+
+    const description = changes.description?.trim() ?? before.description;
+    if (description !== before.description) {
+      note("description", before.description, description, "Description changed.");
+    }
+
+    if (opensAt !== before.opensAt) {
+      note("opensAt", before.opensAt, opensAt, `Opening time changed from ${before.opensAt}.`);
+    }
+
     if (closesAt !== before.closesAt) {
+      note(
+        "closesAt",
+        before.closesAt,
+        closesAt,
+        `Closing time changed from ${before.closesAt} to ${closesAt}.`,
+      );
+    }
+
+    const maxMark = changes.maxMark ?? before.maxMark;
+    if (maxMark !== before.maxMark) {
+      note(
+        "maxMark",
+        before.maxMark,
+        maxMark,
+        `Maximum mark changed from ${before.maxMark} to ${maxMark}.`,
+      );
+    }
+
+    if (changes.groupIds) {
+      const was = [...before.groupIds].sort();
+      const now = [...changes.groupIds].sort();
+      if (was.join() !== now.join()) {
+        note(
+          "groupIds",
+          before.groupIds,
+          changes.groupIds,
+          `Participating groups changed from ${was.length} to ${now.length}.`,
+        );
+      }
+    }
+
+    if (moved.length > 0) {
       await record(
         {
           actor: actorOf(user),
           eventType: "assessment.updated",
-          objectDescription: before.name,
-          detail: `Closing time changed from ${before.closesAt} to ${closesAt}.`,
+          objectDescription: name,
+          detail: moved.join(" "),
           classId: before.classId,
           assessmentId,
-          before: { closesAt: before.closesAt },
-          after: { closesAt },
+          before: wasValues,
+          after: nowValues,
         },
         sql,
       );
