@@ -65,13 +65,14 @@ provisional. See [Critical gaps](#critical-gaps).
 ### 1. FR-22 - the Felder calculation is built, and its policy is unapproved
 
 The calculation now exists as a discrete, dependency-free module (**OR-18**):
-`server/src/lib/felder.ts`, with 32 tests covering FR-22 and all eight FR-23 cases.
+`server/src/lib/felder.ts`, with 44 tests covering FR-22 and all eight FR-23 cases.
 
 - Adjustment factor is **individual mean ÷ group mean**, clamped to the configured limits, and
   the unclamped value is retained so a mark stays explainable (**OR-09**).
-- The factor is rounded to its published precision **before** the mark is derived from it, so
-  `base × factor` reproduces the stored mark exactly. Doing it the other way round left a
-  lecturer checking the arithmetic by hand disagreeing with the system by a cent.
+- The factor is **never** rounded. Rounding happens once, to the final mark, which is what
+  FR-22 requires: full precision retained internally, rounding applied at the final step.
+  Migration 0003 widened every intermediate column to unconstrained `numeric` so the factor
+  that is stored is the one that produced the mark beside it.
 - Every limit, rounding rule and edge-case policy is configuration, never a literal
   (**OR-19**), and each run freezes the values it used in `calculation_runs.config`.
 
@@ -112,12 +113,14 @@ what CI-09 describes in production, and what keeps the session cookie same-site.
 
 - **AS-08** - Sponsor approval of the Felder specification. Blocks nothing technically; blocks
   presenting marks as final.
-- **Class-list import UI** - the `inspect`, `preview` and `commit` endpoints are built and
-  tested, but `src/routes/lecturer/classes/import.tsx` still renders a fixture preview instead
-  of uploading a file.
-- **No end-to-end UI testing** - every requirement below was verified at the HTTP layer or in
-  unit tests. The screens themselves have not been driven in a browser since the API replaced
-  the mocks.
+- **A test deployment** - the system has never run anywhere but a laptop. The production
+  boot path and build were verified on 2026-09-23; what is missing is a host, a DNS name and
+  a certificate (IS-10), and SMTP credentials (IS-01). HTTPS is not optional: session cookies
+  are `secure` in production, so over plain HTTP nobody can sign in.
+- **Observed testing with real people** - the automated suites are green, but UR-01 (a student
+  under five minutes) and UR-06 (a lecturer's full cycle under thirty) are requirements with
+  numbers on them and neither has been measured. `docs/handover/test-plan.md` is the script
+  for doing it.
 
 ---
 
@@ -486,7 +489,9 @@ All are **Must have**. Status reflects whether the acceptance criteria are actua
 - [x] **Browser pass 1** - all 29 screens driven in Chromium: both portals' full navigation, matrix, marks gate, results drill-down, import wizard, group generation, close-assessment confirmation, admin filters, student evaluation, unmatched state, 360 px layout. **All 10 flows passed.** Two defects found and fixed (see below).
 - [x] **Browser pass 2** - fixes verified, no regressions, **0 console errors and 0 warnings** for the whole session.
 - [x] **Responsive** - Student Portal at 360 px: `scrollWidth === clientWidth`, no horizontal overflow.
-- [x] **Unit tests** - `npm test` - **26 passing** over `src/lib/domain.ts`: matrix construction (FR-19), deviation highlighting, submission progress (FR-18), student assessment state (FR-14), enrolment matching (FR-04) and group lookup (BR-10).
+- [x] **Unit tests** - `npm test` - **32 passing** in the web app over `src/lib/domain.ts` and `src/lib/password.ts`, and **448 passing** across 23 files in the API (`npm test` in `server/`), against a real PostgreSQL migrated per run.
+- [x] **Browser tests** - `npx playwright test` - **82 passing** over 12 specs, against both real servers and a seeded database, with no mocking: the three role journeys end to end, the marks and calculation path, and the accessibility project above. Verified green on 2026-09-23.
+- [x] **Production boot** - the API starts under `NODE_ENV=production` and reports a healthy database; `npm run build` succeeds. Verified 2026-09-23.
 - [x] **Mutation-checked** - the suite was verified to have teeth by injecting the exact defect user story 9 warns against (a non-submitter's blank cells counting as a rating of zero); the test failed as it should, and passed again once reverted.
 
 **Defects found and fixed during testing**
@@ -497,11 +502,11 @@ All are **Must have**. Status reflects whether the acceptance criteria are actua
 ### Not yet run - required by FSD §3.6.5
 
 - [ ] **Unit tests for the remaining modules** - `src/lib/evaluation-draft.ts`, `src/lib/format.ts` and the service layer are not yet covered. Component tests need `jsdom` and `@testing-library/react`, neither of which is installed.
-- [ ] **Felder calculation unit tests** against manually worked examples, covering every FR-23 edge case, ≥ 90% branch coverage. _Blocked on FR-22 existing._
+- [x] **Felder calculation unit tests** against manually worked examples, covering every FR-23 edge case, ≥ 90% branch coverage. - **44 tests in `server/src/lib/felder.test.ts`. Coverage on 2026-09-23: 100% statements, 100% lines, 100% functions, 96.72% branches** (`npm run coverage` in `server/`), which is its own CI status check.
 - [ ] **Parallel run** - a historical cycle reconciled student by student against the existing spreadsheet. The FSD is explicit: _"Anything short of exact reconciliation to the agreed rounding precision is a failed acceptance test, not a tolerance."_ Blocked on **AS-09**.
-- [ ] **Negative identity/access testing** - non-institutional registration, sign-in on unverified/unmatched/deactivated accounts, direct API requests bypassing the interface. _Requires a server._
+- [~] **Negative identity/access testing.** - _Covered at the API layer by the server suite: non-institutional registration, sign-in on unverified, unmatched and deactivated accounts, lock-out, and role-crossing requests are all asserted in `server/src/services/authentication.test.ts` and `server/src/middleware/auth.test.ts`._ **Gap:** the same attempted through the browser by a person, which is Round 4 of `docs/handover/test-plan.md`.
 - [ ] **Cross-browser** - Edge, Firefox, Safari, plus default Android and iOS browsers (UI-03).
-- [ ] **Accessibility audit** - automated (axe/Lighthouse) plus keyboard-only and screen-reader passes (UI-04, UR-09).
+- [~] **Accessibility audit** (UI-04, UR-09). - _Automated and keyboard passes are **built into the suite**: `e2e/accessibility.spec.ts` runs axe for WCAG 2.1 AA over every page in all three portals plus phone width, and drives skip links, focus indicators, dialog focus traps and a complete student submission by keyboard alone. All green on 2026-09-23._ **Gap:** a screen-reader pass with a real user, and Lighthouse.
 - [ ] **Load sanity test** at PR-02 scale (150 concurrent submitters).
 - [ ] **Security** - dependency vulnerability scan and OWASP Top Ten review.
 - [ ] **Observed UAT** - UR-01 (student under five minutes) and UR-06 (lecturer full cycle under thirty minutes) with representative users.
