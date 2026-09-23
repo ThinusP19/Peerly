@@ -149,7 +149,8 @@ export type AuditEventType =
   | "class.deleted"
   | "assessment.deleted"
   | "enrolment.resolved"
-  | "password.changed";
+  | "password.changed"
+  | "reminders.sent";
 
 export interface AuditEntry {
   id: string;

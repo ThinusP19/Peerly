@@ -15,6 +15,7 @@ import {
 import {
   getGroupMarks,
   getGroupProgress,
+  sendSubmissionReminders,
   getPeerRatings,
   getSubmissions,
 } from "../services/monitoring.ts";
@@ -48,6 +49,18 @@ const assessmentId = z.object({ assessmentId: z.uuid() });
 assessmentRoutes.get("/:assessmentId/progress", requireRole("lecturer"), async (req, res) => {
   const { assessmentId: id } = assessmentId.parse(req.params);
   res.json({ progress: await getGroupProgress(id, currentUser(req).user) });
+});
+
+/**
+ * Reminds the outstanding students (FR-18).
+ *
+ * POST, because it sends e-mail and writes to the audit trail. The count comes
+ * back so the screen can say how many were written to rather than guessing from
+ * the list it happened to be showing.
+ */
+assessmentRoutes.post("/:assessmentId/reminders", requireRole("lecturer"), async (req, res) => {
+  const { assessmentId: id } = assessmentId.parse(req.params);
+  res.json(await sendSubmissionReminders(id, currentUser(req).user));
 });
 
 assessmentRoutes.get("/:assessmentId/submissions", requireRole("lecturer"), async (req, res) => {

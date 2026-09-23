@@ -133,6 +133,32 @@ export const activationLinkMail = (to: string, name: string, token: string): Mai
     signOff,
 });
 
+/**
+ * Reminds a student that an evaluation is still outstanding (FR-18).
+ *
+ * It carries no link to a specific assessment, because a student signs in and
+ * sees everything owed in one place; a deep link would only fail for anyone not
+ * already signed in. It names the closing time, since that is the one fact that
+ * decides whether they need to act tonight or at the weekend.
+ */
+export const submissionReminderMail = (
+  to: string,
+  name: string,
+  assessmentName: string,
+  moduleCode: string,
+  closesAt: string,
+): Mail => ({
+  to,
+  subject: `Reminder: your peer evaluation for ${moduleCode} is still outstanding`,
+  text:
+    `Hi ${name},\n\n` +
+    `Your peer evaluation for "${assessmentName}" (${moduleCode}) hasn't been submitted yet.\n\n` +
+    `It closes on ${new Date(closesAt).toUTCString()}. After that it can't be submitted.\n\n` +
+    `Sign in to complete it:\n\n    ${env.appUrl}\n\n` +
+    `If you've already submitted it, you can ignore this.` +
+    signOff,
+});
+
 export const passwordResetMail = (to: string, name: string, token: string): Mail => ({
   to,
   subject: "Reset your Peerly password",

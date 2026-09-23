@@ -1,5 +1,9 @@
 import { query } from "../db/pool.ts";
+import type { SessionUser } from "../domain/types.ts";
+import * as mail from "../lib/mail.ts";
+import { conflict } from "../middleware/errors.ts";
 import { getAssessment } from "./assessments.ts";
+import { record } from "./audit.ts";
 import { getClass, type Asker } from "./classes.ts";
 
 /**
@@ -226,4 +230,67 @@ export async function getClassRoster(classId: string, asker: Asker): Promise<Per
     [classId],
   );
   return rows;
+}
+
+export interface ReminderResult {
+  /** How many students were written to. */
+  sent: number;
+}
+
+/**
+ * Reminds the students who have not submitted (FR-18).
+ *
+ * Only the outstanding ones, and only while the assessment can still be
+ * submitted to - a reminder to do something that is no longer possible is worse
+ * than none. A student with a draft has still not submitted, so they are
+ * reminded too.
+ *
+ * Dispatch is fire-and-forget, like every other message Peerly sends (CI-05):
+ * a relay that is slow or down must not fail the lecturer's request, and they
+ * can send again. The audit entry records the intent and the count, which is
+ * what the lecturer needs to answer "did I chase them, and when".
+ */
+export async function sendSubmissionReminders(
+  assessmentId: string,
+  user: SessionUser,
+): Promise<ReminderResult> {
+  const assessment = await getAssessment(assessmentId, user);
+  const klass = await getClass(assessment.classId, user);
+
+  if (assessment.status !== "open") {
+    throw conflict("Only an open assessment can be reminded about.");
+  }
+  if (new Date(assessment.closesAt) <= new Date()) {
+    throw conflict("The closing time has passed, so there is nothing left to remind anyone about.");
+  }
+
+  const progress = await getGroupProgress(assessmentId, user);
+  const outstanding = progress.flatMap((row) => row.outstanding);
+
+  if (outstanding.length === 0) {
+    throw conflict("Everyone has submitted, so there is nobody to remind.");
+  }
+
+  for (const student of outstanding) {
+    mail.queue(
+      mail.submissionReminderMail(
+        student.email,
+        student.name,
+        assessment.name,
+        klass.moduleCode,
+        assessment.closesAt,
+      ),
+    );
+  }
+
+  await record({
+    actor: { id: user.id, name: user.name, surname: user.surname, role: user.role },
+    eventType: "reminders.sent",
+    objectDescription: `${klass.moduleCode} · ${assessment.name}`,
+    detail: `Reminder sent to ${outstanding.length} outstanding student(s).`,
+    classId: assessment.classId,
+    assessmentId,
+  });
+
+  return { sent: outstanding.length };
 }

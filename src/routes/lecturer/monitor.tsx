@@ -15,6 +15,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ApiError } from "@/lib/api";
 import { formatDateTimeLong, formatDeadline } from "@/lib/format";
 import { useLecturerClasses } from "@/hooks/use-lecturer-context";
 import { useSession } from "@/lib/session";
@@ -23,6 +24,7 @@ import {
   getAssessment,
   getEnrolmentRows,
   getGroupProgress,
+  sendSubmissionReminders,
   type GroupProgressRow,
 } from "@/services/peerly";
 
@@ -285,11 +287,23 @@ function SubmissionMonitorPage() {
               className="h-10 px-4"
               onClick={async () => {
                 setReminding(true);
-                await new Promise((resolve) => setTimeout(resolve, 900));
-                setReminding(false);
-                toast.success(
-                  `Reminder sent to ${outstanding.length} outstanding ${outstanding.length === 1 ? "student" : "students"}.`,
-                );
+                try {
+                  // The count comes from the server, which decided who was
+                  // outstanding. Reporting the length of the list on screen
+                  // would be a guess, and wrong if it is a refetch behind.
+                  const { sent } = await sendSubmissionReminders(assessment.id);
+                  toast.success(
+                    `Reminder sent to ${sent} outstanding ${sent === 1 ? "student" : "students"}.`,
+                  );
+                } catch (error) {
+                  toast.error(
+                    error instanceof ApiError
+                      ? error.message
+                      : "The reminders couldn't be sent. Please try again.",
+                  );
+                } finally {
+                  setReminding(false);
+                }
               }}
             >
               <BellRing aria-hidden="true" />

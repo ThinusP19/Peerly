@@ -761,6 +761,16 @@ interface ApiResultRow {
  * Rating options for the student portal, with the numeric scale stripped out.
  * Student screens must use this, never `getRatingOptions`.
  */
+/**
+ * Reminds the students who have not submitted (FR-18).
+ *
+ * The server decides who is outstanding and how many were written to; the
+ * screen reports what it is told rather than counting the rows it happens to be
+ * displaying, which could be a refetch behind.
+ */
+export const sendSubmissionReminders = async (assessmentId: string): Promise<{ sent: number }> =>
+  post<{ sent: number }>(`/api/assessments/${assessmentId}/reminders`, {});
+
 export const getStudentRatingOptions = async (): Promise<StudentRatingOption[]> =>
   // The server strips the numeric value for a student role; nothing is removed
   // here, because removing it here would mean it had already arrived (SR-08).

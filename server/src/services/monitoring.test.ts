@@ -1,9 +1,21 @@
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { closePool, query } from "../db/pool.ts";
-import type { Role } from "../domain/types.ts";
+import type { Role, SessionUser } from "../domain/types.ts";
+import * as mail from "../lib/mail.ts";
 import { createUser, resetDatabase } from "../test/helpers.ts";
-import { getGroupMarks, getGroupProgress, getPeerRatings } from "./monitoring.ts";
+import { getAuditEntries } from "./audit.ts";
+import {
+  getGroupMarks,
+  getGroupProgress,
+  getPeerRatings,
+  sendSubmissionReminders,
+} from "./monitoring.ts";
+
+vi.mock("../lib/mail.ts", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../lib/mail.ts")>()),
+  queue: vi.fn(),
+}));
 
 /** FR-18, FR-19, OR-16 - and who is refused. */
 
@@ -168,5 +180,104 @@ describe("getGroupMarks", () => {
 
     const marks = await getGroupMarks(assessmentId, asker(lecturer.id));
     expect(marks[0]!.baseMark).toBe(72.5);
+  });
+});
+
+/**
+ * FR-18's reminders.
+ *
+ * This used to be a button that waited 900 ms and then said "Reminder sent",
+ * with no request, no e-mail and no entry anywhere - which is worse than the
+ * feature being absent, because a lecturer believed they had chased their
+ * students. These tests exist so that cannot come back silently.
+ */
+describe("sendSubmissionReminders (FR-18)", () => {
+  const sessionUser = (id: string): SessionUser => ({
+    id,
+    role: "lecturer",
+    name: "Anneke",
+    surname: "van der Merwe",
+    email: "anneke@nwu.ac.za",
+    studentNumber: null,
+    status: "active",
+    createdAt: new Date().toISOString(),
+  });
+
+  beforeEach(() => vi.mocked(mail.queue).mockClear());
+
+  it("writes to the outstanding students only, and says how many", async () => {
+    const { assessmentId, lecturer, students } = await scenario();
+    await submit(assessmentId, students[0]!.id, "submitted");
+    await submit(assessmentId, students[1]!.id, "submitted");
+
+    const result = await sendSubmissionReminders(assessmentId, sessionUser(lecturer.id));
+
+    expect(result.sent).toBe(2);
+    const wroteTo = vi.mocked(mail.queue).mock.calls.map(([m]) => m.to);
+    expect(wroteTo).toHaveLength(2);
+    expect(wroteTo).toEqual(expect.arrayContaining([students[2]!.email, students[3]!.email]));
+    expect(wroteTo).not.toContain(students[0]!.email);
+  });
+
+  it("counts a student with an unfinished draft as outstanding", async () => {
+    const { assessmentId, lecturer, students } = await scenario();
+    await submit(assessmentId, students[0]!.id, "draft");
+
+    const result = await sendSubmissionReminders(assessmentId, sessionUser(lecturer.id));
+
+    expect(result.sent).toBe(4);
+    expect(vi.mocked(mail.queue).mock.calls.map(([m]) => m.to)).toContain(students[0]!.email);
+  });
+
+  it("records the reminder on the audit trail (FR-27)", async () => {
+    const { assessmentId, lecturer } = await scenario();
+
+    await sendSubmissionReminders(assessmentId, sessionUser(lecturer.id));
+
+    const [entry] = await getAuditEntries({ eventType: "reminders.sent" });
+    expect(entry, "a reminder must leave an entry").toBeDefined();
+    expect(entry!.detail).toMatch(/4 outstanding student/);
+  });
+
+  it("refuses when everyone has submitted", async () => {
+    const { assessmentId, lecturer, students } = await scenario();
+    for (const s of students) await submit(assessmentId, s.id, "submitted");
+
+    await expect(sendSubmissionReminders(assessmentId, sessionUser(lecturer.id))).rejects.toThrow(
+      /nobody to remind/,
+    );
+    expect(mail.queue).not.toHaveBeenCalled();
+  });
+
+  it("refuses when the assessment is not open", async () => {
+    const { assessmentId, lecturer } = await scenario();
+    await query("UPDATE assessments SET status = 'closed' WHERE id = $1", [assessmentId]);
+
+    await expect(sendSubmissionReminders(assessmentId, sessionUser(lecturer.id))).rejects.toThrow(
+      /open assessment/,
+    );
+    expect(mail.queue).not.toHaveBeenCalled();
+  });
+
+  it("refuses once the closing time has passed", async () => {
+    // Chasing somebody to do what the system will no longer accept is worse
+    // than not chasing them at all.
+    const { assessmentId, lecturer } = await scenario();
+    await query("UPDATE assessments SET closes_at = now() - interval '1 hour' WHERE id = $1", [
+      assessmentId,
+    ]);
+
+    await expect(sendSubmissionReminders(assessmentId, sessionUser(lecturer.id))).rejects.toThrow(
+      /closing time has passed/,
+    );
+    expect(mail.queue).not.toHaveBeenCalled();
+  });
+
+  it("refuses a lecturer who does not own the class (SR-07)", async () => {
+    const { assessmentId } = await scenario();
+    const stranger = await createUser({ role: "lecturer" });
+
+    await expect(sendSubmissionReminders(assessmentId, sessionUser(stranger.id))).rejects.toThrow();
+    expect(mail.queue).not.toHaveBeenCalled();
   });
 });

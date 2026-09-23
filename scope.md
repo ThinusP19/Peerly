@@ -340,7 +340,8 @@ All are **Must have**. Status reflects whether the acceptance criteria are actua
 
 - [x] **FR-18** Submission monitoring and non-submission reminders - _Must (reminders: Should)_
   - Evidence: `src/routes/lecturer/monitor.tsx` - submitted/outstanding/total stat row, per-group breakdown table, outstanding students listed by name and number, unmatched/conflict entries surfaced, "Send reminder" limited to outstanding students and disabled unless open.
-  - Gap: reminder dispatch is a toast.
+  - **Reminders built 2026-09-23.** `POST /api/assessments/:id/reminders` writes to the outstanding students only - a student with an unfinished draft counts as outstanding - through the same mail layer as every other message, and records the count on the audit trail. It refuses when the assessment is not open, when the closing time has passed (chasing somebody to do what the system will no longer accept is worse than not chasing them), and when everyone has already submitted. Seven tests.
+  - **Until then the button was a lie:** it waited 900 ms and reported "Reminder sent to N students" having made no request and sent nothing. This entry read `[x]` with the gap recorded only as "reminder dispatch is a toast", which understated it - a missing feature is a gap, a feature that reports success without acting is a defect.
 
 ### 3.2.7 Evaluation results and group matrix
 
