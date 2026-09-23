@@ -577,11 +577,11 @@ Ordered by consequence, not convenience.
 | Model                            | Status                                                 | Location                                     |
 | -------------------------------- | ------------------------------------------------------ | -------------------------------------------- |
 | Use Case Diagram                 | `[x]` Delivered                                        | FSD §2.2.4                                   |
-| Entity Relationship Diagram      | `[~]` Implicit in `src/mocks/types.ts` (19 types)      | Technical Specifications - **not yet drawn** |
-| System Architecture Diagram      | `[ ]` Blocked on critical gap 4                        | Technical Specifications                     |
+| Entity Relationship Diagram      | `[x]` Drawn, with a data dictionary for all 20 tables  | [`docs/handover/erd.md`](./docs/handover/erd.md)             |
+| System Architecture Diagram      | `[x]` Drawn - the two processes, the database and SMTP | [`technical-handover.md` §1](./docs/handover/technical-handover.md#1-architecture-overview) |
 | UI Wireframes                    | `[x]` Superseded by the working prototype - 29 screens | `src/routes/`                                |
 | Requirements Traceability Matrix | `[~]` This document is its first draft                 | Test / Project Documentation                 |
-| Felder Calculation Specification | `[ ]` **Not written - blocks FR-22 (AS-08)**           | Separate document, Sponsor approval          |
+| Felder Calculation Specification | `[~]` Every value is decided and documented; not yet signed as a standalone document | Sponsor approval (AS-08) |
 
 ---
 
