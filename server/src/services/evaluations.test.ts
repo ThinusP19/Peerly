@@ -259,6 +259,56 @@ describe("submitEvaluation", () => {
   });
 });
 
+describe("the closing time closes it (BR-05)", () => {
+  /** Moves the deadline into the past without touching the lecturer's status. */
+  const expire = (assessmentId: string) =>
+    query("UPDATE assessments SET closes_at = now() - interval '1 day' WHERE id = $1", [
+      assessmentId,
+    ]);
+
+  it("refuses a submission once the closing time has passed", async () => {
+    const { assessmentId, me, peers, options } = await scenario();
+    await expire(assessmentId);
+
+    await expect(submitEvaluation(me, assessmentId, rateAll(peers, options[0]!))).rejects.toThrow(
+      /closing time/i,
+    );
+  });
+
+  it("refuses a draft once the closing time has passed", async () => {
+    const { assessmentId, me, peers, options } = await scenario();
+    await expire(assessmentId);
+
+    await expect(
+      saveDraft(me, assessmentId, [{ evaluatedStudentId: peers[0]!, ratingOptionId: options[0]! }]),
+    ).rejects.toThrow(/closing time/i);
+  });
+
+  it("refuses even though the lecturer has not closed it", async () => {
+    // The point of the requirement: the deadline decides, not the button. If
+    // this ever passes because the status was flipped to closed, the test has
+    // stopped testing anything.
+    const { assessmentId, me, peers, options } = await scenario("open");
+    await expire(assessmentId);
+
+    const { rows } = await query<{ status: string }>(
+      "SELECT status FROM assessments WHERE id = $1",
+      [assessmentId],
+    );
+    expect(rows[0]!.status).toBe("open");
+    await expect(submitEvaluation(me, assessmentId, rateAll(peers, options[0]!))).rejects.toThrow(
+      /closing time/i,
+    );
+  });
+
+  it("still accepts a submission before the closing time", async () => {
+    const { assessmentId, me, peers, options } = await scenario();
+
+    const result = await submitEvaluation(me, assessmentId, rateAll(peers, options[0]!));
+    expect(result.status).toBe("submitted");
+  });
+});
+
 describe("getOwnEntries (CI-10)", () => {
   it("returns a saved draft, so it follows the student to another device", async () => {
     const { assessmentId, me, peers, options } = await scenario();

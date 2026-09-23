@@ -244,7 +244,8 @@ function ActionCard({
   state: ReturnType<typeof studentAssessmentState>;
 }) {
   const { assessment, klass, group, members } = view;
-  const urgent = isUrgent(assessment.closesAt) && !isOverdue(assessment.closesAt);
+  const overdue = isOverdue(assessment.closesAt);
+  const urgent = isUrgent(assessment.closesAt) && !overdue;
   const badge = studentStateBadge[state];
 
   return (
@@ -257,7 +258,12 @@ function ActionCard({
         )}
       >
         <CalendarClock className="size-4 shrink-0" aria-hidden="true" />
-        <span className="font-semibold">Closes {formatDeadline(assessment.closesAt)}</span>
+        {/* Past the deadline it reads "Closed 19 days ago", not "Closes". The
+            lecturer may not have closed it yet, so the card stays actionable -
+            but the wording must not claim a deadline that has gone. */}
+        <span className="font-semibold">
+          {overdue ? "Closed" : "Closes"} {formatDeadline(assessment.closesAt)}
+        </span>
         <span className="opacity-80">- {formatDateTimeLong(assessment.closesAt)}</span>
       </div>
 

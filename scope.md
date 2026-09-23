@@ -315,7 +315,8 @@ All are **Must have**. Status reflects whether the acceptance criteria are actua
   - Evidence: `src/components/lecturer/AssessmentForm.tsx` - name, description, class locked to the working class, per-group checkbox multi-select, open/close datetime pickers, read-only preview of the nine rating options, saved as Draft.
 - [x] **FR-13** Assessment activation and closure - _Must_
   - Evidence: `src/routes/lecturer/assessments/$assessmentId/index.tsx` - activate, extend, close and re-open, each behind a `ConfirmDialog` with consequence text; **re-opening after calculation warns that results are invalidated**.
-  - Gap: no automatic closure at the closing time (needs a server clock).
+  - Closure is the lecturer's explicit act, and is what says results may be calculated. The **closing time** is enforced separately and needs no scheduler: the API refuses a submission or a draft once `closes_at` has passed, whatever the status says (BR-05). Found on 2026-09-23 - until then a student could submit weeks late whenever nobody had got round to pressing Close, and the extension feature, whose only purpose is to move that date, decided nothing.
+  - Gap: nothing changes the status automatically at the closing time, so an assessment sits as `open` until the lecturer closes it. That is cosmetic now that the deadline itself refuses work; a scheduler would only tidy the label.
 
 ### 3.2.5 Peer evaluation
 
@@ -476,7 +477,7 @@ All are **Must have**. Status reflects whether the acceptance criteria are actua
 | BR-02 | No self-evaluation; excluded from the model                                      | FR-15, 22, OR-07     | `[x]` DB `CHECK (evaluator_id <> evaluated_id)`, and refused in plain language first |
 | BR-03 | Exactly one rating per evaluator/evaluated/assessment; amendment supersedes      | FR-15, 16, OR-07     | `[x]` DB unique constraint; an amendment replaces rather than accumulates |
 | BR-04 | A submission is accepted only when every eligible member is rated                | FR-16                | `[x]` Refused server-side, naming who is still unrated |
-| BR-05 | No submission or amendment after closing                                         | FR-13, 16            | `[x]` Enforced: submitting or amending against a closed assessment returns 409 |
+| BR-05 | No submission or amendment after closing                                         | FR-13, 16            | `[x]` Enforced twice over: against a **closed** assessment, and against one whose **closing time has passed** while the lecturer has not closed it yet. Both return 409. Tested, including a mutation check |
 | BR-06 | Calculation runs only when closed and every group has a base mark                | FR-21, 22            | `[~]` Base-mark gate enforced; a draft is refused, but a still-open assessment may be calculated |
 | BR-07 | An individual mark is never negative and never exceeds the maximum               | FR-22                | `[x]` Factor clamped to the configured limits, which bound the mark at 0 and the base mark |
 | BR-08 | An override never replaces the calculated mark; both retained with a reason      | FR-24                | `[x]` `mark_overrides` keeps the calculated mark; the reason is `NOT NULL` |

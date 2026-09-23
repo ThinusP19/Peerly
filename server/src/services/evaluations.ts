@@ -26,6 +26,8 @@ export interface EvaluationContext {
   /** Who this student is expected to rate: their group, minus themselves. */
   peerIds: string[];
   status: "draft" | "open" | "closed";
+  /** BR-05: the deadline itself refuses work, not only the lecturer's button. */
+  closesAt: string;
   submission?: { id: string; status: "draft" | "submitted"; submittedAt?: string };
 }
 
@@ -43,12 +45,13 @@ export async function getEvaluationContext(
   const { rows } = await query<{
     group_id: string;
     status: "draft" | "open" | "closed";
+    closes_at: Date;
     peer_ids: string[] | null;
     submission_id: string | null;
     submission_status: "draft" | "submitted" | null;
     submitted_at: Date | null;
   }>(
-    `SELECT g.id AS group_id, a.status,
+    `SELECT g.id AS group_id, a.status, a.closes_at,
             (SELECT array_agg(peer.student_id)
                FROM group_members peer
               WHERE peer.group_id = g.id AND peer.student_id <> $1) AS peer_ids,
@@ -68,6 +71,7 @@ export async function getEvaluationContext(
   return {
     assessmentId,
     groupId: row.group_id,
+    closesAt: row.closes_at.toISOString(),
     peerIds: row.peer_ids ?? [],
     status: row.status,
     ...(row.submission_id
@@ -225,6 +229,15 @@ function requireOpen(context: EvaluationContext) {
     // OR-08: submitted ratings are immutable once an assessment closes. The UI
     // hides the form, but the endpoint is reachable without it.
     throw conflict("This assessment has closed, so it can no longer be changed.");
+  }
+  // BR-05: "no submission or amendment after closing". The closing TIME closes
+  // it, not only the lecturer pressing the button - otherwise a student could
+  // submit weeks late whenever nobody had got round to closing it, and the
+  // extension feature, which exists solely to move this date, would decide
+  // nothing. The lecturer's own closure remains separate: it is what says the
+  // results may be calculated.
+  if (new Date(context.closesAt) <= new Date()) {
+    throw conflict("The closing time for this assessment has passed.");
   }
 }
 

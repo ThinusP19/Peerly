@@ -60,7 +60,10 @@ const assessment = (status: Assessment["status"]): Assessment => ({
   groupIds: ["g1"],
   status,
   opensAt: "2026-08-24T08:00:00Z",
-  closesAt: "2026-09-04T22:00:00Z",
+  // Relative, because "open" now means the deadline has not passed either
+  // (BR-05). A fixed date here quietly turned every open assessment into a
+  // closed one the moment that date went by.
+  closesAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
   maxMark: 100,
 });
 
@@ -208,6 +211,21 @@ describe("studentAssessmentState (FR-14)", () => {
 
   it("keeps a submitted state after closure - closing must not erase a submission", () => {
     expect(studentAssessmentState(assessment("closed"), submission("s1"))).toBe("submitted");
+  });
+
+  it("treats a passed closing time as closed, even while the status says open (BR-05)", () => {
+    // The lecturer had not closed it. The API refuses work past the deadline,
+    // so the dashboard must not still invite the student to start.
+    const overdue = { ...assessment("open"), closesAt: "2026-09-04T22:00:00Z" };
+    const after = new Date("2026-09-23T10:00:00Z");
+
+    expect(studentAssessmentState(overdue, undefined, after)).toBe("closed-missed");
+    expect(studentAssessmentState(overdue, submission("s1", "draft"), after)).toBe("closed-missed");
+    // Someone who got it in before the deadline still reads as submitted.
+    expect(studentAssessmentState(overdue, submission("s1"), after)).toBe("submitted");
+    // And before the deadline nothing changes.
+    const before = new Date("2026-09-01T10:00:00Z");
+    expect(studentAssessmentState(overdue, undefined, before)).toBe("not-started");
   });
 });
 

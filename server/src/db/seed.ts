@@ -120,6 +120,21 @@ const students = firstNames.map((name, i) => ({
 const groupSizes = [5, 5, 5, 5, 4, 4];
 
 /**
+ * A timestamp `days` from now, at 20:00 UTC.
+ *
+ * The rest of this file is deterministic, and the dates deliberately are not:
+ * an assessment seeded as open has to still be open next month, or the demo
+ * contradicts itself. Only the clock moves; who is in which group and who
+ * rated whom stay identical between runs.
+ */
+const daysFromNow = (days: number) => {
+  const when = new Date();
+  when.setUTCDate(when.getUTCDate() + days);
+  when.setUTCHours(20, 0, 0, 0);
+  return when.toISOString();
+};
+
+/**
  * A small deterministic generator, so the ratings look varied but never change
  * between runs. Nothing here needs to be unpredictable.
  */
@@ -307,8 +322,12 @@ async function seed() {
       description:
         "Rate each member of your group on their contribution to the Phase 2 system design and implementation.",
       status: "open",
-      opensAt: "2026-08-24T08:00:00Z",
-      closesAt: "2026-09-04T20:00:00Z",
+      // Relative to today, so the open assessment is genuinely open whenever
+      // this is run. Fixed dates rotted: the seed was written in September and
+      // by the end of the month a student saw "needs you" on something whose
+      // deadline had passed three weeks earlier.
+      opensAt: daysFromNow(-10),
+      closesAt: daysFromNow(11),
       groupIds: groups323,
     });
 
@@ -317,8 +336,8 @@ async function seed() {
       name: "Project Phase 1 - Peer Assessment",
       description: "Peer assessment for the Phase 1 requirements and analysis deliverable.",
       status: "closed",
-      opensAt: "2026-07-13T08:00:00Z",
-      closesAt: "2026-07-24T20:00:00Z",
+      opensAt: daysFromNow(-72),
+      closesAt: daysFromNow(-61),
       groupIds: groups323,
     });
 
@@ -338,8 +357,17 @@ async function seed() {
       let submitted = 0;
 
       for (const groupId of groupIds) {
+        // Ordered by student NUMBER, not by id. Ids are random uuids, so
+        // ordering by them shuffled the members on every run and the skip rule
+        // below then left a different person outstanding each time - which made
+        // "re-running rebuilds exactly the same database" untrue, and any
+        // document naming a student who has not submitted wrong within a day.
         const { rows: members } = await sql.query<{ student_id: string }>(
-          "SELECT student_id FROM group_members WHERE group_id = $1 ORDER BY student_id",
+          `SELECT gm.student_id
+             FROM group_members gm
+             JOIN users u ON u.id = gm.student_id
+            WHERE gm.group_id = $1
+            ORDER BY u.student_number`,
           [groupId],
         );
         const memberIds = members.map((m) => m.student_id);

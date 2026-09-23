@@ -154,10 +154,16 @@ export const studentAssessmentStateLabel: Record<StudentAssessmentState, string>
 export function studentAssessmentState(
   assessment: Assessment,
   submission: Submission | undefined,
+  /** Injectable so the state can be tested without waiting for a deadline. */
+  now: Date = new Date(),
 ): StudentAssessmentState {
   if (submission?.status === "submitted") return "submitted";
   if (assessment.status === "draft") return "not-open";
   if (assessment.status === "closed") return "closed-missed";
+  // BR-05: the closing time closes it, whether or not the lecturer has pressed
+  // the button yet. The API refuses work past this point, so offering "Start
+  // evaluation" here would be inviting the student into a dead end.
+  if (new Date(assessment.closesAt) <= now) return "closed-missed";
   if (submission?.status === "draft") return "in-progress";
   return "not-started";
 }
