@@ -658,14 +658,14 @@ Every configurable part of the calculation is in **`CalculationConfig`**, and it
 
 | Field | Current value | Meaning |
 | --- | --- | --- |
-| `ruleVersion` | `felder-2026.2-provisional` | Name of this rule set. It is stored with every run. |
+| `ruleVersion` | `felder-2026.3-provisional` | Name of this rule set. It is stored with every run. |
 | `minFactor`, `maxFactor` | `0.6`, `1.1` | Limits the adjustment factor is clamped to (FR-22 step 4, BR-07) |
-| `roundTo` | `2` | Decimal places for the final mark. This is the **only** rounding step. |
+| `roundTo` | `1` | Decimal places for the final mark. This is the **only** rounding step. Agreed 2026-09-23: it matches the precision the mark is recorded at, so the mark is rounded once rather than rounded here and rounded again downstream. |
 | `neutralFactor` | `1` | Factor used when there is nothing to calculate from, such as a group of one or a student nobody rated |
 | `lowContributionThreshold` | `79` (*Marginal*) | Mean received rating at or below this value is flagged as low contribution (advisory only) |
 | `outlierThreshold` | `10` (two steps) | Distance from the group mean at which a single rating is flagged as an outlier (advisory only) |
 
-The rating scale (migration 0004), the factor limits and the exclusion of self-ratings were agreed on 2026-09-22. The rounding rule, the neutral factor and the two flag thresholds are still **provisional** until the Sponsor approves the Felder Calculation Specification (AS-08, IS-03, IS-04, IS-06). Each run stores its config **and the rating scale** in `calculation_runs.config`.
+The rating scale (migration 0004), the factor limits and the exclusion of self-ratings were agreed on 2026-09-22, and the rounding rule on 2026-09-23. The neutral factor and the two flag thresholds are still **provisional** until the Sponsor approves the Felder Calculation Specification (AS-08, IS-02, IS-04). Each run stores its config **and the rating scale** in `calculation_runs.config`.
 
 To change them:
 

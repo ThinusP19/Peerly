@@ -505,7 +505,7 @@ Each run of the Felder calculation is kept as a permanent record (OR-09).
 | `id` | uuid | PK | |
 | `assessment_id` | uuid | FK → assessments (cascade) | |
 | `run_by` | uuid | FK → users | The lecturer who ran the calculation |
-| `rule_version` | text | | `CalculationConfig.ruleVersion`, for example `felder-2026.2-provisional` |
+| `rule_version` | text | | `CalculationConfig.ruleVersion`, for example `felder-2026.3-provisional` |
 | `config` | jsonb | | **The complete `CalculationConfig` in force for this run**: factor limits, rounding, neutral factor and flag thresholds. It is frozen at run time, so an old mark can still be explained after the configuration in `server/src/lib/felder.ts` changes (OR-09, OR-19). |
 | `created_at` | timestamptz | | |
 

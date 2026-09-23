@@ -2,19 +2,23 @@
 
 Working checklist derived from the **Functional Specifications Document (FSD)** for Peerly.
 Every requirement ID in the FSD appears here exactly once, with its real status in this
-repository as of **19 September 2026**.
+repository as of **23 September 2026**.
 
 > **What this repository currently is:** a working application. An Express + PostgreSQL API in
 > `server/` serves the React front end over `/api`, with real authentication, server-side
-> sessions, role and ownership enforcement, persistence and an append-only audit trail. 413
-> server tests and 32 front-end tests pass.
+> sessions, role and ownership enforcement, persistence and an append-only audit trail. Every
+> screen reads and writes through that API - nothing renders a fixture. 449 API tests, 32
+> front-end tests and 82 browser tests pass.
 >
-> **What is still provisional:** the Felder calculation runs and is tested, and its rating
-> scale, factor limits and self-rating rule were agreed on 2026-09-22. The rounding rule and
-> edge-case policy are still defaults awaiting **AS-08**. Runs are stamped
-> `felder-2026.2-provisional`, and those marks must not be presented as final until the Sponsor
-> signs the specification off. One front-end screen - the class-list import - still shows a
-> fixture preview, although the parsing endpoints behind it are built and tested.
+> **What is still provisional:** the Felder calculation runs and is tested, and everything that
+> determines a mark is now agreed - the rating scale, the factor limits and the self-rating
+> rule on 2026-09-22, the rounding rule (one decimal place) on 2026-09-23. What remains open
+> under **AS-08** is the free-rider and outlier thresholds (IS-04) and non-submission policy
+> (IS-02), neither of which alters a mark. Runs are stamped `felder-2026.3-provisional` until
+> the specification is signed as a document.
+>
+> **What has never happened:** the system has not run anywhere but a laptop, and no real person
+> has tested it. See [Critical gaps](#critical-gaps).
 
 ---
 
@@ -76,18 +80,23 @@ The calculation now exists as a discrete, dependency-free module (**OR-18**):
 - Every limit, rounding rule and edge-case policy is configuration, never a literal
   (**OR-19**), and each run freezes the values it used in `calculation_runs.config`.
 
-**What is still open (AS-08).** The FSD fixes the method; it does not fix the numbers. These
-defaults were chosen to be defensible, not authoritative:
+**Where AS-08 stands.** The FSD fixes the method; it does not fix the numbers. Four of those
+are now decided, and the rest are defaults chosen to be defensible rather than authoritative:
 
-| Setting | Default | Why it needs approval |
+| Setting | Value | Status |
 | --- | --- | --- |
-| Factor limits | 0.6 – 1.1 | How much peer opinion may move a mark |
-| Rounding | 2 decimals, half away from zero | Affects marks at the boundary |
-| Student nobody rated | Neutral factor of 1 | Any other value is a penalty, which is policy |
-| Student who did not submit | Still marked on what they received, flagged | FR-20 says indicators never alter a mark |
+| Rating scale | Banded, each option the top of its band (migration 0004) | **Agreed 2026-09-22** |
+| Factor limits | 0.6 – 1.1 | **Agreed 2026-09-22** |
+| Self-ratings | Excluded (BR-02) | **Agreed 2026-09-22** |
+| Rounding | **1 decimal, half away from zero** | **Agreed 2026-09-23.** Matches the precision the mark is recorded at, so it is rounded once rather than here and again downstream |
+| Free-rider / outlier thresholds | 79 and 10, retuned for the banded scale | Open (IS-04). Advisory only - they never alter a mark |
+| Student nobody rated | Neutral factor of 1 | Open. Any other value is a penalty, which is policy |
+| Student who did not submit | Still marked on what they received, flagged | Open (IS-02). FR-20 says indicators never alter a mark |
 
-Runs are stamped `felder-2026-provisional`. **Results are correct in method and provisional in
-policy, and must not be presented as final marks until AS-08 is signed.**
+Runs are stamped `felder-2026.3-provisional`. The arithmetic that produces a mark is now
+settled; what remains open is advisory flagging and non-submission policy, neither of which
+changes a mark. **A mark should still not be presented as final until AS-08 is signed off as a
+whole**, but it will not move when it is, unless the Sponsor changes one of the settled values.
 
 ### 2. FR-27 - closed
 
@@ -443,7 +452,7 @@ All are **Must have**. Status reflects whether the acceptance criteria are actua
 ### 3.6.3 Maintainability, portability and scalability
 
 - [x] **OR-18** The Felder calculation is a discrete, independently testable module with no UI or HTTP dependency. - _`server/src/lib/felder.ts`: no database, no HTTP, no clock, no randomness. 32 tests._
-- [~] **OR-19** Rating options, hidden values, order, factor limits, rounding, free-rider threshold and remainder rule all held as **configuration**, not literals. - _All of them are configuration, frozen per calculation run, and the run now also freezes the rating scale itself._ **Agreed 2026-09-22:** the banded scale taken from the lecturer's Felder spreadsheet (`docs/Felder Group Member Assessment_Example.xlsx`), each option counting as the top of its band - Excellent 100, Very good 94, Satisfactory 89, Ordinary 84, Marginal 79, Deficient 74, Unsatisfactory 69, Superficial 64, No contribution 59 (migration 0004); factor limits 0.6-1.1; self-ratings excluded (the spreadsheet counts them, the FSD and BR-02 do not). **Gap:** the rounding rule, and the free-rider and outlier thresholds (79 and 10, retuned for the new scale), await AS-08 / IS-04.
+- [~] **OR-19** Rating options, hidden values, order, factor limits, rounding, free-rider threshold and remainder rule all held as **configuration**, not literals. - _All of them are configuration, frozen per calculation run, and the run now also freezes the rating scale itself._ **Agreed 2026-09-22:** the banded scale taken from the lecturer's Felder spreadsheet (`docs/Felder Group Member Assessment_Example.xlsx`), each option counting as the top of its band - Excellent 100, Very good 94, Satisfactory 89, Ordinary 84, Marginal 79, Deficient 74, Unsatisfactory 69, Superficial 64, No contribution 59 (migration 0004); factor limits 0.6-1.1; self-ratings excluded (the spreadsheet counts them, the FSD and BR-02 do not). **Rounding agreed 2026-09-23:** one decimal place. **Gap:** the free-rider and outlier thresholds (79 and 10, retuned for the new scale) await IS-04; both are advisory and neither alters a mark.
 - [x] **OR-20** >= 90% branch coverage of the calculation module, covering every FR-23 edge case; a failing test blocks the merge. - _**96.77% branches, 100% statements, functions and lines** over `server/src/lib/felder.ts` (`npm run coverage`). All eight FR-23 cases are covered by name. The two uncovered branches are `?? []` fallbacks on a Map built from the same list, unreachable by construction but required by the type._ **Gap:** no CI gate yet - the merge block is a process control, not a code one.
 - [x] **OR-21** Schema changes only through versioned migrations. - _`server/src/db/migrate.ts` - ordered, transactional, checksummed; editing an applied migration is refused rather than ignored._
 - [-] **OR-22** Portable across cloud providers; no proprietary dependency beyond managed PostgreSQL and SMTP.
@@ -543,7 +552,7 @@ Ordered by consequence, not convenience.
 - [ ] **AS-05** Users have a supported browser and reliable connection.
 - [ ] **AS-06** The initial administrator account is created at deployment; credential changed at handover.
 - [ ] **AS-07** Every enrolled student holds an accessible institutional e-mail address. - _To confirm with the Sponsor before the first live cycle._
-- [~] **AS-08** **The Sponsor approves the Felder Calculation Specification before calculation code is written.** - _Partly met on 2026-09-22: the scale, the factor limits and the treatment of self-ratings are decided. Still open: the rounding rule (the example spreadsheet stops at the factor; the step that turns it into a mark lives in a linked `CMPG311_Marks` workbook we don't have), the free-rider threshold, and the edge-case resolutions. Runs are stamped `felder-2026.2-provisional` until then._
+- [~] **AS-08** **The Sponsor approves the Felder Calculation Specification before calculation code is written.** - _Largely met. The scale, the factor limits and the treatment of self-ratings were decided on 2026-09-22; the rounding rule - one decimal place, matching the precision a mark is recorded at - on 2026-09-23. Everything that determines the number is therefore settled. Still open: the free-rider and outlier thresholds (IS-04, advisory only) and whether non-submission carries a penalty (IS-02). Neither alters a mark. Runs are stamped `felder-2026.3-provisional` until the specification is signed as a document._
 - [ ] **AS-09** The Sponsor releases a de-identified historical cycle with its spreadsheet marks, and e-mail delivers reliably to institutional addresses. - _Deliverability must be tested early, not at UAT._
 
 ## Open issues
@@ -555,7 +564,7 @@ Ordered by consequence, not convenience.
 | IS-03 | Remainder-distribution rule for group generation                          | Sponsor       | Open - _prototype uses round-robin, sizes differing by at most one._                                            |
 | IS-04 | Free-rider threshold default                                              | Sponsor       | Open - _prototype uses a hard-coded ±12.5 deviation for cell highlighting only._                                |
 | IS-05 | Whether comments are mandatory for the highest and lowest options         | Sponsor       | Open - implement as per-assessment configuration.                                                               |
-| IS-06 | Maximum group mark and permitted precision                                | Sponsor       | Open - _prototype assumes out of 100, one decimal place._                                                       |
+| IS-06 | Maximum group mark and permitted precision                                | Sponsor       | **Closed 2026-09-23** - one decimal place, which is now the calculation's `roundTo` and the group-mark input's precision alike. Maximum mark is per assessment (`assessments.max_mark`), defaulting to 100. |
 | IS-07 | Retention period for class and assessment data                            | Client        | Open - blocks FR-28.                                                                                            |
 | IS-08 | FR-17 and FR-24 agreed but absent from §2.1.2 and the user stories        | Documentation | Open - both are **built** in this prototype; §2 needs updating to match.                                        |
 | IS-09 | Hosting documentation to reflect NWU/own managed server rather than cloud | -             | In progress.                                                                                                    |

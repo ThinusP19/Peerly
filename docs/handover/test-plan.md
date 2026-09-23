@@ -233,10 +233,11 @@ minutes, so **note your start and finish time for the whole round**.*
 - [ ] Students flagged for attention are marked, and it says why
 - [ ] A flag does **not** change anybody's mark - it is a note to you
 
-> **Please do not check these marks against your own spreadsheet yet.** The
-> rounding rule is still unapproved, so marks can differ in the last decimal by
-> design. Everything up to the factor should match. See
-> [section 8](#8-known-gaps---please-do-not-raise-these).
+> **Do check these against your own spreadsheet.** As of 2026-09-23 the
+> rounding rule is agreed - **one decimal place** - so the marks should now
+> reconcile exactly, not approximately. A difference of any size is worth
+> reporting. See [section 8](#8-known-gaps---please-do-not-raise-these) for the
+> parts that are still provisional.
 
 ### 2.9 Override a mark
 
@@ -361,7 +362,7 @@ These are already known and tracked. Reporting them costs everybody time.
 
 | Not a defect | Why |
 | --- | --- |
-| Marks differ from the existing spreadsheet in the last decimal | The rounding rule is still awaiting approval. Everything up to the adjustment factor should match exactly; the final rounding is provisional. |
+| ~~Marks differ from the spreadsheet in the last decimal~~ | **No longer expected.** The rounding rule was agreed on 2026-09-23 as one decimal place, so marks should reconcile exactly. Please **do** report any difference. |
 | Free-rider and outlier flags seem too sensitive, or not enough | The thresholds are provisional too, and are meant to be tuned. Do tell us if they feel wrong - just as an opinion, not a defect. |
 | A student who submitted nothing still receives a mark | Deliberate. No academic penalty is applied by the system; the case is flagged for the lecturer to decide. |
 | Registration, activation or password-reset emails do not arrive | Email is not connected on the test deployment yet. All accounts above are pre-activated. |

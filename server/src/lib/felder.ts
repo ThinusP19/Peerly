@@ -13,9 +13,12 @@
  * their own mean received rating divided by their group's mean, and their mark
  * is the group's base mark multiplied by that factor.
  *
- * What the FSD does NOT yet fix, and what AS-08 covers, is the numbers around
- * it: the limits the factor is clamped to, the rounding rule, and how the
- * FR-23 edge cases resolve. Every one of those lives in `CalculationConfig`
+ * What the FSD does NOT fix, and what AS-08 covers, is the numbers around it.
+ * Three of those are now decided: the rating scale and the factor limits on
+ * 2026-09-22, and the rounding rule - one decimal place - on 2026-09-23. What
+ * is still open is the free-rider and outlier thresholds (IS-04) and whether a
+ * non-submitter carries an academic penalty (IS-02). Every one of them lives
+ * in `CalculationConfig`
  * below rather than in the code (OR-19), with the defaults this module was
  * built against clearly marked. Changing them is a configuration change, not a
  * rewrite, and `calculation_runs.config` freezes whichever values were in force
@@ -38,8 +41,12 @@ export interface CalculationConfig {
   minFactor: number;
   maxFactor: number;
   /**
-   * Decimal places for the final mark. DEFAULT, AWAITING AS-08 - the one
-   * setting still unconfirmed.
+   * Decimal places for the final mark.
+   *
+   * One, confirmed 2026-09-23: the precision the mark is recorded at. Matching
+   * the two deliberately means the mark is rounded once, here, rather than
+   * rounded to two places and rounded again by whoever records it - which is
+   * the accumulated error FR-22 exists to prevent, just moved downstream.
    *
    * The ONLY rounding in the calculation. FR-22 requires full precision to be
    * retained internally and rounding applied at the final step, so no rounding
@@ -66,11 +73,12 @@ export interface CalculationConfig {
 
 /** The values this module was built and tested against. */
 export const DEFAULT_CONFIG: CalculationConfig = {
-  ruleVersion: "felder-2026.2-provisional",
+  ruleVersion: "felder-2026.3-provisional",
   // Confirmed 2026-09-22.
   minFactor: 0.6,
   maxFactor: 1.1,
-  roundTo: 2,
+  // Confirmed 2026-09-23.
+  roundTo: 1,
   neutralFactor: 1,
   // On the banded scale (0004): at or below Marginal, 79, on average - the
   // same point on the scale the old threshold of 50 marked. Awaiting IS-04.

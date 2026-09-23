@@ -67,11 +67,13 @@ comes from you or from the university. Fill this in before you start.
 | # | What | Default if nobody decides | Tracked as |
 | --- | --- | --- | --- |
 | 11 | Which e-mail domains are accepted at registration | `mynwu.ac.za` for students, `nwu.ac.za` for staff | IS-01 |
-| 12 | The Felder rounding rule and free-rider thresholds | provisional values in `server/src/lib/felder.ts` | AS-08, IS-04 |
+| 12 | The Felder free-rider and outlier flagging thresholds | provisional values in `server/src/lib/felder.ts`. The scale, factor limits, self-rating rule and rounding are all agreed | AS-08, IS-04 |
 
-Item 12 does not block deployment. It does mean calculated marks are stamped
-`felder-2026.2-provisional` and **must not be presented to students as final**
-until the Sponsor signs the calculation specification. See
+Item 12 does not block deployment, and does not change anybody's mark - those
+thresholds only decide which students get flagged for the lecturer's attention.
+Calculated marks are stamped `felder-2026.3-provisional` and **should not be
+presented to students as final** until the Sponsor signs the calculation
+specification as a document. See
 [handover §7.6](./technical-handover.md#76-changing-the-felder-calculation-configuration)
 for how to change those values afterwards - it is a configuration edit, not a
 code change, and old runs keep the rules they were calculated under.

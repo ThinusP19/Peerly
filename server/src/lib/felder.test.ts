@@ -101,7 +101,7 @@ describe("FR-22 - the calculation itself", () => {
     expect(a.rawFactor).toBe(1.6);
     expect(a.adjustmentFactor).toBe(DEFAULT_CONFIG.maxFactor);
     // The unclamped figure is retained so the mark can still be explained.
-    expect(a.finalMark).toBe(round(70 * DEFAULT_CONFIG.maxFactor, 2));
+    expect(a.finalMark).toBe(round(70 * DEFAULT_CONFIG.maxFactor, DEFAULT_CONFIG.roundTo));
   });
 
   it("clamps at the floor too", () => {
@@ -158,12 +158,12 @@ describe("the agreed scale, end to end", () => {
   const results = calculateGroup(group({ ratings, baseMark: 70 }));
 
   it("gives the figures a lecturer would work out by hand", () => {
-    // 100 / 91.75 = 1.0899 -> 76.29
-    expect(byId(results, "a").finalMark).toBe(76.29);
-    // 94 / 91.75 = 1.0245 -> 71.72
-    expect(byId(results, "b").finalMark).toBe(71.72);
-    // 79 / 91.75 = 0.8610 -> 60.27
-    expect(byId(results, "d").finalMark).toBe(60.27);
+    // 100 / 91.75 = 1.089918... x 70 = 76.294278... -> 76.3
+    expect(byId(results, "a").finalMark).toBe(76.3);
+    // 94 / 91.75 = 1.024523... x 70 = 71.716621... -> 71.7
+    expect(byId(results, "b").finalMark).toBe(71.7);
+    // 79 / 91.75 = 0.861035... x 70 = 60.272480... -> 60.3
+    expect(byId(results, "d").finalMark).toBe(60.3);
   });
 
   it("flags the Marginal student as low contribution, and nobody else", () => {
@@ -185,7 +185,7 @@ describe("the agreed scale, end to end", () => {
     ];
     const a = byId(calculateGroup(group({ ratings: harsh, baseMark: 70 })), "a");
     expect(a.adjustmentFactor).toBeGreaterThanOrEqual(DEFAULT_CONFIG.minFactor);
-    expect(a.finalMark).toBe(round(70 * (59 / 89.75), 2));
+    expect(a.finalMark).toBe(round(70 * (59 / 89.75), DEFAULT_CONFIG.roundTo));
   });
 });
 
@@ -435,10 +435,9 @@ describe("FR-22 - rounding happens only at the final step", () => {
   // On the banded scale: a is rated Excellent (100) by everyone; b, c and d
   // Very good (94). Group mean = (100 + 94 x 3) / 4 = 95.5, so a's factor is
   // 100 / 95.5 = 1.047120... and with a base mark of 71 the mark is
-  // 74.3455... -> 74.35. Rounding the factor to 1.0471 first gives
-  // 71 x 1.0471 = 74.3441 -> 74.34: the accumulated rounding error FR-22 and
-  // the Tester's Checklist ("Approved rounding is applied only at the final
-  // step") both forbid.
+  // 74.3455... Rounding the factor to 1.0471 first gives 71 x 1.0471 =
+  // 74.3441: the accumulated rounding error FR-22 and the Tester's Checklist
+  // ("Approved rounding is applied only at the final step") both forbid.
   const ratings: Rating[] = [
     ...["b", "c", "d"].map((evaluatorId) => ({ evaluatorId, evaluatedId: "a", value: 100 })),
     ...["a", "c", "d"].map((evaluatorId) => ({ evaluatorId, evaluatedId: "b", value: 94 })),
@@ -446,12 +445,32 @@ describe("FR-22 - rounding happens only at the final step", () => {
     ...["a", "b", "c"].map((evaluatorId) => ({ evaluatorId, evaluatedId: "d", value: 94 })),
   ];
 
+  // Pinned at two decimal places rather than the configured one.
+  //
+  // The rule being tested - that the factor is never rounded before it is
+  // multiplied - is independent of the precision. But the error it prevents is
+  // smaller than the rounding step, so at one decimal place both routes give
+  // 74.3 and the test would pass no matter which way the code did it. Two
+  // places is where this particular group makes the difference visible. The
+  // test below covers the configured precision.
   it("computes the mark from the unrounded factor", () => {
-    const a = byId(calculateGroup(group({ ratings, baseMark: 71 })), "a");
+    const twoPlaces = { ...DEFAULT_CONFIG, roundTo: 2 };
+    const a = byId(calculateGroup(group({ ratings, baseMark: 71 }), twoPlaces), "a");
 
     expect(a.finalMark).toBe(74.35);
     // What rounding the factor first would have produced.
     expect(round(71 * round(a.adjustmentFactor, 4), 2)).toBe(74.34);
+  });
+
+  it("rounds to the approved precision, and only there", () => {
+    // AS-08: one decimal place, confirmed 2026-09-23. A silent change to this
+    // moves every student's mark, so it is asserted rather than assumed.
+    expect(DEFAULT_CONFIG.roundTo).toBe(1);
+
+    const a = byId(calculateGroup(group({ ratings, baseMark: 71 })), "a");
+    expect(a.finalMark).toBe(74.3);
+    // The factor itself is untouched: full precision, as FR-22 requires.
+    expect(a.adjustmentFactor).toBe(100 / 95.5);
   });
 
   it("keeps every intermediate figure at full precision", () => {
@@ -475,7 +494,7 @@ describe("FR-22 - rounding happens only at the final step", () => {
         ];
         for (const result of calculateGroup(group({ ratings, baseMark }))) {
           expect(result.finalMark, `base ${baseMark}, factor ${result.adjustmentFactor}`).toBe(
-            round(baseMark * result.adjustmentFactor, 2),
+            round(baseMark * result.adjustmentFactor, DEFAULT_CONFIG.roundTo),
           );
         }
       }

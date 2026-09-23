@@ -9,9 +9,12 @@
 | Requirement | OR-25 (electronic user guide: Lecturer) |
 
 > **Marks are provisional for now.** Peerly calculates individual marks with the Felder method.
-> The method, the rating scale and the factor limits are agreed. The **rounding rule** is still
-> waiting for the Sponsor to approve the *Felder Calculation Specification* (assumption
-> **AS-08**), so every calculation is stamped **`felder-2026.2-provisional`**.
+> Everything that decides the number is agreed: the method, the rating scale, the factor limits
+> and - since 23 September 2026 - the rounding rule, which is **one decimal place**. What is
+> still waiting for the Sponsor to approve the *Felder Calculation Specification* (assumption
+> **AS-08**) is the free-rider flagging thresholds and whether not submitting carries a
+> penalty. Neither of those changes anybody's mark. Every calculation is stamped
+> **`felder-2026.3-provisional`** until the specification is signed.
 > **Don't publish Peerly marks as final** until you've been told the specification is approved.
 > See [How individual marks are calculated](#11-how-individual-marks-are-calculated).
 
@@ -439,17 +442,18 @@ What happened to each override is recorded in the audit log.
 This section explains what happens when you select **Calculate marks**, so you can check any
 mark by hand and explain it to a student or a moderator.
 
-> **Settings in this version.** The scale and limits are agreed. The rounding rule is still
-> **provisional** until the Sponsor signs off the Felder Calculation Specification (AS-08).
+> **Settings in this version.** Everything that decides the number is agreed. What is still
+> **provisional** is the flagging thresholds, which don't change anybody's mark, until the
+> Sponsor signs off the Felder Calculation Specification (AS-08).
 >
 > | Setting | Current value | Status |
 > | --- | --- | --- |
-> | Rule version stamped on each run | `felder-2026.2-provisional` | |
+> | Rule version stamped on each run | `felder-2026.3-provisional` | |
 > | Rating scale | The banded scale in [11.1](#111-the-hidden-scale) | Agreed |
 > | Lowest allowed adjustment factor | **0.6** | Agreed |
 > | Highest allowed adjustment factor | **1.1** | Agreed |
 > | Self-ratings | Not counted, and students can't rate themselves | Agreed |
-> | Rounding of the final mark | **2 decimal places**, halves rounded away from zero | Provisional |
+> | Rounding of the final mark | **1 decimal place**, halves rounded away from zero | Agreed 23 Sep 2026 |
 > | Factor when there's nothing to compare | **1** (the group mark, unchanged) | Provisional |
 >
 > Each calculation run saves the exact settings **and scale** it used, so an old mark can
@@ -497,15 +501,16 @@ For each group:
    outside the limits it was.
 5. **Individual mark = group base mark × adjustment factor.** Peerly keeps full precision up to
    this point.
-6. **Round once, at the end,** to **2 decimal places**.
+6. **Round once, at the end,** to **1 decimal place**. Halves go up.
 
 Because the factor never goes below 0.6 or above 1.1, no mark is ever negative. The highest
 possible mark is 1.1 times the base mark, and a mark is never above the assessment's maximum.
 
 **What the screens show.** The **Results** table shows the factor to 2 decimals (for example
-*× 1.04*) and marks to 1 decimal. The stored mark is rounded to 2 decimals, and the exported
-workbook has the full figures. If you check a mark by hand from the screen, a small difference
-in the last decimal is only display rounding. Use the export for exact checks.
+*× 1.04*) and the mark to 1 decimal, which since 23 September 2026 is exactly the stored value -
+the mark you see is the mark that was calculated, not a rounded display of it. The exported
+workbook carries the full intermediate figures as well, so use the export when you want to
+reproduce the arithmetic step by step.
 
 **A note on "group mean".** The matrix's **Group mean** is the average of *all* ratings in the
 grid. The calculation's group mean (step 2) is the average of the *members' means*. They're the
@@ -535,21 +540,22 @@ Everyone submitted. Rows are who gave the rating, columns are who received it:
 
 **Steps 3 to 6:**
 
-| Student | Factor (mean ÷ 87.83) | After limits (0.6 to 1.1) | Mark = 70 × factor | Final (2 decimals) |
+| Student | Factor (mean ÷ 87.83) | After limits (0.6 to 1.1) | Mark = 70 × factor | Final (1 decimal) |
 | --- | --- | --- | --- | --- |
-| Anna | 1.0740 | 1.0740 | 75.180 | **75.18** |
-| Ben | 1.0512 | 1.0512 | 73.586 | **73.59** |
-| Chris | 1.0133 | 1.0133 | 70.930 | **70.93** |
-| Dineo | 0.8615 | 0.8615 | 60.304 | **60.30** |
+| Anna | 1.0740 | 1.0740 | 75.180 | **75.2** |
+| Ben | 1.0512 | 1.0512 | 73.586 | **73.6** |
+| Chris | 1.0133 | 1.0133 | 70.930 | **70.9** |
+| Dineo | 0.8615 | 0.8615 | 60.304 | **60.3** |
 
 What this example shows:
 
 - **Nobody hits a limit.** On this scale that's normal: the factors stay between about 0.86 and
   1.07, and the difference between the strongest and weakest member is about 15 marks.
-- **Dineo** was rated *Deficient* or *Marginal* by everyone and gets 60.30, about 10 marks below
+- **Dineo** was rated *Deficient* or *Marginal* by everyone and gets 60.3, about 10 marks below
   the group mark.
-- Peerly works from the unrounded factor. If you multiply by the 4-decimal factor shown here, you
-  may be a cent out in the last place. The export has the full figures.
+- Peerly works from the unrounded factor, never the 4-decimal one shown here. At one decimal
+  place the two almost always agree, but where a mark sits right on a boundary they can differ,
+  and the unrounded one is correct. The export has the full figures.
 - **Flags** (advisory only, see [11.5](#115-result-flags)): Dineo gets **Uniform rating** (he
   gave everyone *Satisfactory*), **Low contribution** (mean received of 79, *Marginal*, or less)
   and **Isolated outlier**. Anna also gets **Isolated outlier**, because Chris's *Excellent* is

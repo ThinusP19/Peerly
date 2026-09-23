@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
 import { closePool, query } from "../db/pool.ts";
+import { DEFAULT_CONFIG } from "../lib/felder.ts";
 import { resetDatabase } from "../test/helpers.ts";
 import { closedAssessment } from "../test/scenarios.ts";
 import { getAuditEntries } from "./audit.ts";
@@ -110,13 +111,21 @@ describe("each run records what it used (OR-09)", () => {
 
     const { rows } = await query<{
       rule_version: string;
-      config: { scale: Array<{ label: string; value: number }>; minFactor: number };
+      config: {
+        scale: Array<{ label: string; value: number }>;
+        minFactor: number;
+        roundTo: number;
+      };
     }>("SELECT rule_version, config FROM calculation_runs WHERE assessment_id = $1", [
       assessmentId,
     ]);
 
-    expect(rows[0]!.rule_version).toBe("felder-2026.2-provisional");
-    expect(rows[0]!.config.minFactor).toBe(0.6);
+    // Whatever the rules are, the run has to have stored the ones it used -
+    // that is the point of OR-09, not any particular value. The values
+    // themselves are asserted in the calculation's own tests.
+    expect(rows[0]!.rule_version).toBe(DEFAULT_CONFIG.ruleVersion);
+    expect(rows[0]!.config.minFactor).toBe(DEFAULT_CONFIG.minFactor);
+    expect(rows[0]!.config.roundTo).toBe(DEFAULT_CONFIG.roundTo);
     expect(rows[0]!.config.scale[0]).toEqual({ label: "Excellent", value: 100 });
     expect(rows[0]!.config.scale.at(-1)).toEqual({ label: "No contribution", value: 59 });
   });
