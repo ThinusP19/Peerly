@@ -84,9 +84,29 @@ function MarkEntryPage() {
   const [overrideChoice, setOverrideChoice] = useState<"keep" | "withdraw" | null>(null);
 
   // Seed the inputs once the saved marks arrive.
+  /**
+   * Forget everything when the assessment changes.
+   *
+   * Switching assessment in the top bar does not remount this screen, so the
+   * marks typed into it survived the switch - and the effect below deliberately
+   * refuses to overwrite what is already there, so the new assessment's marks
+   * never loaded. One assessment's marks were shown under another's name, and
+   * "entered", "still outstanding" and whether Calculate was enabled all came
+   * from that stale state. Declared before the effect that repopulates, so the
+   * clear is queued first and the repopulate sees an empty object.
+   */
+  useEffect(() => {
+    setValues({});
+    setErrors({});
+    setStates({});
+  }, [activeAssessmentId]);
+
   useEffect(() => {
     if (!marksQuery.data) return;
     setValues((current) => {
+      // Not while the lecturer is part-way through typing: this query is
+      // invalidated after every save, and rebuilding from the response would
+      // throw away a row they had already moved on to.
       if (Object.keys(current).length) return current;
       return Object.fromEntries(
         marksQuery.data.map((mark) => [
