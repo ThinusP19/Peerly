@@ -49,7 +49,16 @@ const greetingFor = (hour: number) =>
   hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
 /** Short reference shown under an assessment's name, e.g. asm-1 -> PA-001. */
-const assessmentRef = (id: string) => `PA-${id.replace(/\D/g, "").padStart(3, "0")}`;
+/**
+ * A short reference a lecturer can quote in an e-mail or a meeting.
+ *
+ * Six hex characters of the assessment's uuid, which is stable for the life of
+ * the assessment and short enough to read aloud. It was written for the mock
+ * ids, which looked like "a1", by stripping the non-digits and padding to
+ * three - against a real uuid that returns every digit it contains, so the
+ * dashboard was showing references like PA-819207734310920537650.
+ */
+const assessmentRef = (id: string) => `PA-${id.replace(/-/g, "").slice(0, 6).toUpperCase()}`;
 
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 
