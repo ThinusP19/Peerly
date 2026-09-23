@@ -54,12 +54,12 @@ one each and say which one you took.**
 
 | Tester | Sign in as | Who they are | Group |
 | --- | --- | --- | --- |
-| 1 | `41200456@mynwu.ac.za` | Aisha Patel | 1 |
-| 2 | `41200530@mynwu.ac.za` | Chloe van Wyk | 2 |
-| 3 | `41200789@mynwu.ac.za` | Palesa Molefe | 3 |
-| 4 | `41201011@mynwu.ac.za` | Ayanda Zulu | 4 |
-| 5 | `41201159@mynwu.ac.za` | Katlego Maluleke | 5 |
-| 6 | `41201344@mynwu.ac.za` | Anja Meyer | 6 |
+| 1 | `41200419@mynwu.ac.za` | Johan Pretorius | 1 |
+| 2 | `41200641@mynwu.ac.za` | Tebogo Sithole | 2 |
+| 3 | `41200752@mynwu.ac.za` | Michael Botha | 3 |
+| 4 | `41200937@mynwu.ac.za` | Refilwe Mabaso | 4 |
+| 5 | `41201122@mynwu.ac.za` | Elsabe Swanepoel | 5 |
+| 6 | `41201233@mynwu.ac.za` | Naledi Radebe | 6 |
 
 **Two special students**, for scenario 1.4 only:
 

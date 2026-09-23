@@ -41,7 +41,7 @@ printed in the **API terminal** instead, like this:
 
 ```
 --- mail ---
-to:      41200456@mynwu.ac.za
+to:      41200419@mynwu.ac.za
 subject: Your Peerly verification code
 ...
 --- end ---
@@ -62,7 +62,7 @@ need it in sections 2 and 3.
 | Administrator | `riaan.botha@nwu.ac.za` |
 | Lecturer (owns both classes) | `anneke.vdmerwe@nwu.ac.za` |
 | Lecturer (owns nothing) | `sipho.dlamini@nwu.ac.za` |
-| Student, matched, has **not** submitted | `41200456@mynwu.ac.za` |
+| Student, matched, has **not** submitted | `41200419@mynwu.ac.za` (Johan Pretorius, group 1) |
 | Student, **unmatched** | `41201381@mynwu.ac.za` |
 | Student, **conflict** | `41201418@mynwu.ac.za` |
 
@@ -167,7 +167,7 @@ Sign out first.
 
 ### 2.3 The seeded student — `/student`
 
-Sign in as `41200456@mynwu.ac.za`, choosing **Student**.
+Sign in as `41200419@mynwu.ac.za`, choosing **Student**.
 
 - [ ] The dashboard shows the open assessment and its closing date
 - [ ] It is obvious what to do next
