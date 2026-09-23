@@ -43,6 +43,7 @@ import {
   activeAdminCount,
   createStaffAccount,
   getStaffAccounts,
+  resendActivationLink,
   setStaffAccountStatus,
   updateStaffAccount,
 } from "@/services/peerly";
@@ -81,6 +82,32 @@ function AccountsPage() {
       );
     });
   }, [accounts.data, search, roleFilter, statusFilter]);
+
+  const [resending, setResending] = useState<string | null>(null);
+
+  /**
+   * Sends the activation link again.
+   *
+   * A link lasts a day, and an administrator with no way to reissue one had to
+   * delete the account and create it afresh - which loses the trail that it
+   * ever existed - or ask somebody to run SQL.
+   */
+  const resend = async (account: User) => {
+    setResending(account.id);
+    try {
+      await resendActivationLink(account.id);
+      toast.success(`A new activation link has been sent to ${account.email}.`);
+      await refresh();
+    } catch (error) {
+      toast.error(
+        error instanceof ApiError
+          ? error.message
+          : "The activation link couldn't be sent. Please try again.",
+      );
+    } finally {
+      setResending(null);
+    }
+  };
 
   const requestStatusChange = (account: User) => {
     // An institution must never be left without an administrator who can sign in.
@@ -160,7 +187,11 @@ function AccountsPage() {
               Offering "Activate account" here promised something the server
               will always refuse, so it is not offered.
             */}
-            {row.status === "unverified" ? null : (
+            {row.status === "unverified" ? (
+              <DropdownMenuItem disabled={resending === row.id} onClick={() => void resend(row)}>
+                {resending === row.id ? "Sending…" : "Resend activation link"}
+              </DropdownMenuItem>
+            ) : (
               <DropdownMenuItem onClick={() => requestStatusChange(row)}>
                 {row.status === "active" ? "Deactivate account" : "Activate account"}
               </DropdownMenuItem>

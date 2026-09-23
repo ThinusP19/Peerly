@@ -7,6 +7,7 @@ import {
   activeAdminCount,
   createStaffAccount,
   listStaffAccounts,
+  resendActivationLink,
   setStaffAccountStatus,
   updateStaffAccount,
 } from "./accounts.ts";
@@ -229,5 +230,80 @@ describe("updateStaffAccount", () => {
     await expect(
       updateStaffAccount(target.id, { email: "anneke@gmail.com" }, admin),
     ).rejects.toThrow(/institutional address/);
+  });
+});
+
+/**
+ * FR-01, FR-03 - reissuing an activation link.
+ *
+ * Before this existed, an administrator whose lecturer had lost or outrun their
+ * link could only delete the account and make it again, or ask somebody to run
+ * SQL against the database.
+ */
+describe("resendActivationLink", () => {
+  const newLecturer = {
+    role: "lecturer" as const,
+    name: "Thabo",
+    surname: "Maseko",
+    email: "thabo.maseko@nwu.ac.za",
+  };
+
+  it("sends the link again to an account that has never been activated", async () => {
+    const admin = await anAdmin();
+    const account = await createStaffAccount(newLecturer, admin);
+    vi.mocked(mail.queue).mockClear();
+
+    await resendActivationLink(account.id, admin);
+
+    expect(mail.queue).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(mail.queue).mock.calls[0]![0].to).toBe(newLecturer.email);
+  });
+
+  it("kills the previous link, so only the newest one works", async () => {
+    // An older message turning up later must already be useless.
+    const admin = await anAdmin();
+    const account = await createStaffAccount(newLecturer, admin);
+
+    await resendActivationLink(account.id, admin);
+
+    const { rows } = await query<{ live: string }>(
+      `SELECT count(*) AS live FROM auth_tokens
+        WHERE user_id = $1 AND purpose = 'activation' AND consumed_at IS NULL`,
+      [account.id],
+    );
+    expect(Number(rows[0]!.live)).toBe(1);
+  });
+
+  it("records it on the audit trail (FR-27)", async () => {
+    const admin = await anAdmin();
+    const account = await createStaffAccount(newLecturer, admin);
+
+    await resendActivationLink(account.id, admin);
+
+    const [entry] = await getAuditEntries({ eventType: "account.activation_resent" });
+    expect(entry, "reissuing a link must leave an entry").toBeDefined();
+    expect(entry!.objectDescription).toContain(newLecturer.email);
+  });
+
+  it("refuses an account that is already active", async () => {
+    // Otherwise an administrator could issue themselves a link into somebody
+    // else's live account, which SR-16 says the role does not carry.
+    const admin = await anAdmin();
+    const account = await createStaffAccount(newLecturer, admin);
+    await query("UPDATE users SET status = 'active' WHERE id = $1", [account.id]);
+    vi.mocked(mail.queue).mockClear();
+
+    await expect(resendActivationLink(account.id, admin)).rejects.toThrow(/already active/);
+    expect(mail.queue).not.toHaveBeenCalled();
+  });
+
+  it("refuses a deactivated account", async () => {
+    const admin = await anAdmin();
+    const account = await createStaffAccount(newLecturer, admin);
+    await query("UPDATE users SET status = 'inactive' WHERE id = $1", [account.id]);
+    vi.mocked(mail.queue).mockClear();
+
+    await expect(resendActivationLink(account.id, admin)).rejects.toThrow(/deactivated/);
+    expect(mail.queue).not.toHaveBeenCalled();
   });
 });

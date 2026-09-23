@@ -250,3 +250,43 @@ export async function setStaffAccountStatus(
   if (status === "inactive") await revokeAllSessions(userId);
   return account;
 }
+
+/**
+ * Sends the activation link again (FR-01, FR-03).
+ *
+ * A link expires after a day, lands in a spam folder, or is deleted. Without
+ * this the administrator's only options were to delete the account and create
+ * it again - losing the audit trail that it ever existed - or to have somebody
+ * run SQL against the database.
+ *
+ * Only for an account that has never been activated. An active one needs a
+ * password reset, which its holder asks for themselves; issuing an activation
+ * link for it would be a way to take over somebody's account from the
+ * administrator's screen, and SR-16 is explicit that the role does not carry
+ * that. `issueFor` invalidates the account's earlier unused activation tokens,
+ * so only the newest link works and an intercepted older one is already dead.
+ */
+export async function resendActivationLink(
+  userId: string,
+  admin: SessionUser,
+): Promise<StaffAccount> {
+  const account = await loadStaff(userId);
+
+  if (account.status !== "unverified") {
+    throw conflict(
+      account.status === "active"
+        ? 'This account is already active. Ask its holder to use "Forgot password" instead.'
+        : "This account is deactivated. Reactivate it first.",
+    );
+  }
+
+  await record({
+    actor: { id: admin.id, name: admin.name, surname: admin.surname, role: admin.role },
+    eventType: "account.activation_resent",
+    objectDescription: `${account.name} ${account.surname} · ${account.email}`,
+    detail: "Activation link sent again; any earlier link stopped working.",
+  });
+
+  await sendActivationLink(userId);
+  return account;
+}

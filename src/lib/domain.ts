@@ -122,6 +122,7 @@ export const auditEventMeta: Record<AuditEventType, string> = {
   "enrolment.resolved": "Match conflict resolved",
   "password.changed": "Password changed",
   "reminders.sent": "Reminders sent",
+  "account.activation_resent": "Activation link resent",
 };
 
 /* ------------------------------------------------------------------ *

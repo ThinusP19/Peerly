@@ -4,6 +4,7 @@ import { z } from "zod";
 import { currentUser, requireAuth, requireRole } from "../middleware/auth.ts";
 import {
   activeAdminCount,
+  resendActivationLink,
   createStaffAccount,
   listStaffAccounts,
   setStaffAccountStatus,
@@ -53,6 +54,12 @@ accountRoutes.patch("/:userId", async (req, res) => {
     .parse(req.body);
 
   res.json({ account: await updateStaffAccount(id, changes, currentUser(req).user) });
+});
+
+/** Sends the activation link again, for an account that has never used one. */
+accountRoutes.post("/:userId/activation", async (req, res) => {
+  const { userId: id } = userId.parse(req.params);
+  res.json({ account: await resendActivationLink(id, currentUser(req).user) });
 });
 
 accountRoutes.post("/:userId/status", async (req, res) => {

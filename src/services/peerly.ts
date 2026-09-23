@@ -314,6 +314,15 @@ export const setStaffAccountStatus = async (userId: string, status: User["status
   (await post<{ account: User }>(`/api/accounts/${userId}/status`, { status })).account;
 
 /**
+ * Sends a staff account's activation link again (FR-01, FR-03).
+ *
+ * Only for an account that has never been activated. Each new link kills the
+ * one before it, so an older message that turns up later is already useless.
+ */
+export const resendActivationLink = async (userId: string) =>
+  (await post<{ account: User }>(`/api/accounts/${userId}/activation`, {})).account;
+
+/**
  * Creates a staff account and emails its activation link (FR-01, FR-03).
  *
  * No password is set here or anywhere else by the administrator - the holder

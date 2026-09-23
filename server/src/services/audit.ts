@@ -43,7 +43,8 @@ export type AuditEventType =
   | "assessment.deleted"
   | "enrolment.resolved"
   | "password.changed"
-  | "reminders.sent";
+  | "reminders.sent"
+  | "account.activation_resent";
 
 export interface Actor {
   id?: string | undefined;
