@@ -135,10 +135,11 @@ what CI-09 describes in production, and what keeps the session cookie same-site.
   are `secure` in production, so over plain HTTP nobody can sign in. The deploying party's
   path start to finish, with every credential they must obtain collected up front, is
   [`docs/handover/deployment.md`](./docs/handover/deployment.md).
-- **Observed testing with real people** - the automated suites are green, but UR-01 (a student
-  under five minutes) and UR-06 (a lecturer's full cycle under thirty) are requirements with
-  numbers on them and neither has been measured. `docs/handover/test-plan.md` is the script
-  for doing it.
+- **Timed testing with real people** - every screen has now been driven by hand (see
+  Verification below), but UR-01 (a student under five minutes) and UR-06 (a lecturer's full
+  cycle under thirty) are requirements with numbers on them and neither has been measured
+  against a stopwatch with someone who has not seen the system before.
+  `docs/handover/test-plan.md` is the script for doing it.
 
 ---
 
@@ -512,6 +513,7 @@ All are **Must have**. Status reflects whether the acceptance criteria are actua
 - [x] **Responsive** - Student Portal at 360 px: `scrollWidth === clientWidth`, no horizontal overflow.
 - [x] **Unit tests** - `npm test` - **32 passing** in the web app over `src/lib/domain.ts` and `src/lib/password.ts`, and **448 passing** across 23 files in the API (`npm test` in `server/`), against a real PostgreSQL migrated per run.
 - [x] **Browser tests** - `npx playwright test` - **82 passing** over 12 specs, against both real servers and a seeded database, with no mocking: the three role journeys end to end, the marks and calculation path, and the accessibility project above. Verified green on 2026-09-23.
+- [x] **Hand-testing of every screen, by a person** - 2026-09-23. All three portals, the full lecturer cycle from class-list import to `.xlsx` export, and the Felder calculation checked by hand against an independent SQL derivation for two groups, which matched exactly. It found **eleven defects the automated suites passed clean**, each fixed and covered by tests: four helpers left over from the mock data, a session that died silently, a closing time that enforced nothing, an audit trail missing four fields, a reminder button that reported success without sending, a stale closure that broke the class switcher and three other navigations, a marks screen showing another assessment's marks, flag thresholds firing on 27 of 28 students, no way to resend an activation link, and no sign-in door for administrators. The lesson is worth keeping: every one of those pieces worked correctly in isolation, which is why nothing automated caught them.
 - [x] **Production boot** - the API starts under `NODE_ENV=production` and reports a healthy database; `npm run build` succeeds. Verified 2026-09-23.
 - [x] **Mutation-checked** - the suite was verified to have teeth by injecting the exact defect user story 9 warns against (a non-submitter's blank cells counting as a rating of zero); the test failed as it should, and passed again once reverted.
 

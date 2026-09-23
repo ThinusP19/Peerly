@@ -120,6 +120,49 @@ const students = firstNames.map((name, i) => ({
 const groupSizes = [5, 5, 5, 5, 4, 4];
 
 /**
+ * A comment that agrees with the rating it is attached to.
+ *
+ * One fixed sentence used to be attached to three ratings in ten whatever they
+ * said, so the export showed "Pulled their weight and kept the group moving"
+ * beside a rating of Superficial. Nothing depended on it, but anyone reading
+ * the raw-ratings sheet in a demo saw the system contradicting itself.
+ *
+ * Indexed by the option's position in display order, strongest first.
+ */
+const COMMENTS: string[][] = [
+  // Excellent, Very good
+  [
+    "Pulled their weight and kept the group moving.",
+    "Took the lead on the parts nobody else wanted.",
+    "Always came prepared and did what they said they would.",
+  ],
+  // Satisfactory, Ordinary
+  [
+    "Did their share, though it sometimes needed chasing.",
+    "Fine once the work was allocated, less so before that.",
+    "Reliable on the parts they took on.",
+  ],
+  // Marginal, Deficient
+  [
+    "Missed a few meetings and handed things in late.",
+    "Needed reminding more often than the rest of us.",
+    "Contributed, but well below what the others put in.",
+  ],
+  // Unsatisfactory, Superficial, No contribution
+  [
+    "Did almost none of the work the rest of us shared.",
+    "Missed nearly every meeting and submitted nothing.",
+    "We could not get hold of them for most of the project.",
+  ],
+];
+
+const commentFor = (optionIndex: number, roll: number): string => {
+  const band = optionIndex <= 1 ? 0 : optionIndex <= 3 ? 1 : optionIndex <= 5 ? 2 : 3;
+  const choices = COMMENTS[band]!;
+  return choices[Math.min(choices.length - 1, Math.floor(roll * choices.length))]!;
+};
+
+/**
  * A timestamp `days` from now, at 20:00 UTC.
  *
  * The rest of this file is deterministic, and the dates deliberately are not:
@@ -404,7 +447,7 @@ async function seed() {
                 evaluator,
                 evaluated,
                 options[pick]!.id,
-                next() < 0.3 ? "Pulled their weight and kept the group moving." : null,
+                next() < 0.3 ? commentFor(pick, next()) : null,
               ],
             );
           }
