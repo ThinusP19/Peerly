@@ -9,7 +9,6 @@ import {
 } from "react";
 
 import { isUnauthorized } from "@/lib/api";
-import { classes, staffUsers } from "@/mocks/data";
 import type { Role } from "@/mocks/types";
 import * as auth from "@/services/auth";
 import type { AuthUser } from "@/services/auth";
@@ -197,9 +196,3 @@ export const personas: Array<{ role: Role; email: string; label: string; hint: s
     hint: "Student · matched, in a group",
   },
 ];
-
-/* Still mock-backed until the class endpoints land in phase 4. */
-export const lecturerClasses = (lecturerId: string) =>
-  classes.filter((c) => c.lecturerId === lecturerId);
-
-export const staffDirectory = staffUsers;

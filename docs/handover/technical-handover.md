@@ -8,6 +8,7 @@ This guide covers requirements OR-26 and OR-27 (the deployment runbook). It is w
 | **[deployment.md](./deployment.md)** | **Deploying to a server: the short path, start to finish, with every credential and value you must obtain collected up front. Start there if that is your job.** |
 | This guide | Architecture, setup, tests, deployment, backup, maintenance, troubleshooting |
 | [test-plan.md](./test-plan.md) | A scripted test pass over the whole system, written for testers |
+| [test-walkthrough.md](./test-walkthrough.md) | The exhaustive version: every page and every function, once, in one sitting |
 | [api.md](./api.md) | Every HTTP endpoint, with auth, request, response and errors |
 | [erd.md](./erd.md) | Database diagram, data dictionary, and the constraints behind the business rules |
 | [licences.md](./licences.md) | Third-party licence register |
