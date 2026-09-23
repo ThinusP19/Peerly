@@ -67,8 +67,25 @@ export interface CalculationConfig {
    * possible free rider (FR-20, IS-04). Advisory only - it never alters a mark.
    */
   lowContributionThreshold: number;
-  /** How far from the group mean a single rating must sit to be an outlier. */
+  /**
+   * How far from the group mean a single rating must sit to be an outlier.
+   *
+   * Anchored to the scale rather than to a target hit rate, because the Sponsor
+   * has to defend it: the bands are about five apart, so 20 is four of them -
+   * "the group thought they were satisfactory, one member thought they were
+   * unsatisfactory". Two bands, which is what this was, is ordinary
+   * disagreement and flagged 27 of 28 students on real seeded data.
+   */
   outlierThreshold: number;
+  /**
+   * How far apart two people's ratings OF EACH OTHER must be to be a dispute.
+   *
+   * Its own setting rather than a multiple of the one above (OR-19), so the
+   * Sponsor can tune them independently once there is real data to tune
+   * against. At 40, on a scale spanning 59 to 100, it means one rated the other
+   * Excellent and got No contribution back - which is what "extremes" says.
+   */
+  reciprocalThreshold: number;
 }
 
 /** The values this module was built and tested against. */
@@ -83,8 +100,10 @@ export const DEFAULT_CONFIG: CalculationConfig = {
   // On the banded scale (0004): at or below Marginal, 79, on average - the
   // same point on the scale the old threshold of 50 marked. Awaiting IS-04.
   lowContributionThreshold: 79,
-  // Two steps on a scale whose steps are about five apart. Awaiting IS-04.
-  outlierThreshold: 10,
+  // Four bands apart. Provisional, awaiting IS-04 and real data from AS-09.
+  outlierThreshold: 20,
+  // Effectively opposite ends of a 59-100 scale. Provisional, as above.
+  reciprocalThreshold: 40,
 };
 
 export type ResultFlag =
@@ -277,7 +296,7 @@ export function calculateGroup(
       const back = ratings.find(
         (other) => other.evaluatorId === studentId && other.evaluatedId === rating.evaluatorId,
       );
-      if (back && Math.abs(back.value - rating.value) >= 2 * config.outlierThreshold) {
+      if (back && Math.abs(back.value - rating.value) >= config.reciprocalThreshold) {
         flags.add("reciprocal-extreme");
       }
     }

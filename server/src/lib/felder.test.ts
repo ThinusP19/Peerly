@@ -422,6 +422,59 @@ describe("FR-20 - indicators, which never alter a mark", () => {
     expect(byId(calculateGroup(group({ ratings })), "a").flags).toContain("reciprocal-extreme");
   });
 
+  /**
+   * The thresholds are configuration (OR-19), and the tests above prove only
+   * that an extreme case trips them - they would pass at any value. These pin
+   * the boundary, so a change to either default has to be deliberate.
+   */
+  describe("the thresholds are honoured, and are the approved ones", () => {
+    it("uses the configured outlier threshold rather than a fixed one", () => {
+      // a is rated Excellent once among Satisfactory: 10.08 from the group mean.
+      const ratings: Rating[] = [
+        { evaluatorId: "b", evaluatedId: "a", value: 100 },
+        { evaluatorId: "c", evaluatedId: "a", value: 89 },
+        { evaluatorId: "d", evaluatedId: "a", value: 89 },
+        ...["a", "c", "d"].map((evaluatorId) => ({ evaluatorId, evaluatedId: "b", value: 89 })),
+        ...["a", "b", "d"].map((evaluatorId) => ({ evaluatorId, evaluatedId: "c", value: 89 })),
+        ...["a", "b", "c"].map((evaluatorId) => ({ evaluatorId, evaluatedId: "d", value: 89 })),
+      ];
+      const at = (outlierThreshold: number) =>
+        byId(calculateGroup(group({ ratings }), { ...DEFAULT_CONFIG, outlierThreshold }), "a")
+          .flags;
+
+      expect(at(10)).toContain("isolated-outlier");
+      // One band's disagreement is not an outlier at the approved threshold.
+      expect(at(20)).not.toContain("isolated-outlier");
+    });
+
+    it("uses the configured reciprocal threshold rather than double the outlier one", () => {
+      // a and b are 25 apart on each other - four bands, not opposite ends.
+      const ratings: Rating[] = [
+        { evaluatorId: "a", evaluatedId: "b", value: 69 },
+        { evaluatorId: "b", evaluatedId: "a", value: 94 },
+        { evaluatorId: "c", evaluatedId: "a", value: 89 },
+        { evaluatorId: "d", evaluatedId: "a", value: 89 },
+        { evaluatorId: "c", evaluatedId: "b", value: 89 },
+        { evaluatorId: "d", evaluatedId: "b", value: 89 },
+      ];
+      const at = (reciprocalThreshold: number) =>
+        byId(calculateGroup(group({ ratings }), { ...DEFAULT_CONFIG, reciprocalThreshold }), "a")
+          .flags;
+
+      expect(at(20)).toContain("reciprocal-extreme");
+      expect(at(40)).not.toContain("reciprocal-extreme");
+    });
+
+    it("carries the approved values (IS-04, provisional)", () => {
+      // Changed 2026-09-23: at 10 and 20 these flagged 27 of 28 students on the
+      // seeded data, which tells a lecturer nothing. 20 is four bands; 40 is
+      // effectively opposite ends of a scale running 59 to 100.
+      expect(DEFAULT_CONFIG.outlierThreshold).toBe(20);
+      expect(DEFAULT_CONFIG.reciprocalThreshold).toBe(40);
+      expect(DEFAULT_CONFIG.lowContributionThreshold).toBe(79);
+    });
+  });
+
   it("flags never change the mark", () => {
     const flagged = calculateGroup(group({ submittedIds: ["b"], unmatchedIds: ["a"] }));
     const clean = calculateGroup(group());
