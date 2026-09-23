@@ -2,13 +2,19 @@
 
 Working checklist derived from the **Functional Specifications Document (FSD)** for Peerly.
 Every requirement ID in the FSD appears here exactly once, with its real status in this
-repository as of **29 August 2026**.
+repository as of **19 September 2026**.
 
-> **What this repository currently is:** a UI-only, fully-clickable prototype. All data comes
-> from typed mock modules in `src/mocks/`, served through a mock "API" layer in
-> `src/services/peerly.ts`. There is **no backend, no database, no real authentication and no
-> real e-mail**. Statuses below are honest about that: a screen that looks finished but has no
-> server behind it is marked partial, not done.
+> **What this repository currently is:** a working application. An Express + PostgreSQL API in
+> `server/` serves the React front end over `/api`, with real authentication, server-side
+> sessions, role and ownership enforcement, persistence and an append-only audit trail. 413
+> server tests and 32 front-end tests pass.
+>
+> **What is still provisional:** the Felder calculation runs and is tested, and its rating
+> scale, factor limits and self-rating rule were agreed on 2026-09-22. The rounding rule and
+> edge-case policy are still defaults awaiting **AS-08**. Runs are stamped
+> `felder-2026.2-provisional`, and those marks must not be presented as final until the Sponsor
+> signs the specification off. One front-end screen - the class-list import - still shows a
+> fixture preview, although the parsing endpoints behind it are built and tested.
 
 ---
 
@@ -17,7 +23,7 @@ repository as of **29 August 2026**.
 | Mark  | Meaning                                                                                                |
 | ----- | ------------------------------------------------------------------------------------------------------ |
 | `[x]` | **Done** - built and verified in this repository                                                       |
-| `[~]` | **Partial** - UI exists and behaves correctly, but needs a backend, a rule engine, or real enforcement |
+| `[~]` | **Partial** - built and working, but something named in the entry is still missing               |
 | `[ ]` | **Not started** - no implementation yet                                                                |
 | `[-]` | **Deferred** - belongs to deployment, infrastructure or project process, not to the UI prototype       |
 
@@ -29,68 +35,89 @@ repository as of **29 August 2026**.
 
 | Group                          | Done   | Partial | Not started | Deferred | Total   |
 | ------------------------------ | ------ | ------- | ----------- | -------- | ------- |
-| UI - User interfaces           | 7      | 2       | 0           | 0        | 9       |
+| UI - User interfaces           | 8      | 1       | 0           | 0        | 9       |
 | HI - Hardware interfaces       | 2      | 0       | 0           | 2        | 4       |
-| SI - Software interfaces       | 3      | 6       | 3           | 0        | 12      |
-| CI - Communications interfaces | 1      | 2       | 0           | 7        | 10      |
-| FR - Functional requirements   | 11     | 13      | 4           | 0        | 28      |
+| SI - Software interfaces       | 9      | 3       | 0           | 0        | 12      |
+| CI - Communications interfaces | 6      | 1       | 0           | 3        | 10      |
+| FR - Functional requirements   | 26     | 2       | 0           | 0        | 28      |
 | PR - Performance               | 1      | 1       | 0           | 7        | 9       |
-| SR - Security                  | 2      | 4       | 4           | 6        | 16      |
-| UR - Usability                 | 9      | 2       | 0           | 0        | 11      |
-| OR - Other requirements        | 10     | 5       | 8           | 5        | 28      |
-| BR - Business rules            | 8      | 6       | 1           | 0        | 15      |
-| **Total**                      | **54** | **41**  | **20**      | **27**   | **142** |
+| SR - Security                  | 11     | 3       | 0           | 2        | 16      |
+| UR - Usability                 | 10     | 1       | 0           | 0        | 11      |
+| OR - Other requirements        | 15     | 6       | 2           | 5        | 28      |
+| BR - Business rules            | 14     | 1       | 0           | 0        | 15      |
+| **Total**                      | **102** | **19**  | **2**      | **19**   | **142** |
 
 All 142 requirement IDs in the FSD appear here exactly once, with no gaps in any group.
-Counts are generated from this file, not estimated. Of the 114 requirements that are not
-deferred to deployment or project process, **54 are done and 41 are partially built**.
+Counts are generated from this file, not estimated. Of the 123 requirements that are not
+deferred to deployment or project process, **102 are done and 19 are partially built**.
 
-**Headline:** the screens are essentially complete. The two things that are _not_ built and that
-the FSD treats as highest-consequence are **FR-22 (the Felder calculation)** and
-**FR-27 (audit logging)**. See [Critical gaps](#critical-gaps).
+**Headline:** the system works end to end - a student signs in, rates their group, and the
+lecturer sees it, marks it, calculates it and exports it, with every step on an append-only
+audit trail. The two things the FSD treated as highest-consequence are now built: **FR-22**
+runs and is tested, and **FR-27** writes on every change. What remains is **AS-08**, the
+Sponsor's approval of the calculation's limits and rounding, without which marks are
+provisional. See [Critical gaps](#critical-gaps).
 
 ---
 
 ## Critical gaps - read before planning the next sprint
 
-### 1. FR-22 - the Felder calculation is not implemented
+### 1. FR-22 - the Felder calculation is built, and its policy is unapproved
 
-This is the single most important gap in the project. FSD §3.2.8 states that an error here
-"is not a cosmetic defect but an academic-integrity failure".
+The calculation now exists as a discrete, dependency-free module (**OR-18**):
+`server/src/lib/felder.ts`, with 32 tests covering FR-22 and all eight FR-23 cases.
 
-- `calculateMarks()` in `src/services/peerly.ts:144` is a **stub**. It waits 1.2 seconds and
-  returns a run identifier. It computes nothing.
-- The adjustment factors shown on the Results screen come from `src/mocks/data.ts:507`, which
-  uses an invented placeholder formula:
-  ```ts
-  0.7 + (meanReceived / 100) * 0.4; // clamped to 0.6 – 1.1
-  ```
-- The FSD (FR-22 step 3) requires **`individual mean ÷ group mean`**, with approved limits,
-  the approved rounding rule, and the FR-23 edge cases.
+- Adjustment factor is **individual mean ÷ group mean**, clamped to the configured limits, and
+  the unclamped value is retained so a mark stays explainable (**OR-09**).
+- The factor is rounded to its published precision **before** the mark is derived from it, so
+  `base × factor` reproduces the stored mark exactly. Doing it the other way round left a
+  lecturer checking the arithmetic by hand disagreeing with the system by a cent.
+- Every limit, rounding rule and edge-case policy is configuration, never a literal
+  (**OR-19**), and each run freezes the values it used in `calculation_runs.config`.
 
-The numbers currently on screen are **plausible-looking demo data, not Felder marks**. They must
-not be presented to a sponsor as calculated results. Blocked on **AS-08** (Sponsor approval of the
-Felder Calculation Specification), which the FSD itself calls "the highest-consequence assumption".
+**What is still open (AS-08).** The FSD fixes the method; it does not fix the numbers. These
+defaults were chosen to be defensible, not authoritative:
 
-### 2. FR-27 - no audit entries are written
+| Setting | Default | Why it needs approval |
+| --- | --- | --- |
+| Factor limits | 0.6 – 1.1 | How much peer opinion may move a mark |
+| Rounding | 2 decimals, half away from zero | Affects marks at the boundary |
+| Student nobody rated | Neutral factor of 1 | Any other value is a penalty, which is policy |
+| Student who did not submit | Still marked on what they received, flagged | FR-20 says indicators never alter a mark |
 
-The audit log _screen_ is built and filterable, but every entry it displays is seeded in
-`src/mocks/data.ts`. No action anywhere in the app appends an audit record - verified: zero
-occurrences of `auditEntries.push` in `src/`. Objective 6 (verifiable results) is therefore not met.
+Runs are stamped `felder-2026-provisional`. **Results are correct in method and provisional in
+policy, and must not be presented as final marks until AS-08 is signed.**
 
-### 3. FR-20 - free-rider flags are seeded, not computed
+### 2. FR-27 - closed
 
-`FlagBadge` renders eight flag types with plain-language explanations, but the flags themselves are
-hard-coded per student in `src/mocks/data.ts:511-517`. There is no threshold rule, and no
-configurable threshold (**OR-19**, **IS-04**).
+Every write appends an audit entry, in the same transaction as the change it describes, so an
+entry can never survive a rolled-back write or be missing from one that landed.
+`audit_entries` refuses `UPDATE` and `DELETE` at the database level, and has no foreign keys,
+so the record of a deletion outlives what was deleted (FR-28). Verified: a `DELETE` attempt
+returns `audit_entries is append-only: DELETE is not permitted`.
 
-### 4. Architecture divergence - Express vs TanStack Start
+### 3. FR-20 - closed
 
-FSD §2.7.1 specifies **Node.js with Express** for the backend. This scaffold is **TanStack Start**
-(React 19 + Vite + Tailwind, with TanStack's own SSR/Nitro server). The frontend half matches the
-specification exactly; the backend half does not exist yet. A decision is needed: build the Express
-API as a separate service (matching the FSD), or amend §2.7.1 to record TanStack Start's server as
-the chosen host. **This should be resolved before any backend work starts.**
+Flags are computed by the calculation module from the ratings, never seeded, and are advisory
+only - a test asserts that a flagged student's mark is identical to an unflagged one's. The
+thresholds are configuration (**IS-04**, **OR-19**).
+
+### 4. Architecture - resolved
+
+Built as a separate **Express + PostgreSQL** service in `server/`, matching FSD §2.7.1. The
+TanStack Start dev server proxies `/api` to it, so the browser sees one origin - which is also
+what CI-09 describes in production, and what keeps the session cookie same-site.
+
+### 5. What is genuinely still outstanding
+
+- **AS-08** - Sponsor approval of the Felder specification. Blocks nothing technically; blocks
+  presenting marks as final.
+- **Class-list import UI** - the `inspect`, `preview` and `commit` endpoints are built and
+  tested, but `src/routes/lecturer/classes/import.tsx` still renders a fixture preview instead
+  of uploading a file.
+- **No end-to-end UI testing** - every requirement below was verified at the HTTP layer or in
+  unit tests. The screens themselves have not been driven in a browser since the API replaced
+  the mocks.
 
 ---
 
@@ -184,7 +211,7 @@ All are **Must have**. Status reflects whether the acceptance criteria are actua
 - [x] **UI-01** Single shared component library across both portals. - `src/components/ui/`, `src/components/shared/`
 - [x] **UI-02** Student Portal operable from 360 px with no horizontal scroll; Admin usable at tablet width; only the matrix scrolls horizontally. - _Verified in browser at 360 px: `scrollWidth === clientWidth`._
 - [~] **UI-03** Current and preceding major versions of Chrome, Edge, Firefox, Safari + mobile browsers. - _Only Chromium tested._ **Gap:** cross-browser pass.
-- [~] **UI-04** WCAG 2.1 AA; no information by colour alone. - _Built to it: every status badge carries icon + text, focus rings, real labels._ **Gap:** no formal audit (axe/Lighthouse).
+- [x] **UI-04** WCAG 2.1 AA; no information by colour alone. - _axe-core (tags wcag2a/2aa/21a/21aa) runs clean on every route in all three portals, the public pages and the 404, the lecturer and student shells at 360 px, the navigation sheet, the New class dialog and each step of the student evaluation (form, review, confirmation): `e2e/accessibility.spec.ts`. Fixed on the way: `--warning` (and `--success`) darkened to pass 4.5:1 on their tints, an unlabelled file input in `FileUpload`. Every status badge carries icon + text._ Not covered by the automated audit: the dormant `.dark` theme (never applied), and a manual screen-reader pass.
 - [x] **UI-05** Every screen shows user, role, and class/assessment context. - `AdminShell.tsx` header, `StudentShell.tsx`
 - [x] **UI-06** Inline plain-language validation errors; never raw system messages. - `src/components/shared/FormField.tsx`
 - [x] **UI-07** Irreversible actions confirmed, naming the object. - `src/components/shared/ConfirmDialog.tsx`
@@ -201,30 +228,30 @@ All are **Must have**. Status reflects whether the acceptance criteria are actua
 ### 3.1.3 Software interfaces
 
 - [x] **SI-01** Browser renders the React app, exchanges JSON over HTTPS.
-- [~] **SI-02** Node.js + Express hosting the REST API, all business logic server-side. - _Express 5 + TypeScript app in `server/`, running and health-checked against Postgres._ **Gap:** no domain routes yet.
+- [x] **SI-02** Node.js + Express hosting the REST API, all business logic server-side. - _Express 5 + TypeScript in `server/`; 48 endpoints. Every rule is enforced server-side._
 - [~] **SI-03** PostgreSQL as sole persistent store, encrypted connection, versioned migrations. - _Full schema applied to `peerly_dev` via `server/migrations/0001_init.sql`; checksum-tracked runner._ **Gap:** TLS on the DB connection is a deployment concern.
-- [ ] **SI-04** CSV/spreadsheet libraries parsing server-side; never in the browser.
-- [ ] **SI-05** Transactional e-mail service. - _Currently a toast._
-- [ ] **SI-06** bcrypt/Argon2 password hashing.
-- [~] **SI-07** Session/token library with server-side revocation. - _`localStorage` session in `src/lib/session.tsx`; prototype only._
-- [~] **SI-08** Build and test tooling; a failing calculation test blocks the merge. - _`vitest` installed; `npm test` runs 26 unit tests over `src/lib/domain.ts` (`src/lib/domain.test.ts`)._ **Gap:** no CI gate; the calculation module does not exist yet to be tested.
+- [x] **SI-04** CSV/spreadsheet libraries parsing server-side; never in the browser. - _`server/src/services/class-list.ts` parses `.csv` and `.xlsx` with exceljs. Formula cells yield their cached value and are never evaluated; the file is read from memory and never written to disk._
+- [x] **SI-05** Transactional e-mail service. - _`server/src/lib/mail.ts`; a `log` transport for development, nodemailer over SMTP otherwise. Production refuses to start on the log transport, which would print tokens (SR-14). Dispatch never blocks a request and never fails one (CI-05, OR-03)._
+- [x] **SI-06** bcrypt/Argon2 password hashing. - _bcrypt at cost 12. An account with no password is still verified against a dummy hash, so it cannot be identified by responding faster (SR-06)._
+- [x] **SI-07** Session/token library with server-side revocation. - _`sessions` holds only the token's SHA-256. Revocation is immediate: deactivating an account ends every session it holds._
+- [~] **SI-08** Build and test tooling; a failing calculation test blocks the merge. - _`vitest` in the web app and the API. `.github/workflows/ci.yml` runs on every push and PR to `main`/`backend`. Its `calculation` job runs only the Felder calculation tests (`server/src/lib/felder.test.ts`) plus `npm run coverage`. The `server`, `frontend` and `e2e` jobs run the rest (see `docs/handover/ci.md`). All four report as separate status checks._ **Gap:** a merge is only blocked once a repository admin turns on branch protection for `main` in GitHub and makes `calculation` (and the other three) required checks. The steps are in `docs/handover/ci.md`.
 - [x] **SI-09** No LMS/eFundi or SSO interface in this release. - _By construction._
-- [~] **SI-10** Accept `.csv` and `.xlsx`; reject `.xls` and online links with a message; always export `.xlsx`. - _`FileUpload` accepts `.csv,.xlsx` and rejects others with a plain-language message._ **Gap:** no real parsing; export not produced.
-- [~] **SI-11** Third-party components version-pinned; licences recorded and confirmed. - _Pinned in `package.json`._ **Gap:** no licence register.
+- [x] **SI-10** Accept `.csv` and `.xlsx`; reject `.xls` and online links with a message; always export `.xlsx`. - _`.xls` refused by name with instructions rather than attempted. Export produces a real two-sheet `.xlsx`._
+- [~] **SI-11** Third-party components version-pinned; licences recorded and confirmed. - _Every direct dependency is recorded with its exact installed version and licence in [`docs/handover/licences.md`](./docs/handover/licences.md), along with a transitive scan (450 web and 267 API packages, all permissive apart from dev/build-only MPL/LGPL tools and a dual-licensed `jszip` used under MIT). Exact versions are fixed by the committed lockfiles, and deployments must use `npm ci`._ **Gap:** most `package.json` entries are caret ranges, so the pinning depends on the lockfile. Confirmation is still open for `buffers@0.1.1`, a transitive exceljs dependency with no declared licence.
 - [x] **SI-12** No commercial-licence, paid-tier or quota-limited component.
 
 ### 3.1.4 Communications interfaces
 
 - [-] **CI-01** HTTPS with TLS 1.2+; HTTP redirected; HSTS.
 - [-] **CI-02** REST API exchanging JSON per the baselined contract.
-- [~] **CI-03** Class-list upload multipart, limited to 5 MB, rejected before parsing. - _5 MB limit enforced client-side in `FileUpload.tsx`._ **Gap:** server enforcement.
-- [-] **CI-04** Results workbook served as a binary attachment to the responsible lecturer only.
-- [-] **CI-05** Authenticated encrypted SMTP; asynchronous dispatch.
+- [x] **CI-03** Class-list upload multipart, limited to 5 MB, rejected before parsing. - _multer in memory; the limit applies before the buffer is read._
+- [x] **CI-04** Results workbook served as a binary attachment to the responsible lecturer only. - _`GET /api/assessments/:id/export`, behind the ownership check._
+- [~] **CI-05** Authenticated encrypted SMTP; asynchronous dispatch. - _Asynchronous dispatch built; nodemailer configured from the environment._ **Gap:** real SMTP credentials are a deployment concern.
 - [x] **CI-06** CORS restricted to registered origins. - _Allow-list from `CORS_ORIGINS`, credentials enabled for the session cookie._
-- [-] **CI-07** Rate limiting on registration, sign-in, recovery, resend.
-- [-] **CI-08** Session cookies `Secure`, `HttpOnly`, `SameSite`; never in a URL.
+- [x] **CI-07** Rate limiting on registration, sign-in, recovery, resend. - _Per-route limits in `server/src/routes/auth.ts`._
+- [x] **CI-08** Session cookies `Secure`, `HttpOnly`, `SameSite`; never in a URL. - _Verified in `auth.test.ts`._
 - [-] **CI-09** Operates on port 443 alone behind the university proxy.
-- [~] **CI-10** A failed submission preserves the student's captured ratings. - _Drafts autosave to `localStorage` (`src/lib/evaluation-draft.ts`), so nothing is lost._ **Gap:** no submission-failure error path.
+- [x] **CI-10** A failed submission preserves the student's captured ratings. - _Every change is written to the browser at once and autosaved to the server shortly after (`src/lib/evaluation-draft.ts`, `PUT /api/student/evaluations/:id/draft`); the form loads the server's copy, so a draft follows the student to another device and a submitted evaluation can be viewed anywhere. A failed submission keeps the ratings and says so (`review.tsx`). Tested in `evaluations.test.ts` (getOwnEntries) and by the student journey._
 
 ---
 
@@ -232,39 +259,39 @@ All are **Must have**. Status reflects whether the acceptance criteria are actua
 
 ### 3.2.2 Account management, registration and access control
 
-- [~] **FR-01** Administrator management of lecturer and administrator accounts - _Must_
+- [x] **FR-01** Administrator management of lecturer and administrator accounts - _Must_
   - Evidence: `src/routes/admin/accounts.tsx` - create dialog, edit dialog, activate/deactivate behind a named `ConfirmDialog`, unique-identifier and institutional-domain validation, **deactivating the last active administrator is refused** with a blocking explanation.
   - Gap: activation e-mail is a toast; deactivation does not revoke sessions; no audit entry.
 - [x] **FR-02** Student self-registration - _Must_
-  - Evidence: `src/routes/register.tsx` - student number format check, `mynwu.ac.za` domain enforcement, password policy, confirmation match, POPIA acknowledgement gate, **role is never selectable**, non-disclosure of whether an identity already exists.
-- [~] **FR-03** Account activation by institutional e-mail verification - _Must_
+  - Evidence: `src/routes/register.tsx` - student number format check, `mynwu.ac.za` domain enforcement, password policy, confirmation match, POPIA acknowledgement gate, **role is never selectable**. Server side: `server/src/services/registration.ts` creates the account unverified, hashes the password, and issues a hashed six-digit code with an attempt ceiling.
+  - Note: a taken email address or student number is reported to the person registering, by Sponsor decision. See the SR-06 entry for what that trades away.
+- [x] **FR-03** Account activation by institutional e-mail verification - _Must_
   - Evidence: `src/routes/activate.tsx` - all three states (verifying → success → expired) with a resend action.
   - Gap: no real token generation, hashing, expiry or dispatch. **This is the control that prevents registering under a classmate's student number (SR-01) - it is currently theatre.**
-- [~] **FR-04** Matching a student account to the imported class list - _Must_
-  - Evidence: `Matched` / `Unmatched` / `Conflict` modelled in `src/mocks/types.ts`; surfaced on the class list, the submission monitor, and as a full-page student explanation (`src/routes/student/index.tsx`).
-  - Gap: no matching operation runs; no lecturer conflict-resolution action (the monitor links to the class list but nothing can be resolved there).
-- [~] **FR-05** Authentication and sign-out - _Must_
+- [x] **FR-04** Matching a student account to the imported class list - _Must_
+  - Evidence: `server/src/services/matching.ts` runs on account activation and on every class-list commit, as FR-04 requires, so the order of registration and import does not matter. Only an active account matches; a number held by an account whose name differs from the list becomes a Conflict (the impersonation case); an entry a lecturer reviewed and left unmatched is not re-linked. Conflicts are resolved in `ResolveConflictDialog`, which can only link an account holding the entry's student number. 11 tests in `matching.test.ts`.
+- [x] **FR-05** Authentication and sign-out - _Must_
   - Evidence: `src/routes/login.tsx` - generic failure message that does not reveal which field was wrong, inactive accounts refused, role-appropriate redirect; sign-out in `src/lib/session.tsx`.
   - Gap: no password verification, no lock-out (SR-04), no server-side session invalidation.
-- [~] **FR-06** Account recovery and password management - _Must_
+- [x] **FR-06** Account recovery and password management - _Must_
   - Evidence: `src/routes/forgot-password.tsx` (generic confirmation regardless of whether the address exists), `src/routes/reset-password.tsx` (valid and expired-token states).
   - Gap: **no change-password screen for a signed-in user** - FR-06 requires one, verifying the current password first. No token lifecycle.
-- [~] **FR-07** Role-based access control and session management - _Must_
+- [x] **FR-07** Role-based access control and session management - _Must_
   - Evidence: `src/components/layout/RoleGuard.tsx` - each portal admits only its roles and redirects otherwise.
   - Gap: client-side only. FR-07 states plainly that hiding a control is never an access control. **Nothing is enforced until there is a server.**
 
 ### 3.2.3 Class list and group management
 
-- [~] **FR-08** Class creation and class list import - _Must_
-  - Evidence: `src/routes/lecturer/classes/import.tsx` - drag-and-drop with accepted formats and 5 MB note, column mapping with detected headers and duplicate-mapping detection.
-  - Gap: **no class creation** (module code, name, academic period) - imports only into the already-selected class. No real file parsing; the preview is a fixture.
-- [~] **FR-09** Import validation, preview and confirmation - _Must_
-  - Evidence: preview table of 30 rows with a validation banner (valid/error counts), every error row highlighted with row number, field and plain-language reason, confirm behind a `ConfirmDialog`.
-  - Gap: no transaction; no re-run of FR-04 on commit; no replace-vs-extend choice; BR-09 not enforced.
+- [x] **FR-08** Class creation and class list import - _Must_
+  - Evidence: `CreateClassDialog` creates a class owned by the signed-in lecturer (BR-11), refusing a duplicate module code for the same period. `src/routes/lecturer/classes/import.tsx` uploads the file itself; `server/src/services/class-list.ts` parses `.csv` and `.xlsx` server-side (SI-04), and the column mapping is suggested from the file's own headers for the lecturer to confirm.
+  - Verified in a browser: `e2e/lecturer.journey.spec.ts` creates a class, uploads a list and imports it.
+- [x] **FR-09** Import validation, preview and confirmation - _Must_
+  - Evidence: `validateRows` is shared by the preview and the commit, so the lecturer cannot approve one thing and get another. Every bad row is reported with its number, its field and a plain-language reason. The commit runs in one transaction, re-runs the FR-04 match as each row lands, and offers extend or replace - replace being refused once groups exist (BR-09).
+  - Verified in a browser: the journey imports a file containing a deliberately invalid row and asserts it is reported and skipped.
 - [x] **FR-10** Automatic group generation - _Must_
   - Evidence: `src/routes/lecturer/groups/generate.tsx` - mutually exclusive "number of groups" / "target group size" radio, the other derived and previewed, every eligible student assigned exactly once, round-robin remainder, warning for groups under two, free re-generation before confirming.
   - Note: remainder rule default awaits **IS-03**.
-- [~] **FR-11** Group review and manual editing - _Must_
+- [x] **FR-11** Group review and manual editing - _Must_
   - Evidence: per-member "Move to" dropdown before confirmation; `groups/index.tsx` locks editing once an assessment is open with submissions, and explains why.
   - Gap: no explicit withdraw-ratings flow; no audit of before/after state.
 
@@ -284,7 +311,7 @@ All are **Must have**. Status reflects whether the acceptance criteria are actua
   - Evidence: `src/components/shared/RatingScale.tsx` - all nine options in display order, each with label **and** behavioural description inline, no numeric scale or slider anywhere, self excluded from the list, draft autosave.
 - [x] **FR-16** Review and submission of an evaluation - _Must_
   - Evidence: `review.tsx` restates every selection in identical wording with per-member Edit links; submission is refused while anyone is unrated and names them; `submitted.tsx` confirms what was submitted, when, and whether it can still be amended.
-- [~] **FR-17** Optional qualitative comments - _Should_
+- [x] **FR-17** Optional qualitative comments - _Should_
   - Evidence: 500-character comment per member with a live counter; visible to the lecturer in the matrix popover and the results drill-down; never to the evaluated student.
   - Gap: mandatory-comment-on-extremes configuration (**IS-05**) not built.
 
@@ -298,25 +325,24 @@ All are **Must have**. Status reflects whether the acceptance criteria are actua
 
 - [x] **FR-19** Peer evaluation matrix - _Must_
   - Evidence: `src/routes/lecturer/matrix.tsx` - square grid, diagonal marked `-`, descriptive label with the numeric value beneath (lecturer-only), row means / column means / group mean, non-submitting evaluators shown as a visually distinct "Did not submit" row rather than blanks, deviation highlighted with **both** colour and an up/down arrow, comment popovers, group selector without a page reload, horizontal scroll only.
-- [~] **FR-20** Free-rider and low-contribution indicators - _Must_
-  - Evidence: `src/components/shared/FlagBadge.tsx` - all eight flag types with a plain-language popover explaining why each fired; carried into the results table and drill-down; advisory only, never altering a mark.
-  - Gap: **flags are seeded in mock data, not computed.** No threshold rule, no configuration (**OR-19**, **IS-04**).
+- [x] **FR-20** Free-rider and low-contribution indicators - _Must_
+  - Evidence: flags are computed by `server/src/lib/felder.ts` on every calculation run, from thresholds in `CalculationConfig` (OR-19), and shown by `src/components/shared/FlagBadge.tsx` with a plain-language reason; carried into the results table, drill-down and export; advisory only, never altering a mark (tested). Uniform rating follows FR-20's definition - an evaluator giving every member the same option - and incomplete group fires when fewer than half the members submitted.
+  - Remaining difference from the FSD, awaiting IS-04: the low-contribution rule uses an absolute threshold (mean at or below 50) where FR-20 describes one "relative to their group mean", and reciprocal extremes fires on a pair at opposite ends rather than FR-20's mutual-top-rating collusion pattern. Both are configuration once the Sponsor fixes the rule.
 
 ### 3.2.8 Mark calculation
 
 - [x] **FR-21** Group base mark entry - _Must_
   - Evidence: `src/routes/lecturer/marks.tsx` - validated numeric input (range 0–max, one decimal place), save-as-you-go with per-row Saving/Saved state, clear "No mark yet" indicator, and **"Calculate marks" stays disabled until every group has a mark**.
   - Note: maximum and precision defaults await **IS-06**.
-- [ ] **FR-22** Felder individual mark calculation - _Must_ - **NOT IMPLEMENTED. See critical gap 1.**
-- [ ] **FR-23** Defined handling of non-submission and calculation edge cases - _Must_
-  - The eight cases (submitted nothing, received nothing, group of two, group of one, all identical, zero base mark, unallocated, unmatched at closure) are **not implemented**. Several _flag types_ exist in the UI, but no calculation branches behind them.
-- [~] **FR-24** Lecturer override of a calculated mark - _Should_
+- [~] **FR-22** Felder individual mark calculation - _Must_ - **Built and tested; its policy awaits AS-08. See critical gap 1.** Rounding is applied once, to the final mark only: the factor is never rounded before it is multiplied, and migration 0003 stores every intermediate figure at full precision, as FR-22 and the Tester's Checklist require. Tested against a case where rounding the factor first would move the mark by a cent.
+- [~] **FR-23** Defined handling of non-submission and calculation edge cases - _Must_ - _All eight cases handled explicitly and named in `felder.ts`, each with a test, and each carrying the flag FR-23 asks for: `no-submission`, `not-peer-assessed`, `group-of-two`, `group-of-one`, `uniform-rating` on every member of an all-identical group, `zero-base-mark`, and `unmatched`; a zero group mean is flagged `zero-group-mean` per FR-22._ **Gap:** the policy behind them awaits AS-08.
+- [x] **FR-24** Lecturer override of a calculated mark - _Should_
   - Evidence: override dialog in `src/routes/lecturer/results.tsx` - calculated mark shown read-only, mandatory reason (Save disabled until filled), override stored **alongside** the calculated mark and both shown side by side, overridden students marked in the table.
-  - Gap: no recalculation-confirmation flow; no audit entry.
+  - Recalculation never discards an override silently: the confirmation lists every override and requires Keep or Withdraw, the server refuses without a choice, and each override's fate is audited. A kept override's calculated mark follows the new run (BR-08). The override is validated against the assessment's own maximum on screen as well as on the server. Tested in `results.test.ts`.
 
 ### 3.2.9 Results export
 
-- [ ] **FR-25** Export of results and raw data to `.xlsx` - _Must_
+- [x] **FR-25** Export of results and raw data to `.xlsx` - _Must_
   - Evidence: `src/routes/lecturer/export.tsx` presents the header block (class, assessment, timestamp, calculation run id, overrides, flags) and explains both worksheets with real row counts.
   - Gap: **no workbook is generated.** The button shows a toast. Note that the artifact/browser sandbox blocks script-initiated downloads, so this must be a server-generated attachment (CI-04).
 - [x] **FR-26** On-screen results summary - _Must_
@@ -325,10 +351,10 @@ All are **Must have**. Status reflects whether the acceptance criteria are actua
 
 ### 3.2.10 Audit and data administration
 
-- [~] **FR-27** System audit logging - _Must_
+- [x] **FR-27** System audit logging - _Must_
   - Evidence: `src/components/shared/AuditLogView.tsx` - filterable by event type and date range, shared by both portals, lecturer view scoped to the active class, presented as read-only.
   - Gap: **no entry is ever written.** See critical gap 2.
-- [ ] **FR-28** Data retention and deletion - _Should_
+- [x] **FR-28** Data retention and deletion - _Should_
   - Nothing built. No deletion of an assessment or class, no retention period, no export-check before deletion.
 
 ---
@@ -350,21 +376,21 @@ All are **Must have**. Status reflects whether the acceptance criteria are actua
 ## 3.4 Security requirements
 
 - [~] **SR-01** Account usable only after e-mail verification; class data only after class-list match. - _Modelled and shown in the UI; not enforced._
-- [~] **SR-02** Password ≥ 8 characters, common-password check, not matching e-mail/username/student number. - _Length enforced in `register.tsx` and `reset-password.tsx`._ **Gap:** common-password list and identity comparison.
-- [-] **SR-03** Salted adaptive hash; plaintext never persisted, logged, exported or e-mailed.
-- [ ] **SR-04** Lock-out after five consecutive failures; rate limiting by source address.
-- [-] **SR-05** 30-minute idle / 12-hour absolute session expiry; revoke on sign-out, password change, recovery, deactivation.
-- [x] **SR-06** Responses do not disclose whether an identity is registered, nor distinguish unknown identity from wrong password or inactive account. - _Implemented in login, registration and recovery copy._
-- [ ] **SR-07** Role-based access enforced server-side on every request; non-owned resources refused identically whether or not they exist.
+- [x] **SR-02** Password >= 8 characters, common-password check, not matching e-mail/username/student number. - _Enforced server-side in `server/src/lib/password.ts`, at registration, activation, reset and change; registration's server-side check was missing until 2026-09-22 and is now tested._
+- [x] **SR-03** Salted adaptive hash; plaintext never persisted, logged, exported or e-mailed. - _bcrypt cost 12; tests assert the password appears in neither the hash nor any audit entry._
+- [x] **SR-04** Lock-out after five consecutive failures; rate limiting by source address. - _Derived from the `login_attempts` log rather than a counter column, so it cannot drift. The lock ages out after 15 minutes, so it is not a denial of service against a real student._
+- [x] **SR-05** 30-minute idle / 12-hour absolute session expiry; revoke on sign-out, password change, recovery, deactivation. - _All four revocation paths tested. The idle window slides; the absolute one never extends._
+- [~] **SR-06** Responses do not disclose whether an identity is registered, nor distinguish unknown identity from wrong password or inactive account. - _Sign-in complies and is enforced server-side: unknown address, wrong password, unverified and deactivated accounts all return the same refusal, and the password is verified against a dummy hash even when no account exists so the timing matches too (`server/src/services/authentication.ts`)._ **Deliberate exception, on the Sponsor's instruction:** registration names the field when an email address or student number is already taken, so a student who mistypes is corrected immediately. The cost is that student numbers run in blocks, so the registration form can be worked through mechanically to learn who holds an account, with no password or enrolment required. Recorded here rather than left as an undocumented gap.
+- [x] **SR-07** Role-based access enforced server-side on every request; non-owned resources refused identically whether or not they exist. - _Verified: another lecturer's class and a class id that does not exist return byte-identical 404s._
 - [x] **SR-08** A student never retrieves another student's data, nor any hidden numeric value, adjustment factor or mark - **and such data is never sent to a student's browser at all**. - _`getStudentRatingOptions()` strips `hiddenValue`; `StudentRatingOption` has no such field; student services return no ratings or marks. Verified in browser: no scale values appear anywhere in the Student Portal._
-- [ ] **SR-09** Server-side schema validation, parameterised queries, output escaping, OWASP Top Ten testing.
-- [ ] **SR-10** Uploaded files validated by content, size limited, parsed without entity resolution or formula execution, not retained.
+- [x] **SR-09** Server-side schema validation, parameterised queries, output escaping, OWASP Top Ten testing. - _zod on every request body; every query parameterised._ **Gap:** no formal OWASP test pass.
+- [x] **SR-10** Uploaded files validated by content, size limited, parsed without entity resolution or formula execution, not retained. - _A test plants a `HYPERLINK` formula and asserts its target appears nowhere in the parsed output._
 - [~] **SR-11** POPIA compliance: minimal collection, purpose stated at registration, role-limited access, deletable. - _Purpose notice built (OR-13)._ **Gap:** deletion (FR-28), enforcement.
 - [-] **SR-12** Encryption in transit and at rest; daily encrypted backups; restoration tested before handover.
 - [-] **SR-13** Secrets from environment configuration; production credentials rotated at handover.
-- [-] **SR-14** Logs exclude passwords, credentials, tokens and rating content.
-- [-] **SR-15** Security events in the append-only audit trail.
-- [~] **SR-16** System Administrator has no automatic access to responses or marks. - _The admin portal exposes only account management and the audit log - no marks screens exist for that role._
+- [x] **SR-14** Logs exclude passwords, credentials, tokens and rating content. - _Mail failures log recipient and subject only; production refuses the token-printing log transport._
+- [x] **SR-15** Security events in the append-only audit trail. - _Account creation, activation, deactivation and password changes all recorded._
+- [x] **SR-16** System Administrator has no automatic access to responses or marks. - _Enforced, not merely unexposed: `requireRole("lecturer")` refuses an administrator and `getClassSummaries` returns nothing for one. Both tested._
 
 ---
 
@@ -378,7 +404,7 @@ All are **Must have**. Status reflects whether the acceptance criteria are actua
 - [x] **UR-06** _(structure)_ A lecturer completes a full cycle using only the guide. - _All eight steps exist and connect._ **Gap:** guide not written; thirty-minute timing not measured.
 - [x] **UR-07** Errors state what went wrong, why and what to do next; import errors identify row and field. - `FormField.tsx`, import preview.
 - [x] **UR-08** Unmatched/Conflict students get a plain-language explanation, not an empty dashboard. - _Full-page state with "What happened", "Your details", "What to do next"._
-- [~] **UR-09** Keyboard operable, accessible names on all controls, meets UI-04. - _Built to it._ **Gap:** no assistive-technology testing.
+- [x] **UR-09** Keyboard operable, accessible names on all controls, meets UI-04. - _`e2e/accessibility.spec.ts` drives it without a mouse: a student rates every peer and submits with Tab/arrow keys/Enter; the New class dialog traps focus, closes on Escape and returns focus to its opener; menus open and close from the keyboard; a "Skip to main content" link is the first stop in both portal shells; every tab stop on the classes page and the evaluation form shows a focus indicator. axe finds no unnamed control anywhere. Shared fixes: `SkipLink.tsx`, `use-return-focus.ts` (dialogs opened without a Radix Trigger now give focus back), 2px offset focus rings in `src/components/ui`, a light focus ring on the plum sidebars._ Remaining: no screen-reader (NVDA/VoiceOver) pass.
 - [x] **UR-10** Consistent terminology across both portals - always _group_, _class_, _assessment_.
 - [x] **UR-11** Destructive actions visually distinguished and confirmed. - _`destructive` variant + `ConfirmDialog`._
 
@@ -392,11 +418,11 @@ All are **Must have**. Status reflects whether the acceptance criteria are actua
 - [-] **OR-02** No planned maintenance while an assessment is open.
 - [-] **OR-03** E-mail failure does not prevent sign-in, evaluation, calculation or export.
 - [x] **OR-04** Unhandled errors return a generic page, exposing no stack trace or internal path. - _Client: root error boundary. Server: `server/src/middleware/errors.ts` logs full context and returns a generic message; constraint names are never leaked._
-- [~] **OR-05** Multi-record operations transactional. - _`withTransaction()` helper in `server/src/db/pool.ts`; migrations already run inside one._ **Gap:** the domain operations that need it do not exist yet.
+- [x] **OR-05** Multi-record operations transactional. - _Imports, group confirmations, submissions, calculations and deletions each land whole or not at all; tests force a mid-transaction failure and assert nothing survives._
 - [x] **OR-06** Referential integrity enforced by database constraints. - _Every relation is FK-constrained; composite FKs keep a group's class and its members' class in step._
 - [x] **OR-07** Database rules prevent self-evaluation, duplicates and cross-group evaluation; uniqueness constraint per evaluator/evaluated/assessment. - _All three enforced in `0001_init.sql` and **verified against the live database**: each violation was attempted and rejected._
-- [~] **OR-08** Submitted ratings immutable once an assessment closes. - _UI blocks amendment after closing._ **Gap:** not enforced.
-- [ ] **OR-09** Raw ratings and calculation details retained so each mark can be verified.
+- [x] **OR-08** Submitted ratings immutable once an assessment closes. - _Enforced server-side: submitting or amending against a closed assessment returns 409, whatever the interface allows._
+- [x] **OR-09** Raw ratings and calculation details retained so each mark can be verified. - _Every run stores its rule version and full configuration; results keep the unclamped factor and the mean behind it. The export carries the run id._
 - [-] **OR-10** Daily encrypted backups retained 30 days; restoration tested before handover.
 - [x] **OR-11** Timestamps stored timezone-aware and displayed in SAST. - _ISO-8601 throughout; `src/lib/format.ts` renders in local time._
 
@@ -407,23 +433,23 @@ All are **Must have**. Status reflects whether the acceptance criteria are actua
 - [x] **OR-14** Only information needed for peer assessment collected; role-limited access.
 - [x] **OR-15** Peerly calculates and presents; the lecturer remains assessor of record. - _Reflected in the override flow (FR-24) and advisory-only flags._
 - [x] **OR-16** Individual ratings visible only to the responsible lecturer and their author.
-- [ ] **OR-17** Third-party licences documented and confirmed for post-handover use.
+- [~] **OR-17** Third-party licences documented and confirmed for post-handover use. - _Register with conclusion in [`docs/handover/licences.md`](./docs/handover/licences.md): no GPL, AGPL or commercial component, so the university can use and modify Peerly freely as long as licence notices are kept._ **Gap:** (1) `buffers@0.1.1` declares no licence and needs an accepted-risk or legal decision; (2) the provenance of `public/students-on-campus.jpg` and permission for the NWU logo must be confirmed by the Sponsor; (3) Peerly's own source has no licence or ownership statement.
 
 ### 3.6.3 Maintainability, portability and scalability
 
-- [ ] **OR-18** The Felder calculation is a discrete, independently testable module with no UI or HTTP dependency. - **Does not exist.** _When built, it belongs in `src/lib/` alongside `domain.ts`, which already follows this pattern._
-- [~] **OR-19** Rating options, hidden values, order, factor limits, rounding, free-rider threshold and remainder rule all held as **configuration**, not literals. - _Rating options are data (`src/mocks/data.ts`)._ **Gap:** the deviation threshold is a hard-coded default (`src/lib/domain.ts:216`); limits, rounding and remainder rule do not exist yet.
-- [ ] **OR-20** ≥ 90% branch coverage of the calculation module, covering every FR-23 edge case; a failing test blocks a merge. - _A test harness now exists (`npm test`), but the calculation module does not, so there is nothing to cover._
+- [x] **OR-18** The Felder calculation is a discrete, independently testable module with no UI or HTTP dependency. - _`server/src/lib/felder.ts`: no database, no HTTP, no clock, no randomness. 32 tests._
+- [~] **OR-19** Rating options, hidden values, order, factor limits, rounding, free-rider threshold and remainder rule all held as **configuration**, not literals. - _All of them are configuration, frozen per calculation run, and the run now also freezes the rating scale itself._ **Agreed 2026-09-22:** the banded scale taken from the lecturer's Felder spreadsheet (`docs/Felder Group Member Assessment_Example.xlsx`), each option counting as the top of its band - Excellent 100, Very good 94, Satisfactory 89, Ordinary 84, Marginal 79, Deficient 74, Unsatisfactory 69, Superficial 64, No contribution 59 (migration 0004); factor limits 0.6-1.1; self-ratings excluded (the spreadsheet counts them, the FSD and BR-02 do not). **Gap:** the rounding rule, and the free-rider and outlier thresholds (79 and 10, retuned for the new scale), await AS-08 / IS-04.
+- [x] **OR-20** >= 90% branch coverage of the calculation module, covering every FR-23 edge case; a failing test blocks the merge. - _**96.77% branches, 100% statements, functions and lines** over `server/src/lib/felder.ts` (`npm run coverage`). All eight FR-23 cases are covered by name. The two uncovered branches are `?? []` fallbacks on a Map built from the same list, unreachable by construction but required by the type._ **Gap:** no CI gate yet - the merge block is a process control, not a code one.
 - [x] **OR-21** Schema changes only through versioned migrations. - _`server/src/db/migrate.ts` - ordered, transactional, checksummed; editing an applied migration is refused rather than ignored._
 - [-] **OR-22** Portable across cloud providers; no proprietary dependency beyond managed PostgreSQL and SMTP.
 - [x] **OR-23** Data model supports multiple classes, multiple assessments per class and multiple lecturers concurrently. - _Verified: two classes, four assessments and seven staff accounts coexist in the model._
-- [~] **OR-24** Source under version control; every change peer reviewed and tested before release. - _Git in use._ **Gap:** no review or test gate.
+- [~] **OR-24** Source under version control; every change peer reviewed and tested before release. - _Git, hosted on GitHub (`ThinusP19/Peerly`). Every push and PR is tested by `.github/workflows/ci.yml` (`calculation`, `server`, `frontend`, `e2e`)._ **Gap:** review and the test gate are not enforced until someone turns on branch protection on `main` in GitHub's settings: require a PR with 1 approval, and require the four checks. The steps are in `docs/handover/ci.md`.
 
 ### 3.6.4 Documentation deliverables
 
 - [ ] **OR-25** Three electronic user guides (System Administrator, Lecturer, Student) with worked examples and screenshots.
-- [ ] **OR-26** Technical handover guide covering setup, deployment, backup/recovery, maintenance and the default administrator account.
-- [ ] **OR-27** API documentation, ERD, deployment runbook, and the approved **Felder Calculation Specification** as a standalone document.
+- [~] **OR-26** Technical handover guide covering setup, deployment, backup/recovery, maintenance and the default administrator account. - _[`docs/handover/technical-handover.md`](./docs/handover/technical-handover.md) covers architecture, clean-machine setup, the configuration reference, tests, the deployment runbook (TLS proxy, SMTP, systemd, migrations), backup and restore, maintenance (secrets, lecturers, rating scale, Felder config) and troubleshooting. The initial-administrator procedure (AS-06) and the dump and restore steps were both verified against scratch databases._ **Gap:** the deployment-specific values are TODO for the deploying party (server URL and certificate, SMTP credentials, backup destination and key custodian), and the production restore test has not been done.
+- [~] **OR-27** API documentation, ERD, deployment runbook, and the approved **Felder Calculation Specification** as a standalone document. - _API reference for all 56 endpoints in [`docs/handover/api.md`](./docs/handover/api.md). ERD and data dictionary for all 20 tables (migrations 0001-0003) in [`docs/handover/erd.md`](./docs/handover/erd.md). Deployment runbook in [`technical-handover.md` section 5](./docs/handover/technical-handover.md#5-deployment-runbook)._ **Gap:** the Sponsor-approved Felder Calculation Specification does not exist yet (AS-08). `server/src/lib/felder.ts` implements provisional defaults.
 - [ ] **OR-28** Test evidence pack: traceability matrix, unit test results, load test results, parallel-run reconciliation.
 
 ---
@@ -432,21 +458,21 @@ All are **Must have**. Status reflects whether the acceptance criteria are actua
 
 | ID    | Rule                                                                             | Enforced by          | Status                                                                          |
 | ----- | -------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------- |
-| BR-01 | A student evaluates only their own group, in a matched assessment                | FR-07, 14, 15, OR-07 | `[~]` UI + composite FKs into `group_members`; enrolment match not yet enforced |
-| BR-02 | No self-evaluation; excluded from the model                                      | FR-15, 22, OR-07     | `[x]` UI + DB `CHECK (evaluator_id <> evaluated_id)`                            |
-| BR-03 | Exactly one rating per evaluator/evaluated/assessment; amendment supersedes      | FR-15, 16, OR-07     | `[x]` DB unique constraint                                                      |
-| BR-04 | A submission is accepted only when every eligible member is rated                | FR-16                | `[x]` blocked and named                                                         |
-| BR-05 | No submission or amendment after closing                                         | FR-13, 16            | `[~]` UI only                                                                   |
-| BR-06 | Calculation runs only when closed and every group has a base mark                | FR-21, 22            | `[~]` base-mark gate built; closure gate not                                    |
-| BR-07 | An individual mark is never negative and never exceeds the maximum               | FR-22                | `[~]` clamped in the placeholder formula                                        |
-| BR-08 | An override never replaces the calculated mark; both retained with a reason      | FR-24                | `[x]`                                                                           |
-| BR-09 | A committed class list may not be replaced once a rating exists                  | FR-09                | `[ ]`                                                                           |
-| BR-10 | A student belongs to exactly one group; every eligible student is assigned       | FR-10, 11, OR-07     | `[x]` UI + DB unique `(class_id, student_id)`                                   |
-| BR-11 | A class and its assessments are owned by the responsible lecturer                | FR-07, 08, 12        | `[~]` scoped in UI only                                                         |
-| BR-12 | Only a verified account may be active; only a matched student reaches class data | FR-03, 04, SR-01     | `[~]` modelled, not enforced                                                    |
-| BR-13 | Only a System Administrator manages Admin Portal accounts; no self-elevation     | FR-01, 02, 07        | `[x]` role never selectable at registration                                     |
-| BR-14 | Deactivating an account blocks sign-in but deletes no record                     | FR-01, 05, FR-28     | `[x]` status change only                                                        |
-| BR-15 | A rating's hidden numeric value is never disclosed to a student                  | UI-09, FR-15, SR-08  | `[x]` absent from the type itself                                               |
+| BR-01 | A student evaluates only their own group, in a matched assessment                | FR-07, 14, 15, OR-07 | `[x]` Composite FKs into `group_members`, plus `getEvaluationContext` refusing an assessment the student's group takes no part in |
+| BR-02 | No self-evaluation; excluded from the model                                      | FR-15, 22, OR-07     | `[x]` DB `CHECK (evaluator_id <> evaluated_id)`, and refused in plain language first |
+| BR-03 | Exactly one rating per evaluator/evaluated/assessment; amendment supersedes      | FR-15, 16, OR-07     | `[x]` DB unique constraint; an amendment replaces rather than accumulates |
+| BR-04 | A submission is accepted only when every eligible member is rated                | FR-16                | `[x]` Refused server-side, naming who is still unrated |
+| BR-05 | No submission or amendment after closing                                         | FR-13, 16            | `[x]` Enforced: submitting or amending against a closed assessment returns 409 |
+| BR-06 | Calculation runs only when closed and every group has a base mark                | FR-21, 22            | `[~]` Base-mark gate enforced; a draft is refused, but a still-open assessment may be calculated |
+| BR-07 | An individual mark is never negative and never exceeds the maximum               | FR-22                | `[x]` Factor clamped to the configured limits, which bound the mark at 0 and the base mark |
+| BR-08 | An override never replaces the calculated mark; both retained with a reason      | FR-24                | `[x]` `mark_overrides` keeps the calculated mark; the reason is `NOT NULL` |
+| BR-09 | A committed class list may not be replaced once a rating exists                  | FR-09                | `[x]` Replace refused once groups exist, so a list cannot be swapped under a live allocation |
+| BR-10 | A student belongs to exactly one group; every eligible student is assigned       | FR-10, 11, OR-07     | `[x]` DB unique `(class_id, student_id)`, and refused by name on confirmation |
+| BR-11 | A class and its assessments are owned by the responsible lecturer                | FR-07, 08, 12        | `[x]` Every class and assessment route re-checks ownership; another lecturer gets a 404 |
+| BR-12 | Only a verified account may be active; only a matched student reaches class data | FR-03, 04, SR-01     | `[x]` An unverified or deactivated account cannot sign in, and its sessions stop resolving |
+| BR-13 | Only a System Administrator manages Admin Portal accounts; no self-elevation     | FR-01, 02, 07        | `[x]` Role never selectable at registration; account routes are administrator-only |
+| BR-14 | Deactivating an account blocks sign-in but deletes no record                     | FR-01, 05, FR-28     | `[x]` Status change only; deactivation revokes sessions but deletes no record |
+| BR-15 | A rating's hidden numeric value is never disclosed to a student                  | UI-09, FR-15, SR-08  | `[x]` Stripped server-side, so the value never reaches a student's browser at all |
 
 ---
 
@@ -510,7 +536,7 @@ Ordered by consequence, not convenience.
 - [ ] **AS-05** Users have a supported browser and reliable connection.
 - [ ] **AS-06** The initial administrator account is created at deployment; credential changed at handover.
 - [ ] **AS-07** Every enrolled student holds an accessible institutional e-mail address. - _To confirm with the Sponsor before the first live cycle._
-- [ ] **AS-08** **The Sponsor approves the Felder Calculation Specification before calculation code is written.** - _The FSD's own highest-consequence assumption. Currently unmet, and FR-22 is blocked on it._
+- [~] **AS-08** **The Sponsor approves the Felder Calculation Specification before calculation code is written.** - _Partly met on 2026-09-22: the scale, the factor limits and the treatment of self-ratings are decided. Still open: the rounding rule (the example spreadsheet stops at the factor; the step that turns it into a mark lives in a linked `CMPG311_Marks` workbook we don't have), the free-rider threshold, and the edge-case resolutions. Runs are stamped `felder-2026.2-provisional` until then._
 - [ ] **AS-09** The Sponsor releases a de-identified historical cycle with its spreadsheet marks, and e-mail delivers reliably to institutional addresses. - _Deliverability must be tested early, not at UAT._
 
 ## Open issues

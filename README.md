@@ -235,16 +235,35 @@ npm run dev                  # http://localhost:4000
 | `npm run migrate:status` | Show which migrations have run                                    |
 | `npm run reset`          | Drop and rebuild the schema (refuses anything but `_dev`/`_test`) |
 
-### Signing in to the prototype
+### Signing in
 
-The frontend still runs on mock data, so **any password works** for a seeded
-account. Use the role switcher pinned to the corner of every screen, or:
+Sign-in is real: the API verifies the password, sets an `HttpOnly` session
+cookie and enforces the session server-side. Create the accounts first with
 
-| Email                      | Role                                 |
-| -------------------------- | ------------------------------------ |
-| `anneke.vdmerwe@nwu.ac.za` | Lecturer - owns CMPG323 and CMPG315  |
-| `riaan.botha@nwu.ac.za`    | System Administrator                 |
-| `41200893@mynwu.ac.za`     | Student - evaluation not yet started |
+```sh
+cd server && npm run seed
+```
+
+Every seeded account uses the password **`peerly-dev-password`**.
+
+| Email                      | Role                                |
+| -------------------------- | ----------------------------------- |
+| `riaan.botha@nwu.ac.za`    | System Administrator                |
+| `anneke.vdmerwe@nwu.ac.za` | Lecturer - owns CMPG323 and CMPG315 |
+| `sipho.dlamini@nwu.ac.za`  | Lecturer                            |
+| `41200345@mynwu.ac.za`     | Student (Lerato Mokoena)            |
+
+Thirty students are seeded, from `41200345` in steps of 37; each signs in with
+`<studentnumber>@mynwu.ac.za`. Twenty-eight are matched to the CMPG323 class
+list, one is left unmatched and one in conflict, so those two states are
+reachable without engineering them. The role switcher in the corner of every screen
+signs in through the API like anyone else, so what it shows you is what the
+session actually permits.
+
+**Both servers must be running.** The web app calls `/api`, which the dev server
+proxies to the API on port 4000 - so the browser sees one origin and the session
+cookie is sent. Running the web app alone leaves every sign-in failing at the
+network.
 
 ### Brand assets
 
