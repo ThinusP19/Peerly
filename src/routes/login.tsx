@@ -37,7 +37,10 @@ const audiences: Record<Audience, { title: string; description: string; placehol
   },
   lecturer: {
     title: "Lecturer sign in",
-    description: "Use your NWU email address to continue.",
+    // Administrators use this form too - the portal comes from the account's
+    // role, not from this choice - and saying so here saves the one or two of
+    // them wondering whether they are in the wrong place.
+    description: "Use your NWU email address to continue. Administrators sign in here too.",
     placeholder: "name.surname@nwu.ac.za",
   },
 };

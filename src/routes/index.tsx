@@ -120,6 +120,18 @@ function WelcomePage() {
               </Link>
             ))}
           </div>
+
+          {/*
+            Administrators have no door of their own, and would otherwise stand
+            here guessing. There are only ever one or two of them, so a third
+            card would weigh the choice down for everybody to serve almost
+            nobody - and the choice only picks the form's wording anyway: the
+            portal you land in comes from the account's own role.
+          */}
+          <p className="mt-6 text-sm text-muted-foreground">
+            Administrators sign in under <span className="font-semibold">I'm a lecturer</span> -
+            you'll land in the Admin Portal.
+          </p>
         </div>
       </main>
 
