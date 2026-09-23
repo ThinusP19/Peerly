@@ -221,11 +221,23 @@ Sign out and sign in as each:
 
 ### 2.11 On a phone
 
-Open the same URL on your phone, on the same wi-fi, using your machine's LAN
-address instead of `127.0.0.1`.
+The dev server listens on `127.0.0.1` only (`vite.config.ts`), so your phone
+cannot reach it as it stands. Two ways round that:
+
+**Quickest - no restart.** Open the browser's developer tools, switch on device
+emulation (the phone icon), and pick a 360 px wide device. Good enough for
+layout.
+
+**A real phone.** Restart the web app so it accepts connections from your
+network, then browse to your machine's address on the same wi-fi:
+
+```sh
+npm run dev -- --host       # the CLI flag overrides the config
+```
 
 - [ ] Readable and tappable without zooming
-- [ ] Nothing runs off the side
+- [ ] Nothing runs off the side - no sideways scrolling
+- [ ] The menu opens and closes properly
 - [ ] You could complete an evaluation this way
 
 ---
