@@ -126,13 +126,27 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const persist = useCallback((next: Preferences) => {
-    setPreferences(next);
-    try {
-      window.localStorage.setItem(PREFERENCES_KEY, JSON.stringify(next));
-    } catch {
-      // A browser with storage blocked still works; it just forgets the choice.
-    }
+  /**
+   * Changes one or more preferences, from whatever the current ones are.
+   *
+   * It takes a patch and applies it functionally rather than being handed a
+   * whole object built from `preferences`. Two setters called in the same
+   * handler both closed over the same render's `preferences`, so the second
+   * overwrote the first: choosing a class ran
+   * `setActiveClassId(id); setActiveAssessmentId("")`, and the second call
+   * wrote the OLD class id straight back. The class switcher appeared to do
+   * nothing at all, and there was no way to leave the class you were in.
+   */
+  const persist = useCallback((patch: Partial<Preferences>) => {
+    setPreferences((current) => {
+      const next = { ...current, ...patch };
+      try {
+        window.localStorage.setItem(PREFERENCES_KEY, JSON.stringify(next));
+      } catch {
+        // A browser with storage blocked still works; it just forgets the choice.
+      }
+      return next;
+    });
   }, []);
 
   const value = useMemo<SessionContextValue>(
@@ -165,9 +179,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
       },
 
-      setActiveClassId: (activeClassId: string) => persist({ ...preferences, activeClassId }),
-      setActiveAssessmentId: (activeAssessmentId: string) =>
-        persist({ ...preferences, activeAssessmentId }),
+      setActiveClassId: (activeClassId: string) => persist({ activeClassId }),
+      setActiveAssessmentId: (activeAssessmentId: string) => persist({ activeAssessmentId }),
     }),
     [preferences, user, hydrated, persist],
   );
