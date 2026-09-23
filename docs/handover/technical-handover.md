@@ -5,7 +5,9 @@ This guide covers requirements OR-26 and OR-27 (the deployment runbook). It is w
 | Document | What it covers |
 | --- | --- |
 | [README.md](../../README.md#running-the-project) | Quick start for developers: commands and seeded sign-in accounts |
+| **[deployment.md](./deployment.md)** | **Deploying to a server: the short path, start to finish, with every credential and value you must obtain collected up front. Start there if that is your job.** |
 | This guide | Architecture, setup, tests, deployment, backup, maintenance, troubleshooting |
+| [test-plan.md](./test-plan.md) | A scripted test pass over the whole system, written for testers |
 | [api.md](./api.md) | Every HTTP endpoint, with auth, request, response and errors |
 | [erd.md](./erd.md) | Database diagram, data dictionary, and the constraints behind the business rules |
 | [licences.md](./licences.md) | Third-party licence register |
@@ -214,6 +216,11 @@ The CI workflow that runs all of these on each push and pull request is describe
 ---
 
 ## 5. Deployment runbook
+
+> Deploying for the first time? [`deployment.md`](./deployment.md) is this
+> section in sequential order, with a worksheet of every credential and value
+> you have to obtain before you start. This section remains the reference; that
+> one is the path through it.
 
 ### 5.1 Target topology
 

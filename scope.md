@@ -116,7 +116,9 @@ what CI-09 describes in production, and what keeps the session cookie same-site.
 - **A test deployment** - the system has never run anywhere but a laptop. The production
   boot path and build were verified on 2026-09-23; what is missing is a host, a DNS name and
   a certificate (IS-10), and SMTP credentials (IS-01). HTTPS is not optional: session cookies
-  are `secure` in production, so over plain HTTP nobody can sign in.
+  are `secure` in production, so over plain HTTP nobody can sign in. The deploying party's
+  path start to finish, with every credential they must obtain collected up front, is
+  [`docs/handover/deployment.md`](./docs/handover/deployment.md).
 - **Observed testing with real people** - the automated suites are green, but UR-01 (a student
   under five minutes) and UR-06 (a lecturer's full cycle under thirty) are requirements with
   numbers on them and neither has been measured. `docs/handover/test-plan.md` is the script
