@@ -114,11 +114,19 @@ finish time** and do not read ahead before you begin.*
 - [ ] You get a clear confirmation that it is submitted
 - [ ] **Time taken: \_\_\_\_ min**
 
-### 1.3 Try to change a submitted evaluation
+### 1.3 Change a submitted evaluation
 
-1. Go back to the dashboard and try to open the same evaluation again.
+You **are** allowed to change your answers until the assessment's closing time -
+that is deliberate (BR-03). It is only final after the deadline.
 
-- [ ] It shows as submitted and you cannot change your ratings
+1. Go back to the dashboard and open the same evaluation again.
+2. Change one person's rating and submit again.
+
+- [ ] The confirmation says you can still change your answers, and names the date
+- [ ] Reopening shows what you actually chose, not a blank form
+- [ ] After changing one rating, the confirmation shows the **new** one - and
+      only one rating per person, not both
+- [ ] The **submitted at** time is still the *first* time you submitted
 
 ### 1.4 The two broken accounts
 

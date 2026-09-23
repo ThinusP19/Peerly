@@ -41,6 +41,27 @@ export class ApiError extends Error {
 /** True when the API said "not signed in", which callers usually treat as a state. */
 export const isUnauthorized = (error: unknown) => error instanceof ApiError && error.status === 401;
 
+/**
+ * Notified whenever a request comes back 401.
+ *
+ * A session can die mid-visit: it idles out after thirty minutes (SR-05), an
+ * administrator deactivates the account, the password is changed elsewhere, or
+ * the database is rebuilt underneath it. Without this, every panel on the page
+ * quietly renders empty - each query failing on its own, none of them able to
+ * say why - and the person is left looking at a screen that appears broken
+ * rather than at a sign-in form. The session layer subscribes and signs them out.
+ */
+type UnauthorizedListener = () => void;
+const unauthorizedListeners = new Set<UnauthorizedListener>();
+
+export function onUnauthorized(listener: UnauthorizedListener): () => void {
+  unauthorizedListeners.add(listener);
+  // Returns void, not Set.delete's boolean, so it can be a useEffect cleanup.
+  return () => {
+    unauthorizedListeners.delete(listener);
+  };
+}
+
 interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
@@ -76,6 +97,12 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 
   if (!response.ok) {
     const error = (payload as { error?: ApiErrorBody } | null)?.error;
+    // Announced before the throw, so it happens whether or not the caller
+    // handles the rejection. Listeners decide what it means: a 401 while nobody
+    // was signed in is just the answer to "who am I", not a lost session.
+    if (response.status === 401) {
+      for (const listener of unauthorizedListeners) listener();
+    }
     throw new ApiError(
       response.status,
       error ?? { code: "error", message: "Something went wrong. Please try again." },

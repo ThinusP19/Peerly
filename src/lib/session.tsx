@@ -7,8 +7,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { toast } from "sonner";
 
-import { isUnauthorized } from "@/lib/api";
+import { isUnauthorized, onUnauthorized } from "@/lib/api";
 import type { Role } from "@/mocks/types";
 import * as auth from "@/services/auth";
 import type { AuthUser } from "@/services/auth";
@@ -105,6 +106,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       });
 
     return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    /**
+     * Drops the session the moment the API stops recognising it.
+     *
+     * Only when we believed somebody was signed in: a 401 from the bootstrap
+     * `me()` above is the ordinary answer when nobody is, and treating that as a
+     * lost session would fight the initial paint. Clearing `user` is enough -
+     * the route guards send them to sign in - and the message says the session
+     * ended rather than implying they did something wrong.
+     */
+    return onUnauthorized(() => {
+      setUser((current) => {
+        if (current) toast.info("Your session has ended. Please sign in again.");
+        return null;
+      });
+    });
   }, []);
 
   const persist = useCallback((next: Preferences) => {

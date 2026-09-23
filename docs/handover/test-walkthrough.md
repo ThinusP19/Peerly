@@ -202,8 +202,15 @@ Sign in as `41200419@mynwu.ac.za`, choosing **Student**.
 
 ### 2.8 After submitting
 
-- [ ] Reopening the evaluation shows it as submitted and **read-only**
+A submitted evaluation is **not** read-only. A student may amend it until the
+closing time, and the amendment replaces what was there rather than adding to it
+(BR-03). It becomes final at the deadline, which the API now enforces.
+
+- [ ] The confirmation names the date until which you can still change answers
 - [ ] The dashboard shows it as submitted
+- [ ] Reopening it shows your answers, and lets you change one
+- [ ] Submitting again shows the **new** rating, one per person - not two
+- [ ] The **submitted at** time is still the first submission's, not the amendment's
 
 ### 2.9 Settings — `/student/settings`
 
