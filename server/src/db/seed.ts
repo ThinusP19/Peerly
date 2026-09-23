@@ -18,7 +18,15 @@ import { closePool, query, withTransaction } from "./pool.ts";
  * screenshot or a bug report still means something tomorrow.
  */
 
-const DEV_PASSWORD = "peerly-dev-password";
+/**
+ * The password every seeded account shares.
+ *
+ * `peerly-dev-password` on a laptop, where the database is unreachable from
+ * anywhere else. A seeded database behind a public URL is a different thing
+ * entirely - 33 accounts, one password, published in this repository - so a
+ * shared test deployment sets SEED_PASSWORD to its own.
+ */
+const DEV_PASSWORD = env.seedPassword;
 
 const staff = [
   { role: "admin" as const, name: "Riaan", surname: "Botha", email: "riaan.botha@nwu.ac.za" },
@@ -400,7 +408,13 @@ async function seed() {
 
   console.log(`\nSeeded ${name}:`);
   for (const row of counts.rows) console.log(`  ${row.label.padEnd(13)} ${row.count}`);
-  console.log(`\nEvery seeded account uses the password: ${DEV_PASSWORD}`);
+  // Printed in full only when it is the published default, which is no secret.
+  // A configured one is echoed nowhere: this runs on a server, into a log.
+  console.log(
+    DEV_PASSWORD === "peerly-dev-password"
+      ? `\nEvery seeded account uses the password: ${DEV_PASSWORD}`
+      : "\nEvery seeded account uses the configured SEED_PASSWORD.",
+  );
 }
 
 try {

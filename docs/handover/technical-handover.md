@@ -165,6 +165,7 @@ The API reads `server/.env` through `dotenv`, and real environment variables tak
 | `MAIL_FROM_ADDRESS` | none | Required when `smtp`. It must be an address the relay is allowed to send as (SPF/DKIM). | **TODO (deploying party)** |
 | `MAIL_REPLY_TO` | none | Optional reply-to address | Optional |
 | `TEST_DATABASE_URL` | `postgres://localhost:5432/peerly_test` | Used only by the API test suite | Not used |
+| `SEED_PASSWORD` | `peerly-dev-password` | The password every account created by `npm run seed` shares. The default is published in this repository, so any seeded database reachable over a network **must** set its own. Production never seeds, so this is unused there. | Not used |
 | `DOTENV_CONFIG_QUIET` | none | Set to `true` to stop dotenv 17 printing its "injected env" line at start-up | `true` (optional) |
 
 Settings that are **not** environment variables, and are changed in code or data:

@@ -60,6 +60,12 @@ const schema = z
     MAIL_FROM_NAME: z.string().default("Peerly"),
     MAIL_FROM_ADDRESS: optional,
     MAIL_REPLY_TO: optional,
+
+    // The password every seeded account shares (`npm run seed`). The default is
+    // fine on a laptop and nowhere else: a seeded database reachable over the
+    // network is 33 accounts behind one password that is published in this
+    // repository. Any shared test deployment must set its own.
+    SEED_PASSWORD: z.string().min(1).default("peerly-dev-password"),
   })
   .superRefine((value, ctx) => {
     // SR-14: the "log" transport prints activation links and verification codes
@@ -128,6 +134,7 @@ export const env = {
       password: raw.SMTP_PASSWORD,
     },
   },
+  seedPassword: raw.SEED_PASSWORD,
 } as const;
 
 export type Env = typeof env;
