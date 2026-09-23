@@ -4,10 +4,17 @@ Everything still outstanding, grouped by **who has to do it**. Current as of
 **23 September 2026**.
 
 **Nothing on this list is code.** Every FSD requirement is built and the
-automated suite is green: 449 API tests, 32 web tests, 82 browser tests,
+automated suite is green: 465 API tests, 33 web tests, 82 browser tests,
 0 TypeScript errors, 0 lint errors, Felder calculation at 96.72% branch
 coverage. What remains is a deployment, decisions other people own, and testing
 that needs humans.
+
+A day of hand-testing on 23 September found eight defects the automated suite
+could not: four helpers written against the mock data and never revisited, a
+session that died silently, a deadline that enforced nothing, an audit trail
+with a hole in it, and a reminder button that reported success without sending
+anything. All eight are fixed and covered by tests. It is worth assuming more of
+that kind remain, and that only someone using the system will find them.
 
 Detail for any item is in [scope.md](./scope.md), which tracks all 142
 requirement IDs.
@@ -127,7 +134,7 @@ Both are requirements with numbers on them and neither has ever been measured.
 
 ## Repository and process
 
-- [ ] **Merge `backend` into `main`.** It is currently 10 commits ahead
+- [ ] **Merge `backend` into `main`.** It is currently 21 commits ahead
 - [ ] **Turn on branch protection for `main`** in GitHub: require a pull request
       with 1 approval, and require the four CI checks (`calculation`, `server`,
       `frontend`, `e2e`). Until someone does this, CI runs but **blocks nothing**,
