@@ -18,10 +18,17 @@ requirement IDs.
 
 Start here. Each one has a long lead time and nothing below moves without them.
 
-- [ ] **SMTP credentials** - host, port, username, password and an approved
-      sender address, from the university mail team. **The API will not start in
-      production without them**, so this blocks the deployment entirely, and mail
-      teams are slow. Ask today. *(CI-05, AS-07)*
+- [ ] **Connect Mailgun.** The sending side is **built and wired** - Peerly uses
+      plain authenticated SMTP, `nodemailer` is already a dependency, the
+      templates exist and every message already sends on the development
+      transport. Nobody needs to write any code. What is missing is an account:
+      add a domain (a subdomain such as `mg.peerly.nwu.ac.za`), **choose the EU
+      region** for POPIA, add the DNS records, wait for Verified, then copy the
+      SMTP credentials into five variables in `server/.env`. Step by step, with
+      the four things that commonly waste an afternoon, in
+      [deployment.md §4.1](./docs/handover/deployment.md#41-mailgun).
+      **The API will not start in production until this is done** - deliberately,
+      because the fallback transport prints reset tokens to the log. *(CI-05, AS-07)*
 - [ ] **A server, a DNS name and a TLS certificate.** HTTPS is not optional: the
       session cookie is `Secure` in production, so over plain HTTP nobody can
       sign in. *(IS-10)*
@@ -42,7 +49,9 @@ It has a worksheet of every value needed, collected up front.
 - [ ] PostgreSQL 17 instance; create the `peerly` role and database. **The role
       must not be a superuser** - the append-only audit trail only holds against
       a non-superuser
-- [ ] SMTP credentials in `server/.env`, with `MAIL_TRANSPORT=smtp`
+- [ ] Mailgun connected: domain added and **Verified**, EU region, account off
+      sandbox, and the five SMTP variables in `server/.env` with
+      `MAIL_TRANSPORT=smtp`. See [deployment.md §4.1](./docs/handover/deployment.md#41-mailgun)
 - [ ] Backup destination, encryption key custodian and retention period
 - [ ] Name and institutional e-mail of the **first administrator**. There is no
       default admin account and no built-in password *(AS-06)*
@@ -156,8 +165,11 @@ Both are requirements with numbers on them and neither has ever been measured.
 
 So nobody redoes it:
 
-- The whole application - 34 screens, 56 API endpoints, all on the real API with
+- The whole application - 34 screens, 57 API endpoints, all on the real API with
   no mock data anywhere
+- **E-mail sending, end to end.** Verification codes, activation links, password
+  resets and submission reminders are all built and all send. The only thing
+  outstanding is an account to send them through - no code
 - The Felder calculation, with every setting that decides a mark now agreed
 - Append-only audit trail, enforced by database triggers
 - Real `.xlsx` export

@@ -52,9 +52,12 @@ const logTransport: Transport = async (mail) => {
 /**
  * SMTP transport.
  *
- * nodemailer is imported dynamically rather than at module load so that the
- * development path never needs it installed. NOTE: it is not yet in
- * package.json - add it before setting MAIL_TRANSPORT=smtp.
+ * nodemailer is imported dynamically rather than at module load, so a
+ * development server running on the "log" transport never pays for it.
+ *
+ * Any authenticated SMTP relay works, including Mailgun - see
+ * `docs/handover/deployment.md` for the settings. Nothing here is specific to
+ * a provider, and switching between them is four environment variables.
  */
 const smtpTransport: Transport = async (mail) => {
   const { createTransport } = await import("nodemailer");

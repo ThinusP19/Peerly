@@ -17,7 +17,7 @@ repeating them.
 1. [What you must obtain first](#1-what-you-must-obtain-first)
 2. [What runs where](#2-what-runs-where)
 3. [The database](#3-the-database)
-4. [The environment files](#4-the-environment-files)
+4. [The environment files](#4-the-environment-files) · [Mailgun](#41-mailgun)
 5. [Install and build](#5-install-and-build)
 6. [The reverse proxy and TLS](#6-the-reverse-proxy-and-tls)
 7. [Run as services](#7-run-as-services)
@@ -52,8 +52,8 @@ comes from you or from the university. Fill this in before you start.
 | # | What | Who gives it to you | Goes into | Your value |
 | --- | --- | --- | --- | --- |
 | 6 | PostgreSQL role name + password for Peerly | you create it ([section 3](#3-the-database)) | `DATABASE_URL` | |
-| 7 | SMTP host, port, username, password | the university mail team | `SMTP_*` | |
-| 8 | An approved sender address, SPF/DKIM authorised | the university mail team | `MAIL_FROM_ADDRESS` | |
+| 7 | SMTP host, port, username, password | **Mailgun** - see [4.1](#41-mailgun) | `SMTP_*` | |
+| 8 | A sender address on the verified Mailgun domain | Mailgun, once DNS is verified | `MAIL_FROM_ADDRESS` | |
 | 9 | Name + institutional e-mail of the **first administrator** | the university | [section 8](#8-create-the-first-administrator) | |
 | 10 | Backup destination, encryption key custodian, retention | the university | [handover §6](./technical-handover.md#6-backup-and-recovery) | |
 
@@ -220,6 +220,76 @@ equivalent to generate, protect or rotate. The two secrets in this file are the
 database password and the SMTP password, and that is all. A useful consequence:
 deactivating an account or changing its password revokes its sessions
 immediately, everywhere.
+
+### 4.1 Mailgun
+
+Mailgun is the chosen relay. **Nothing in Peerly is specific to it** - the API
+sends through plain authenticated SMTP, so Mailgun needs no code change, no SDK
+and no extra package. `nodemailer` is already a dependency and already wired.
+Connecting it is five environment variables.
+
+**In the Mailgun dashboard:**
+
+1. **Add a domain** - a subdomain such as `mg.peerly.nwu.ac.za` rather than the
+   bare university domain, so Peerly's sending reputation stays separate from
+   everything else the university sends.
+2. **Choose the EU region** when you create it. Student names and e-mail
+   addresses then stay in the EU rather than the US, which is a materially
+   easier position to defend under POPIA. The region cannot be changed
+   afterwards without recreating the domain, and it changes the SMTP hostname.
+3. **Add the DNS records** Mailgun gives you - TXT for SPF and DKIM, and the
+   MX records - and wait for it to show **Verified**. Until it does, everything
+   is rejected.
+4. **Sending → Domain settings → SMTP credentials**: copy the username and
+   reset the password to get one you can read.
+
+**Then in `server/.env`:**
+
+```sh
+MAIL_TRANSPORT=smtp
+SMTP_HOST=smtp.eu.mailgun.org          # smtp.mailgun.org for a US domain
+SMTP_PORT=587
+SMTP_SECURE=false                      # 587 is STARTTLS; use 465 with true
+SMTP_USER=postmaster@mg.peerly.nwu.ac.za
+SMTP_PASSWORD=<the SMTP password>
+MAIL_FROM_ADDRESS=peerly@mg.peerly.nwu.ac.za
+MAIL_FROM_NAME=Peerly
+```
+
+**Four things that waste an afternoon if you miss them:**
+
+| | |
+| --- | --- |
+| The **SMTP password is not the API key** | Two different credentials on two different pages. The API key will authenticate nothing. |
+| `MAIL_FROM_ADDRESS` **must be on the verified domain** | Mailgun refuses anything else outright. |
+| A new Mailgun account is in **sandbox mode** | It will only deliver to addresses you have manually authorised. Real student addresses bounce until the domain is verified and the account is off sandbox. |
+| The **region changes the hostname** | EU domains are `smtp.eu.mailgun.org`. Pointing an EU domain at the US host fails to authenticate, and the error does not say why. |
+
+**Check it worked** - from the API host, with `server/.env` filled in:
+
+```sh
+node --experimental-strip-types -e '
+  import("./src/lib/mail.ts").then(async (m) => {
+    const ok = await m.send({ to: "you@nwu.ac.za", subject: "Peerly SMTP test", text: "It works." });
+    console.log(ok ? "sent" : "failed - see the log line above");
+  });
+'
+```
+
+A failure is logged as `[mail] could not send "<subject>" to <address>: <reason>`.
+The message body is never logged, because it carries the token.
+
+Then do the real check: **register a test student and confirm the 6-digit code
+arrives** at a `@mynwu.ac.za` address, and a reset link at an `@nwu.ac.za` one.
+Institutional filters treat the two differently, and a quarantined code looks to
+a student exactly like a system that does not work.
+
+**Deliverability**, once it is running: Mailgun's dashboard shows accepted,
+delivered, bounced and complained. Check it after the first real cycle - a code
+that silently bounces is indistinguishable, to the student, from Peerly being
+broken.
+
+---
 
 ### `.env` at the repository root - the web app. **No secrets, ever.**
 
