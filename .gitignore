@@ -40,3 +40,13 @@ server/node_modules
 
 # Local environment files: credentials never go in the repository
 .env
+
+e2e/.auth/
+test-results/
+playwright-report/
+
+# Sponsor documents: synced from the shared Peerly folder, not source.
+# Handover docs we write live in docs/handover/ and are committed.
+docs/*.docx
+docs/*.pdf
+docs/*.zip
