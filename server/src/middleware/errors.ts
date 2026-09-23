@@ -6,14 +6,26 @@ import { ZodError } from "zod";
  * plain language (UI-06, UR-07). Anything else becomes a generic 500.
  */
 export class AppError extends Error {
+  readonly status: number;
+  readonly code: string;
+  readonly fields?: Record<string, string>;
+
+  // Assigned in the body rather than declared as constructor parameter
+  // properties. Those are one of the few TypeScript constructs that emit code
+  // rather than just annotate it, so `node --experimental-strip-types` - which
+  // removes types without compiling - refuses the file outright. That is what
+  // `npm start` runs, so the shorthand would cost us the production entry point.
   constructor(
-    readonly status: number,
-    override readonly message: string,
-    readonly code: string = "error",
-    readonly fields?: Record<string, string>,
+    status: number,
+    message: string,
+    code: string = "error",
+    fields?: Record<string, string>,
   ) {
     super(message);
     this.name = "AppError";
+    this.status = status;
+    this.code = code;
+    this.fields = fields;
   }
 }
 
@@ -22,6 +34,15 @@ export const badRequest = (message: string, fields?: Record<string, string>) =>
 
 export const unauthorized = (message = "Please sign in to continue.") =>
   new AppError(401, message, "unauthorized");
+
+/**
+ * A role gate: the caller is who they say they are, but this portal is not
+ * theirs. Distinct from notFoundOrForbidden() below, and safe to be distinct -
+ * "students cannot use the lecturer portal" is a rule, not a fact about which
+ * identifiers exist.
+ */
+export const forbidden = (message = "You don't have access to that.") =>
+  new AppError(403, message, "forbidden");
 
 /**
  * SR-07: a resource the caller does not own is refused identically whether or
@@ -62,6 +83,21 @@ export function errorHandler(error: unknown, _req: Request, res: Response, _next
         code: error.code,
         message: error.message,
         ...(error.fields && { fields: error.fields }),
+      },
+    });
+    return;
+  }
+
+  // A request body that is not valid JSON - from express.json(), or a JSON
+  // field inside a multipart upload - is the caller's error, not the server's.
+  if (
+    error instanceof SyntaxError ||
+    (error as { type?: string })?.type === "entity.parse.failed"
+  ) {
+    res.status(400).json({
+      error: {
+        code: "malformed_request",
+        message: "The request couldn't be read. Please try again.",
       },
     });
     return;

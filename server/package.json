@@ -10,16 +10,20 @@
     "seed": "tsx src/db/seed.ts",
     "reset": "tsx src/db/migrate.ts reset && tsx src/db/seed.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "coverage": "vitest run src/lib/felder.test.ts --coverage.enabled --coverage.include='src/lib/felder.ts' --coverage.reporter=text"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
+    "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "express-rate-limit": "^8.7.0",
     "helmet": "^8.3.0",
+    "multer": "^2.4.0",
+    "nodemailer": "^10.0.10",
     "pg": "^8.23.0",
     "zod": "^4.5.2"
   },
@@ -28,8 +32,11 @@
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/multer": "^2.2.0",
     "@types/node": "^26.4.0",
+    "@types/nodemailer": "^8.0.2",
     "@types/pg": "^8.23.1",
+    "@vitest/coverage-v8": "^4.1.11",
     "tsx": "^4.23.12",
     "typescript": "^7.0.2",
     "vitest": "^4.1.11"

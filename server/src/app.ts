@@ -6,7 +6,13 @@ import helmet from "helmet";
 
 import { env } from "./config/env.ts";
 import { pool } from "./db/pool.ts";
-import { errorHandler, notFoundHandler } from "./middleware/errors.ts";
+import { errorHandler, forbidden, notFoundHandler } from "./middleware/errors.ts";
+import { accountRoutes } from "./routes/accounts.ts";
+import { auditRoutes } from "./routes/audit.ts";
+import { authRoutes } from "./routes/auth.ts";
+import { assessmentRoutes } from "./routes/assessments.ts";
+import { classRoutes } from "./routes/classes.ts";
+import { studentRoutes } from "./routes/student.ts";
 
 export function createApp() {
   const app = express();
@@ -27,7 +33,9 @@ export function createApp() {
           callback(null, true);
           return;
         }
-        callback(new Error(`Origin ${origin} is not allowed to call this API.`));
+        // A 403 the caller can understand, not a 500: a deployment that forgot
+        // to list its public URL should say so plainly (CI-06).
+        callback(forbidden(`Origin ${origin} is not allowed to call this API.`));
       },
       credentials: true,
     }),
@@ -57,6 +65,16 @@ export function createApp() {
       res.status(503).json({ status: "degraded", database: "down" });
     }
   });
+
+  // Everything the browser calls sits under /api, so a single dev-server proxy
+  // rule can put the web app and this API on one origin - which is what CI-09
+  // describes in production, and what keeps the session cookie same-site.
+  app.use("/api/auth", authRoutes);
+  app.use("/api/classes", classRoutes);
+  app.use("/api/assessments", assessmentRoutes);
+  app.use("/api/student", studentRoutes);
+  app.use("/api/audit", auditRoutes);
+  app.use("/api/accounts", accountRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

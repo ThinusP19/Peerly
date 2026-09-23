@@ -62,6 +62,19 @@ const schema = z
     MAIL_REPLY_TO: optional,
   })
   .superRefine((value, ctx) => {
+    // SR-14: the "log" transport prints activation links and verification codes
+    // in full. That is exactly what makes it useful in development and exactly
+    // what must never reach a production log, so the two are kept apart here
+    // rather than by remembering to change it at deploy time.
+    if (value.NODE_ENV === "production" && value.MAIL_TRANSPORT !== "smtp") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["MAIL_TRANSPORT"],
+        message:
+          'MAIL_TRANSPORT must be "smtp" in production: the "log" transport writes tokens to the console.',
+      });
+    }
+
     if (value.MAIL_TRANSPORT !== "smtp") return;
     for (const key of requiredForSmtp) {
       if (!value[key]) {
