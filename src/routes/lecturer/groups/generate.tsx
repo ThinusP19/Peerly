@@ -21,11 +21,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useClassRoster, useLecturerClasses } from "@/hooks/use-lecturer-context";
 import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
-import { classes, enrolments, users } from "@/mocks/data";
+
 import type { Group } from "@/mocks/types";
-import { confirmGroups, getAssessments, getSubmissions, proposeGroups } from "@/services/peerly";
+import {
+  confirmGroups,
+  getAssessments,
+  getEnrolmentRows,
+  getSubmissions,
+  proposeGroups,
+} from "@/services/peerly";
 
 export const Route = createFileRoute("/lecturer/groups/generate")({
   component: GenerateGroupsPage,
@@ -37,11 +44,17 @@ function GenerateGroupsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { activeClassId } = useSession();
-  const klass = classes.find((c) => c.id === activeClassId);
+  const klass = (useLecturerClasses().data ?? []).find((c) => c.id === activeClassId);
+  const { byId: roster } = useClassRoster(activeClassId);
 
-  const eligible = enrolments.filter(
-    (e) => e.classId === activeClassId && e.matchStatus === "matched",
-  ).length;
+  // Only matched enrolments can be allocated: an unmatched or conflicting row
+  // has no account behind it, so there is nobody to put in a group. The server
+  // applies the same rule when it proposes an allocation.
+  const enrolmentRows = useQuery({
+    queryKey: ["enrolment-rows", activeClassId],
+    queryFn: () => getEnrolmentRows(activeClassId),
+  });
+  const eligible = (enrolmentRows.data ?? []).filter((row) => row.matchStatus === "matched").length;
 
   // The same lock as the Groups page: once students have started rating in an
   // open assessment, regrouping would orphan ratings that already exist. This
@@ -336,7 +349,7 @@ function GenerateGroupsPage() {
 
                   <ul className="flex-1 divide-y">
                     {group.memberStudentIds.map((studentId) => {
-                      const member = users.find((u) => u.id === studentId);
+                      const member = roster.get(studentId);
                       return (
                         <li key={studentId} className="space-y-1.5 px-5 py-2.5 sm:px-6">
                           <p className="text-sm break-words text-foreground">

@@ -23,13 +23,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useLecturerClasses } from "@/hooks/use-lecturer-context";
 import { useSession } from "@/lib/session";
-import { allGroups, assessments, classes } from "@/mocks/data";
+
 import type { MatchStatus } from "@/mocks/types";
 import {
   deleteClass,
+  getClassDeletionImpact,
   getEnrolmentRows,
-  hasUnexportedClassData,
+  getAssessments,
+  getGroups,
   type EnrolmentRow,
 } from "@/services/peerly";
 
@@ -41,7 +44,16 @@ function ClassListPage() {
   const { user, activeClassId, setActiveClassId, setActiveAssessmentId } = useSession();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const klass = classes.find((c) => c.id === activeClassId);
+  const lecturerClasses = useLecturerClasses().data ?? [];
+  const groupsQuery = useQuery({
+    queryKey: ["groups", activeClassId],
+    queryFn: () => getGroups(activeClassId),
+  });
+  const assessmentsQuery = useQuery({
+    queryKey: ["assessments", activeClassId],
+    queryFn: () => getAssessments(activeClassId),
+  });
+  const klass = lecturerClasses.find((c) => c.id === activeClassId);
 
   const rows = useQuery({
     queryKey: ["enrolment-rows", activeClassId],
@@ -138,9 +150,14 @@ function ClassListPage() {
 
   const filtersApplied = Boolean(search.trim()) || status !== "all";
 
-  const classGroups = klass ? allGroups.filter((g) => g.classId === klass.id).length : 0;
-  const classAssessments = klass ? assessments.filter((a) => a.classId === klass.id).length : 0;
-  const unexported = klass ? hasUnexportedClassData(klass.id) : false;
+  const classGroups = groupsQuery.data?.length ?? 0;
+  const classAssessments = assessmentsQuery.data?.length ?? 0;
+  const impactQuery = useQuery({
+    queryKey: ["class-impact", klass?.id],
+    queryFn: () => getClassDeletionImpact(klass!.id),
+    enabled: Boolean(klass),
+  });
+  const unexported = (impactQuery.data?.unexportedAssessments.length ?? 0) > 0;
 
   return (
     <>
@@ -364,10 +381,10 @@ function ClassListPage() {
             if (!user) return;
             const deleted = klass;
             await deleteClass(deleted.id, user);
-            const next = classes.find((c) => c.lecturerId === user.id);
+            const next = lecturerClasses.find((c) => c.lecturerId === user.id);
             if (next) {
               setActiveClassId(next.id);
-              const firstAssessment = assessments.find((a) => a.classId === next.id);
+              const [firstAssessment] = await getAssessments(next.id);
               if (firstAssessment) setActiveAssessmentId(firstAssessment.id);
             }
             navigate({ to: "/lecturer" });

@@ -1,31 +1,19 @@
 /**
- * Mock "API" layer.
+ * The API layer.
  *
- * Every function here is async and artificially delayed so loading and skeleton
- * states are visible. To move to the real Node.js/Express backend, replace the
- * bodies with `fetch()` calls - the signatures and return types stay the same.
+ * Every function here now calls the Express API over HTTP. The signatures are
+ * unchanged from the mock versions they replaced, which is what the file was
+ * shaped for: a screen never knew whether its data crossed a network.
+ *
+ * Access is not decided here and never was. Every endpoint re-checks on the
+ * server who is asking and whether the thing is theirs (FR-07, SR-07), so a
+ * caller that forgets to filter gets a 404 rather than somebody else's class.
+ *
  */
-import { passwordChecks } from "@/lib/password";
-import {
-  allGroups,
-  assessments,
-  auditEntries,
-  calculatedResults,
-  classes,
-  enrolments,
-  groupMarks,
-  groups,
-  importPreviewRows,
-  peerRatings,
-  ratingOptions,
-  secondClassGroups,
-  staffUsers,
-  studentUsers,
-  submissions,
-  users,
-} from "@/mocks/data";
+import { ApiError, get, post, request, type ApiErrorBody } from "@/lib/api";
 import type {
   Assessment,
+  MarkOverride,
   AuditEntry,
   AuditEventType,
   CalculatedResult,
@@ -41,258 +29,551 @@ import type {
   User,
 } from "@/mocks/types";
 
-export const NETWORK_DELAY = 550;
+/* ------------------------------- reads ------------------------------- *
+ *
+ * These now call the API. The signatures are unchanged from the mock versions
+ * they replaced, which is what the whole file was shaped for: a screen does not
+ * know or care that its data crossed a network.
+ *
+ * Access is not decided here. Every one of these endpoints re-checks on the
+ * server who is asking and whether the thing is theirs (FR-07, SR-07), so a
+ * caller that omits a filter gets a 404, not somebody else's class.
+ */
 
-export function delay<T>(value: T, ms = NETWORK_DELAY): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(value), ms));
-}
+/**
+ * An id that has not been chosen yet.
+ *
+ * "Nothing selected" is a real state - a lecturer with no assessments, a
+ * screen rendering before its context resolved - and it is not an error. It
+ * used to become `/api/assessments//results`, which is a 404 and looks like a
+ * fault. These helpers let a read answer emptily instead of asking.
+ */
+const unset = (id: string | undefined): id is undefined | "" => !id;
 
-/* ------------------------------- reads ------------------------------- */
-export const getClasses = (lecturerId?: string): Promise<Class[]> =>
-  delay(lecturerId ? classes.filter((c) => c.lecturerId === lecturerId) : classes);
-
-export const getClass = (classId: string): Promise<Class | null> =>
-  delay(classes.find((c) => c.id === classId) ?? null);
-
-export const getEnrolments = (classId: string): Promise<Enrolment[]> =>
-  delay(enrolments.filter((e) => e.classId === classId));
-
-export const getGroups = (classId: string): Promise<Group[]> =>
-  delay(allGroups.filter((g) => g.classId === classId));
-
-export const getAssessments = (classId?: string): Promise<Assessment[]> =>
-  delay(classId ? assessments.filter((a) => a.classId === classId) : assessments);
-
-export const getAssessment = (assessmentId: string): Promise<Assessment | null> =>
-  delay(assessments.find((a) => a.id === assessmentId) ?? null);
-
-export const getRatingOptions = (): Promise<RatingOption[]> => delay(ratingOptions, 200);
-
-export const getSubmissions = (assessmentId: string): Promise<Submission[]> =>
-  delay(submissions.filter((s) => s.assessmentId === assessmentId));
-
-export const getPeerRatings = (assessmentId: string): Promise<PeerRating[]> => {
-  const ids = new Set(submissions.filter((s) => s.assessmentId === assessmentId).map((s) => s.id));
-  return delay(peerRatings.filter((r) => ids.has(r.submissionId)));
+/**
+ * The lecturer's classes.
+ *
+ * `lecturerId` is ignored: the server scopes to the signed-in account, and
+ * passing an id that the server does not honour would be an invitation to
+ * believe it did. Kept in the signature so the callers need not all change at
+ * once, and removed when they have.
+ */
+export const getClasses = async (_lecturerId?: string): Promise<Class[]> => {
+  const { classes } = await get<{ classes: Array<{ klass: Class }> }>("/api/classes");
+  return classes.map((entry) => entry.klass);
 };
 
-export const getGroupMarks = (assessmentId: string): Promise<GroupMark[]> =>
-  delay(groupMarks.filter((m) => m.assessmentId === assessmentId));
+export const getClass = async (classId: string): Promise<Class | null> => {
+  if (unset(classId)) return null;
+  try {
+    const { klass } = await get<{ klass: Class }>(`/api/classes/${classId}`);
+    return klass;
+  } catch (error) {
+    // SR-07 refuses "not yours" and "does not exist" identically, so both
+    // arrive here as a 404 and both mean the same thing to a screen: nothing
+    // to show.
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
+};
 
-export const getResults = (assessmentId: string): Promise<CalculatedResult[]> =>
-  delay(calculatedResults.filter((r) => r.assessmentId === assessmentId));
+export const getEnrolments = async (classId: string): Promise<Enrolment[]> =>
+  unset(classId)
+    ? []
+    : (await get<{ enrolments: EnrolmentRow[] }>(`/api/classes/${classId}/enrolments`)).enrolments;
 
-export const getAuditEntries = (): Promise<AuditEntry[]> =>
-  delay([...auditEntries].sort((a, b) => b.timestamp.localeCompare(a.timestamp)));
+/**
+ * Everyone in a class's groups, so a screen can put a name to a student id.
+ *
+ * Lecturer-only, and it carries the e-mail because FR-18 asks the lecturer to
+ * chase outstanding submissions - a name alone is not something you can contact.
+ */
+export const getClassRoster = async (classId: string): Promise<User[]> =>
+  unset(classId)
+    ? []
+    : (await get<{ students: User[] }>(`/api/classes/${classId}/roster`)).students;
 
-export const getStaffAccounts = (): Promise<User[]> => delay(staffUsers);
+export const getGroups = async (classId: string): Promise<Group[]> =>
+  unset(classId) ? [] : (await get<{ groups: Group[] }>(`/api/classes/${classId}/groups`)).groups;
 
-export const getStudents = (): Promise<User[]> => delay(studentUsers);
+export const getAssessments = async (classId?: string): Promise<Assessment[]> => {
+  if (!classId) return [];
+  const rows = await getAssessmentRows(classId);
+  return rows.map((row) => row.assessment);
+};
 
-export const getUsers = (): Promise<User[]> => delay(users);
+export const getAssessment = async (assessmentId: string): Promise<Assessment | null> => {
+  if (unset(assessmentId)) return null;
+  try {
+    const { assessment } = await get<{ assessment: Assessment }>(
+      `/api/assessments/${assessmentId}`,
+    );
+    return assessment;
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
+};
 
-export const getImportPreview = () => delay(importPreviewRows, 900);
+export const getRatingOptions = async (): Promise<RatingOption[]> =>
+  (await get<{ options: RatingOption[] }>("/api/assessments/rating-options")).options;
+
+export const getSubmissions = async (assessmentId: string): Promise<Submission[]> =>
+  unset(assessmentId)
+    ? []
+    : (await get<{ submissions: Submission[] }>(`/api/assessments/${assessmentId}/submissions`))
+        .submissions;
+
+export const getPeerRatings = async (assessmentId: string): Promise<PeerRating[]> =>
+  unset(assessmentId)
+    ? []
+    : (await get<{ ratings: PeerRating[] }>(`/api/assessments/${assessmentId}/ratings`)).ratings;
+
+export const getGroupMarks = async (assessmentId: string): Promise<GroupMark[]> =>
+  unset(assessmentId)
+    ? []
+    : (await get<{ marks: GroupMark[] }>(`/api/assessments/${assessmentId}/marks`)).marks;
+
+export const getResults = async (assessmentId: string): Promise<CalculatedResult[]> =>
+  (await getResultRows(assessmentId)).map((row) => row.result);
+
+/**
+ * The audit log (FR-27).
+ *
+ * Scoping is the server's: a lecturer is given their own classes' entries, an
+ * administrator the whole trail. Nothing is filtered here, because a filter
+ * applied in the browser is a filter that was already sent to the browser.
+ */
+export const getAuditEntries = async (): Promise<AuditEntry[]> =>
+  (await get<{ entries: AuditEntry[] }>("/api/audit")).entries;
+
+export const getStaffAccounts = async (): Promise<User[]> =>
+  (await get<{ accounts: User[] }>("/api/accounts")).accounts;
+
+/* ------------------------------ class list import ------------------------ *
+ *
+ * Three steps, each sending the file itself. The file is never held on the
+ * server between them: SR-10 says an upload is not retained, so the browser
+ * keeps the only copy and hands it over each time it needs an answer about it.
+ * ------------------------------------------------------------------------- */
+
+export interface ImportRow {
+  rowNumber: number;
+  studentNumber: string;
+  name: string;
+  surname: string;
+  email: string;
+  errors: Array<{ field: string; reason: string }>;
+}
+
+export interface ColumnMapping {
+  studentNumber: string;
+  name: string;
+  surname: string;
+  email?: string;
+}
+
+export interface FileInspection {
+  headers: string[];
+  rowCount: number;
+  /** What the server thinks each column is, for the lecturer to confirm (FR-08). */
+  suggested: Partial<ColumnMapping>;
+  sample: string[][];
+}
+
+/** Sends the file and reports its columns, before any mapping is chosen. */
+export const inspectClassList = async (classId: string, file: File): Promise<FileInspection> => {
+  const body = new FormData();
+  body.append("file", file);
+  return uploadJson<FileInspection>(`/api/classes/${classId}/import/inspect`, body);
+};
+
+export interface ImportPreview {
+  rows: ImportRow[];
+  validCount: number;
+  errorCount: number;
+  duplicatesInFile: number;
+  totalRows: number;
+}
+
+/**
+ * The validation preview (FR-09).
+ *
+ * The server returns the good rows and the bad ones separately; the screen
+ * shows one list in file order, so they are merged back here rather than in the
+ * API - the API's shape is the one the commit uses, and they should not drift.
+ */
+export const previewClassList = async (
+  classId: string,
+  file: File,
+  mapping: ColumnMapping,
+): Promise<ImportPreview> => {
+  const body = new FormData();
+  body.append("file", file);
+  body.append("mapping", JSON.stringify(mapping));
+
+  const preview = await uploadJson<{
+    preview: {
+      valid: Array<{
+        row: number;
+        studentNumber: string;
+        name: string;
+        surname: string;
+        email?: string;
+      }>;
+      errors: Array<{ row: number; field: string; message: string }>;
+      duplicatesInFile: number;
+      totalRows: number;
+    };
+  }>(`/api/classes/${classId}/import/preview`, body);
+
+  const { valid, errors } = preview.preview;
+  const rows: ImportRow[] = [
+    ...valid.map((row) => ({
+      rowNumber: row.row,
+      studentNumber: row.studentNumber,
+      name: row.name,
+      surname: row.surname,
+      email: row.email ?? "",
+      errors: [],
+    })),
+    ...errors.map((error) => ({
+      rowNumber: error.row,
+      studentNumber: "",
+      name: "",
+      surname: "",
+      email: "",
+      errors: [{ field: error.field, reason: error.message }],
+    })),
+  ].sort((a, b) => a.rowNumber - b.rowNumber);
+
+  return {
+    rows,
+    validCount: valid.length,
+    errorCount: errors.length,
+    duplicatesInFile: preview.preview.duplicatesInFile,
+    totalRows: preview.preview.totalRows,
+  };
+};
+
+export interface ImportResult {
+  imported: number;
+  updated: number;
+  removed: number;
+  matched: number;
+  unmatched: number;
+}
+
+/** Commits the list and runs the class-list match (FR-04, FR-09). */
+export const commitClassList = async (
+  classId: string,
+  file: File,
+  mapping: ColumnMapping,
+  mode: "extend" | "replace" = "extend",
+): Promise<ImportResult> => {
+  const body = new FormData();
+  body.append("file", file);
+  body.append("mapping", JSON.stringify(mapping));
+  body.append("mode", mode);
+
+  return (await uploadJson<{ result: ImportResult }>(`/api/classes/${classId}/import/commit`, body))
+    .result;
+};
+
+/**
+ * Posts multipart and returns JSON.
+ *
+ * Separate from `request` because the body is FormData: setting a content-type
+ * header here would omit the multipart boundary the browser generates, and the
+ * server would refuse a body it could not split.
+ */
+async function uploadJson<T>(path: string, body: FormData): Promise<T> {
+  const response = await fetch(path, { method: "POST", credentials: "include", body });
+  const payload: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const error = (payload as { error?: ApiErrorBody } | null)?.error;
+    throw new ApiError(
+      response.status,
+      error ?? { code: "error", message: "We couldn't read that file." },
+    );
+  }
+  return payload as T;
+}
 
 /* ------------------------------- writes ------------------------------ *
  * Prototype writes mutate the in-memory mock arrays only.
  * ------------------------------------------------------------------- */
-export const setStaffAccountStatus = (userId: string, status: User["status"]) => {
-  const account = staffUsers.find((u) => u.id === userId);
-  if (account) account.status = status;
-  return delay(account);
-};
+/**
+ * Activates or deactivates a staff account (FR-01).
+ *
+ * Deactivating ends every session the account holds, server-side, so access
+ * stops now rather than whenever the token would have expired (SR-05).
+ */
+export const setStaffAccountStatus = async (userId: string, status: User["status"]) =>
+  (await post<{ account: User }>(`/api/accounts/${userId}/status`, { status })).account;
 
-export const createStaffAccount = (input: Omit<User, "id" | "createdAt" | "status">) => {
-  const account: User = {
-    ...input,
-    id: `u-${Math.random().toString(36).slice(2, 8)}`,
-    status: "unverified",
-    createdAt: new Date().toISOString(),
-  };
-  // Keep the combined list in step too, as registerAccount does - activation and
-  // sign-in look accounts up there.
-  staffUsers.push(account);
-  users.push(account);
-  return delay(account);
-};
+/**
+ * Creates a staff account and emails its activation link (FR-01, FR-03).
+ *
+ * No password is set here or anywhere else by the administrator - the holder
+ * chooses one from the emailed link, so nobody else ever knows it.
+ */
+export const createStaffAccount = async (input: Omit<User, "id" | "createdAt" | "status">) =>
+  (
+    await post<{ account: User }>("/api/accounts", {
+      role: input.role,
+      name: input.name,
+      surname: input.surname,
+      email: input.email,
+    })
+  ).account;
 
-export const setGroupBaseMark = (
-  assessmentId: string,
-  groupId: string,
-  baseMark: number | null,
-) => {
-  const mark = groupMarks.find((m) => m.assessmentId === assessmentId && m.groupId === groupId);
-  if (mark) mark.baseMark = baseMark;
-  return delay(mark, 350);
-};
+/**
+ * Records a group's base mark (FR-21).
+ *
+ * Null clears it, and null is not zero: zero is a mark the group earned, and
+ * null is one the lecturer has not entered yet.
+ */
+export const setGroupBaseMark = (assessmentId: string, groupId: string, baseMark: number | null) =>
+  request<{ ok: true }>(`/api/assessments/${assessmentId}/marks/${groupId}`, {
+    method: "PUT",
+    body: { baseMark },
+  });
 
-export const setAssessmentStatus = (assessmentId: string, status: Assessment["status"]) => {
-  const assessment = assessments.find((a) => a.id === assessmentId);
-  if (assessment) assessment.status = status;
-  return delay(assessment);
-};
+/**
+ * Activates, closes or re-opens an assessment (FR-13).
+ *
+ * Named transitions rather than a target status, because "open" means two
+ * different things - activating a draft, and re-opening something that already
+ * ran - and only one of them can invalidate a calculation. The server decides
+ * which moves are legal; these just say which one was asked for.
+ *
+ * `invalidatedCalculation` comes back true when re-opening has discarded
+ * results, so the screen can say so rather than leaving stale marks on display.
+ */
+interface StatusChange {
+  assessment: Assessment;
+  invalidatedCalculation: boolean;
+}
 
-export const overrideMark = (
+const changeStatus = (assessmentId: string, transition: "open" | "close" | "reopen") =>
+  post<StatusChange>(`/api/assessments/${assessmentId}/status`, { transition });
+
+export const activateAssessment = (assessmentId: string) => changeStatus(assessmentId, "open");
+export const closeAssessment = (assessmentId: string) => changeStatus(assessmentId, "close");
+export const reopenAssessment = (assessmentId: string) => changeStatus(assessmentId, "reopen");
+
+/**
+ * Overrides a calculated mark (FR-24, BR-08).
+ *
+ * The calculated mark is kept alongside, never replaced, so the two can be
+ * shown together and the difference accounted for. The reason is mandatory
+ * server-side and in the database.
+ */
+export const overrideMark = async (
   assessmentId: string,
   studentId: string,
   mark: number,
   reason: string,
-  by: string,
-) => {
-  const result = calculatedResults.find(
-    (r) => r.assessmentId === assessmentId && r.studentId === studentId,
-  );
-  if (result) {
-    result.override = { mark, reason, by, at: new Date().toISOString() };
-  }
-  return delay(result);
+  _by: string,
+): Promise<void> => {
+  await post(`/api/assessments/${assessmentId}/override`, { studentId, mark, reason });
 };
 
-export const calculateMarks = (assessmentId: string) =>
-  delay(
-    { assessmentId, calculationRunId: `run-${new Date().toISOString().slice(0, 10)}-02` },
-    1200,
-  );
+/**
+ * Runs the Felder calculation (FR-22).
+ *
+ * Refuses unless every participating group has a base mark - a factor with
+ * nothing to multiply is not a mark.
+ */
+export const calculateMarks = async (
+  assessmentId: string,
+  /** Required by the server once overrides exist (FR-24): none is dropped silently. */
+  overrides?: "keep" | "withdraw",
+) => {
+  const { run } = await post<{
+    run: { runId: string; calculatedAt: string; students: number; flagged: number };
+  }>(`/api/assessments/${assessmentId}/calculate`, overrides ? { overrides } : undefined);
+  return { assessmentId, calculationRunId: run.runId, ...run };
+};
 
 /* Groups helpers used by generation/review screens. */
-export const proposeGroups = (
+/**
+ * Proposes an allocation (FR-10). Writes nothing, so it can be re-drawn freely.
+ *
+ * The server allocates round-robin and deterministically, so asking twice with
+ * the same numbers gives the same answer - a re-draw is a choice, not a shuffle.
+ */
+export const proposeGroups = async (
   classId: string,
   mode: "count" | "size",
   value: number,
 ): Promise<Group[]> => {
-  const memberIds = enrolments
-    .filter((e) => e.classId === classId && e.matchStatus === "matched")
-    .map((e) => e.userId!);
-  const groupCount =
-    mode === "count"
-      ? Math.max(1, value)
-      : Math.max(1, Math.ceil(memberIds.length / Math.max(1, value)));
-  const proposed: Group[] = Array.from({ length: groupCount }, (_, i) => ({
-    id: `proposed-${i + 1}`,
+  const proposal = await post<{
+    groups: Array<{ groupNumber: number; memberStudentIds: string[] }>;
+    warnings: string[];
+    eligibleCount: number;
+  }>(`/api/classes/${classId}/groups/propose`, { mode, value });
+
+  // A proposal has no ids yet - nothing has been created. The placeholder keeps
+  // the shape the review screen expects until confirmation assigns real ones.
+  return proposal.groups.map((group) => ({
+    id: `proposed-${group.groupNumber}`,
     classId,
-    groupNumber: i + 1,
-    memberStudentIds: [],
+    groupNumber: group.groupNumber,
+    memberStudentIds: group.memberStudentIds,
   }));
-  memberIds.forEach((id, index) => {
-    proposed[index % groupCount].memberStudentIds.push(id);
-  });
-  return delay(proposed, 900);
 };
 
-export const confirmedGroups = (classId: string) => groups.filter((g) => g.classId === classId);
-
-export const updateStaffAccount = (
+export const updateStaffAccount = async (
   userId: string,
   changes: Pick<User, "name" | "surname" | "email" | "role">,
-) => {
-  const account = staffUsers.find((u) => u.id === userId);
-  if (account) Object.assign(account, changes);
-  return delay(account, 450);
-};
+) =>
+  (
+    await request<{ account: User }>(`/api/accounts/${userId}`, {
+      method: "PATCH",
+      body: changes,
+    })
+  ).account;
 
 /** An institution must always keep at least one administrator who can sign in. */
-export const activeAdminCount = () =>
-  staffUsers.filter((u) => u.role === "admin" && u.status === "active").length;
+/**
+ * How many administrators in a loaded list could still sign in.
+ *
+ * A pure count over what the screen already has, rather than a request: it is
+ * only there to explain why a control is disabled. The server refuses to
+ * deactivate or demote the last administrator whatever the browser believes.
+ */
+export const activeAdminCount = (accounts: User[]) =>
+  accounts.filter((u) => u.role === "admin" && u.status === "active").length;
 
 /**
  * Records a student's evaluation against the in-memory mock data so the
  * lecturer-facing screens reflect it in the same session. A real backend would
  * POST the ratings and return the persisted submission.
  */
-export const submitEvaluation = (
+/**
+ * Submits a completed evaluation (FR-16).
+ *
+ * `evaluatorStudentId` is ignored: the endpoint records the evaluation against
+ * the signed-in student and nobody else, so passing someone else's id here
+ * cannot rate on their behalf. Kept in the signature so the calling screens did
+ * not all have to change at once.
+ *
+ * The API refuses an incomplete submission and names who is unrated in
+ * `fields.missing`, which the review screen already knows how to show.
+ */
+export const submitEvaluation = async (
   assessmentId: string,
-  evaluatorStudentId: string,
+  _evaluatorStudentId: string,
   entries: Array<{ evaluatedStudentId: string; ratingOptionId: string; comment?: string }>,
 ) => {
-  const submissionId = `sub-${assessmentId}-${evaluatorStudentId}`;
-  const now = new Date().toISOString();
+  const { submission } = await post<{
+    submission: { id: string; submittedAt: string; ratingCount: number };
+  }>(`/api/student/evaluations/${assessmentId}/submit`, { entries });
 
-  const existing = submissions.find(
-    (s) => s.assessmentId === assessmentId && s.evaluatorStudentId === evaluatorStudentId,
-  );
+  return { submissionId: submission.id, submittedAt: submission.submittedAt };
+};
 
-  if (existing) {
-    existing.status = "submitted";
-    existing.submittedAt = now;
-    existing.updatedAt = now;
-  } else {
-    submissions.push({
-      id: submissionId,
-      assessmentId,
-      evaluatorStudentId,
-      status: "submitted",
-      submittedAt: now,
-      updatedAt: now,
+/**
+ * The student's own evaluation as the server holds it: whether it was
+ * submitted, and every rating they have saved or submitted (CI-10).
+ */
+export const getMyEvaluation = (assessmentId: string) =>
+  get<{
+    context: {
+      status: "draft" | "open" | "closed";
+      submission?: { id: string; status: "draft" | "submitted"; submittedAt?: string };
+    };
+    entries: Array<{ evaluatedStudentId: string; ratingOptionId: string; comment?: string }>;
+  }>(`/api/student/evaluations/${assessmentId}`);
+
+/**
+ * Autosaves work in progress (CI-10).
+ *
+ * Partial by design, and quiet by design: a failed autosave must not interrupt
+ * someone mid-form, and the local draft in `lib/evaluation-draft.ts` still holds
+ * everything they typed. Returns whether it reached the server so a caller can
+ * show a "saved" marker honestly.
+ */
+export const saveEvaluationDraft = async (
+  assessmentId: string,
+  entries: Array<{ evaluatedStudentId: string; ratingOptionId: string; comment?: string }>,
+): Promise<boolean> => {
+  try {
+    await request(`/api/student/evaluations/${assessmentId}/draft`, {
+      method: "PUT",
+      body: { entries },
     });
+    return true;
+  } catch {
+    return false;
   }
-
-  const id = existing?.id ?? submissionId;
-  for (let i = peerRatings.length - 1; i >= 0; i -= 1) {
-    if (peerRatings[i].submissionId === id) peerRatings.splice(i, 1);
-  }
-  entries.forEach((entry) => peerRatings.push({ submissionId: id, ...entry }));
-
-  return delay({ submissionId: id, submittedAt: now }, 900);
 };
 
 /* --------------------------- student portal -------------------------- */
+
+/**
+ * A peer, as a student may see them.
+ *
+ * Three fields, and deliberately not a `User`: a student needs to know who to
+ * rate, not their classmates' e-mail addresses or account status. SR-08 is
+ * about what reaches the browser, so the narrow shape is the server's, and
+ * this type only describes it honestly.
+ */
+export interface StudentPeer {
+  id: string;
+  name: string;
+  surname: string;
+}
 
 export interface StudentAssessmentView {
   assessment: Assessment;
   klass: Class;
   group: Group;
-  /** Everyone in the group except the student themselves. */
-  members: User[];
+  /** Everyone in the group except the student themselves (BR-02). */
+  members: StudentPeer[];
   submission?: Submission;
 }
 
 /** The enrolment row a student maps to, matched on student number. */
-export const getStudentEnrolment = (studentId: string): Promise<Enrolment | null> => {
-  const student = users.find((u) => u.id === studentId);
-  return delay(
-    (student?.studentNumber
-      ? enrolments.find((e) => e.studentNumber === student.studentNumber)
-      : undefined) ?? null,
+export const getStudentEnrolment = async (_studentId: string): Promise<Enrolment | null> => {
+  // No id crosses the wire: the endpoint answers for the signed-in student and
+  // nobody else, so there is no parameter to tamper with (SR-07).
+  const { enrolment } = await get<{ enrolment: StudentEnrolmentReply | null }>(
+    "/api/student/enrolment",
   );
+  if (!enrolment) return null;
+
+  return {
+    id: enrolment.id,
+    classId: enrolment.classId,
+    studentNumber: enrolment.studentNumber,
+    importedName: "",
+    importedSurname: "",
+    matchStatus: enrolment.matchStatus,
+    ...(enrolment.matchNote ? { matchNote: enrolment.matchNote } : {}),
+  };
 };
 
-/** Every assessment a student can see, with the group context they need. */
-export const getStudentAssessments = (studentId: string): Promise<StudentAssessmentView[]> => {
-  const memberGroups = allGroups.filter((g) => g.memberStudentIds.includes(studentId));
-
-  const views = assessments
-    .flatMap((assessment) => {
-      const group = memberGroups.find((g) => assessment.groupIds.includes(g.id));
-      const klass = classes.find((c) => c.id === assessment.classId);
-      if (!group || !klass) return [];
-      return [
-        {
-          assessment,
-          klass,
-          group,
-          members: group.memberStudentIds
-            .filter((id) => id !== studentId)
-            .map((id) => users.find((u) => u.id === id))
-            .filter((u): u is User => Boolean(u)),
-          submission: submissions.find(
-            (s) => s.assessmentId === assessment.id && s.evaluatorStudentId === studentId,
-          ),
-        },
-      ];
-    })
-    .sort((a, b) => {
-      // Open assessments first, then drafts by opening date, then closed.
-      const rank = (status: Assessment["status"]) =>
-        status === "open" ? 0 : status === "draft" ? 1 : 2;
-      return (
-        rank(a.assessment.status) - rank(b.assessment.status) ||
-        a.assessment.closesAt.localeCompare(b.assessment.closesAt)
-      );
-    });
-
-  return delay(views);
+interface StudentEnrolmentReply {
+  id: string;
+  classId: string;
+  moduleCode: string;
+  className: string;
+  studentNumber: string;
+  matchStatus: Enrolment["matchStatus"];
+  matchNote?: string;
+}
+export const getStudentAssessments = async (
+  _studentId: string,
+): Promise<StudentAssessmentView[]> => {
+  const { assessments: views } = await get<{ assessments: StudentAssessmentView[] }>(
+    "/api/student/assessments",
+  );
+  return views;
 };
-
 export const getStudentAssessment = (
   studentId: string,
   assessmentId: string,
@@ -315,59 +596,17 @@ export interface ClassSummary {
 }
 
 /** Everything the lecturer dashboard shows on each class card. */
-export const getClassSummaries = (lecturerId: string): Promise<ClassSummary[]> => {
-  const owned = classes.filter((c) => c.lecturerId === lecturerId);
-
-  return delay(
-    owned.map((klass) => {
-      const classEnrolments = enrolments.filter((e) => e.classId === klass.id);
-      const classGroups = allGroups.filter((g) => g.classId === klass.id);
-      const classAssessments = assessments.filter((a) => a.classId === klass.id);
-
-      // A class list has been imported for cls-1 only; other classes fall back
-      // to counting distinct students across their confirmed groups.
-      const studentCount = classEnrolments.length
-        ? classEnrolments.length
-        : new Set(classGroups.flatMap((g) => g.memberStudentIds)).size;
-
-      return {
-        klass,
-        studentCount,
-        matchedCount: classEnrolments.filter((e) => e.matchStatus === "matched").length,
-        unmatchedCount: classEnrolments.filter((e) => e.matchStatus === "unmatched").length,
-        conflictCount: classEnrolments.filter((e) => e.matchStatus === "conflict").length,
-        groupCount: classGroups.length,
-        assessmentCount: classAssessments.length,
-        activeAssessment:
-          classAssessments.find((a) => a.status === "open") ??
-          classAssessments.find((a) => a.status === "draft"),
-      };
-    }),
-  );
-};
-
-/** Enrolments joined to the account they matched to, for the class list screen. */
+export const getClassSummaries = async (_lecturerId: string): Promise<ClassSummary[]> =>
+  (await get<{ classes: ClassSummary[] }>("/api/classes")).classes;
 export interface EnrolmentRow extends Enrolment {
   account?: User;
   groupNumber?: number;
 }
 
-export const getEnrolmentRows = (classId: string): Promise<EnrolmentRow[]> =>
-  delay(
-    enrolments
-      .filter((e) => e.classId === classId)
-      .map((enrolment) => {
-        const account = enrolment.userId
-          ? users.find((u) => u.id === enrolment.userId)
-          : users.find((u) => u.studentNumber === enrolment.studentNumber);
-        const group = account
-          ? allGroups.find((g) => g.classId === classId && g.memberStudentIds.includes(account.id))
-          : undefined;
-        return { ...enrolment, account, groupNumber: group?.groupNumber };
-      }),
-  );
-
-/** Submission monitor: per-group breakdown plus who is still outstanding. */
+export const getEnrolmentRows = async (classId: string): Promise<EnrolmentRow[]> =>
+  unset(classId)
+    ? []
+    : (await get<{ enrolments: EnrolmentRow[] }>(`/api/classes/${classId}/enrolments`)).enrolments;
 export interface GroupProgressRow {
   group: Group;
   members: User[];
@@ -376,81 +615,61 @@ export interface GroupProgressRow {
   outstanding: User[];
 }
 
-export const getGroupProgress = (assessmentId: string): Promise<GroupProgressRow[]> => {
-  const assessment = assessments.find((a) => a.id === assessmentId);
-  if (!assessment) return delay([]);
-
-  const assessmentSubmissions = submissions.filter((s) => s.assessmentId === assessmentId);
-
-  return delay(
-    allGroups
-      .filter((g) => assessment.groupIds.includes(g.id))
-      .map((group) => {
-        const members = group.memberStudentIds
-          .map((id) => users.find((u) => u.id === id))
-          .filter((u): u is User => Boolean(u));
-
-        const submittedIds = members
-          .filter((m) =>
-            assessmentSubmissions.some(
-              (s) => s.evaluatorStudentId === m.id && s.status === "submitted",
-            ),
-          )
-          .map((m) => m.id);
-
-        const draftIds = members
-          .filter((m) =>
-            assessmentSubmissions.some(
-              (s) => s.evaluatorStudentId === m.id && s.status === "draft",
-            ),
-          )
-          .map((m) => m.id);
-
-        return {
-          group,
-          members,
-          submittedIds,
-          draftIds,
-          outstanding: members.filter((m) => !submittedIds.includes(m.id)),
-        };
-      }),
-  );
-};
-
-export const createAssessment = (
+export const getGroupProgress = async (assessmentId: string): Promise<GroupProgressRow[]> =>
+  unset(assessmentId)
+    ? []
+    : (await get<{ progress: GroupProgressRow[] }>(`/api/assessments/${assessmentId}/progress`))
+        .progress;
+/** Creates an assessment. Always lands as a draft - FR-13 makes activation separate. */
+export const createAssessment = async (
   input: Omit<Assessment, "id" | "calculatedAt" | "calculationRunId">,
-) => {
-  const assessment: Assessment = { ...input, id: `asm-${Math.random().toString(36).slice(2, 7)}` };
-  assessments.push(assessment);
-  return delay(assessment, 700);
-};
+): Promise<Assessment> =>
+  (
+    await post<{ assessment: Assessment }>("/api/assessments", {
+      classId: input.classId,
+      name: input.name,
+      description: input.description,
+      groupIds: input.groupIds,
+      opensAt: input.opensAt,
+      closesAt: input.closesAt,
+      maxMark: input.maxMark,
+    })
+  ).assessment;
 
-export const updateAssessment = (
+export const updateAssessment = async (
   assessmentId: string,
   changes: Partial<Omit<Assessment, "id" | "classId">>,
-) => {
-  const assessment = assessments.find((a) => a.id === assessmentId);
-  if (assessment) Object.assign(assessment, changes);
-  return delay(assessment, 700);
-};
+): Promise<Assessment> =>
+  (
+    await request<{ assessment: Assessment }>(`/api/assessments/${assessmentId}`, {
+      method: "PATCH",
+      // Only the fields the server accepts; status is changed through its own
+      // transition endpoint, not by assignment.
+      body: {
+        ...(changes.name !== undefined && { name: changes.name }),
+        ...(changes.description !== undefined && { description: changes.description }),
+        ...(changes.groupIds !== undefined && { groupIds: changes.groupIds }),
+        ...(changes.opensAt !== undefined && { opensAt: changes.opensAt }),
+        ...(changes.closesAt !== undefined && { closesAt: changes.closesAt }),
+        ...(changes.maxMark !== undefined && { maxMark: changes.maxMark }),
+      },
+    })
+  ).assessment;
 
 /** Replaces the confirmed groups for a class with a proposed allocation. */
-export const confirmGroups = (classId: string, proposed: Group[]) => {
-  for (let i = allGroups.length - 1; i >= 0; i -= 1) {
-    if (allGroups[i].classId === classId) allGroups.splice(i, 1);
-  }
-  proposed.forEach((group, index) =>
-    allGroups.push({
-      id: `grp-${classId}-${index + 1}`,
-      classId,
-      groupNumber: index + 1,
-      memberStudentIds: [...group.memberStudentIds],
-    }),
-  );
-  return delay(
-    allGroups.filter((g) => g.classId === classId),
-    800,
-  );
+/** Replaces the class's groups with the confirmed allocation (FR-11). */
+export const confirmGroups = async (classId: string, proposed: Group[]): Promise<Group[]> => {
+  await request(`/api/classes/${classId}/groups`, {
+    method: "PUT",
+    body: {
+      groups: proposed.map((group) => ({
+        groupNumber: group.groupNumber,
+        memberStudentIds: group.memberStudentIds,
+      })),
+    },
+  });
+  // Read back rather than trusting the echo: the server assigns the real ids.
+  return getGroups(classId);
 };
 
 export interface AssessmentRow {
@@ -461,29 +680,11 @@ export interface AssessmentRow {
 }
 
 /** Assessment list rows, each with the submission progress bar's numbers. */
-export const getAssessmentRows = (classId: string): Promise<AssessmentRow[]> =>
-  delay(
-    assessments
-      .filter((a) => a.classId === classId)
-      .map((assessment) => {
-        const assessmentGroups = allGroups.filter((g) => assessment.groupIds.includes(g.id));
-        const expectedIds = assessmentGroups.flatMap((g) => g.memberStudentIds);
-        const submitted = submissions.filter(
-          (s) =>
-            s.assessmentId === assessment.id &&
-            s.status === "submitted" &&
-            expectedIds.includes(s.evaluatorStudentId),
-        ).length;
-        return {
-          assessment,
-          groupCount: assessmentGroups.length,
-          submitted,
-          expected: expectedIds.length,
-        };
-      })
-      .sort((a, b) => b.assessment.opensAt.localeCompare(a.assessment.opensAt)),
-  );
-
+export const getAssessmentRows = async (classId: string): Promise<AssessmentRow[]> =>
+  unset(classId)
+    ? []
+    : (await get<{ assessments: AssessmentRow[] }>(`/api/classes/${classId}/assessments`))
+        .assessments;
 export interface ResultRow {
   result: CalculatedResult;
   student: User;
@@ -494,263 +695,93 @@ export interface ResultRow {
 }
 
 /** Results summary rows, joined to everything the drill-down needs. */
-export const getResultRows = (assessmentId: string): Promise<ResultRow[]> => {
-  const assessment = assessments.find((a) => a.id === assessmentId);
-  if (!assessment) return delay([]);
+/**
+ * Results rows with everything the drill-down needs (FR-26).
+ *
+ * Lecturer-only: the ratings behind a mark are visible to the responsible
+ * lecturer and their author, and to nobody else (OR-16).
+ */
+export const getResultRows = async (assessmentId: string): Promise<ResultRow[]> => {
+  if (unset(assessmentId)) return [];
+  const { results } = await get<{ results: ApiResultRow[] }>(
+    `/api/assessments/${assessmentId}/results`,
+  );
 
-  const assessmentSubmissions = submissions.filter((s) => s.assessmentId === assessmentId);
-  const submissionById = new Map(assessmentSubmissions.map((s) => [s.id, s]));
-
-  const rows = calculatedResults
-    .filter((result) => result.assessmentId === assessmentId)
-    .flatMap((result) => {
-      const student = users.find((u) => u.id === result.studentId);
-      const group = allGroups.find((g) => g.memberStudentIds.includes(result.studentId));
-      if (!student || !group) return [];
-
-      const received = peerRatings
-        .filter((rating) => rating.evaluatedStudentId === result.studentId)
-        .flatMap((rating) => {
-          const submission = submissionById.get(rating.submissionId);
-          const evaluator = submission
-            ? users.find((u) => u.id === submission.evaluatorStudentId)
-            : undefined;
-          return evaluator
-            ? [{ evaluator, ratingOptionId: rating.ratingOptionId, comment: rating.comment }]
-            : [];
-        });
-
-      return [
-        {
-          result,
-          student,
-          group,
-          baseMark:
-            groupMarks.find((m) => m.assessmentId === assessmentId && m.groupId === group.id)
-              ?.baseMark ?? null,
-          received,
-        },
-      ];
-    });
-
-  return delay(rows);
+  return results.map((row) => ({
+    result: {
+      studentId: row.studentId,
+      assessmentId,
+      meanReceived: row.meanReceived ?? 0,
+      adjustmentFactor: row.adjustmentFactor,
+      finalMark: row.finalMark ?? 0,
+      flags: row.flags,
+      ...(row.override ? { override: row.override } : {}),
+    },
+    student: row.student as unknown as User,
+    group: {
+      id: row.groupId,
+      classId: "",
+      groupNumber: row.groupNumber,
+      memberStudentIds: [],
+    },
+    baseMark: row.baseMark,
+    received: row.received.map((entry) => ({
+      evaluator: entry.evaluator as unknown as User,
+      ratingOptionId: entry.ratingOptionId,
+      ...(entry.comment ? { comment: entry.comment } : {}),
+    })),
+  }));
 };
+
+/** The shape the API returns, before it is reshaped for the screens. */
+interface ApiResultRow {
+  studentId: string;
+  groupId: string;
+  groupNumber: number;
+  student: { id: string; name: string; surname: string; studentNumber: string | null };
+  ratingsReceived: number;
+  meanReceived: number | null;
+  groupMean: number | null;
+  rawFactor: number | null;
+  adjustmentFactor: number;
+  baseMark: number | null;
+  finalMark: number | null;
+  flags: CalculatedResult["flags"];
+  override?: MarkOverride;
+  received: Array<{
+    evaluator: { id: string; name: string; surname: string };
+    ratingOptionId: string;
+    comment?: string;
+  }>;
+}
 
 /**
  * Rating options for the student portal, with the numeric scale stripped out.
  * Student screens must use this, never `getRatingOptions`.
  */
-export const getStudentRatingOptions = (): Promise<StudentRatingOption[]> =>
-  delay(
-    ratingOptions.map(({ hiddenValue: _hiddenValue, ...option }) => option),
-    200,
-  );
-
-/* --------------------------- registration ---------------------------- */
-
-export class RegistrationError extends Error {
-  constructor(
-    override readonly message: string,
-    readonly field: "email" | "studentNumber",
-  ) {
-    super(message);
-  }
-}
-
-/**
- * Creates a self-registered account. Students land unverified and unmatched;
- * staff land unverified. Nothing is usable until `activateAccount` runs, which
- * is what the emailed link does (FR-03).
- */
-export const registerAccount = (input: {
-  role: Role;
-  name: string;
-  surname: string;
-  email: string;
-  studentNumber?: string;
-}): Promise<User> => {
-  const email = input.email.trim().toLowerCase();
-
-  if (users.some((u) => u.email.toLowerCase() === email)) {
-    throw new RegistrationError("An account already uses that email address.", "email");
-  }
-  if (input.studentNumber && users.some((u) => u.studentNumber === input.studentNumber)) {
-    throw new RegistrationError("An account already uses that student number.", "studentNumber");
-  }
-
-  const user: User = {
-    id: `u-${input.role}-${Math.random().toString(36).slice(2, 8)}`,
-    role: input.role,
-    name: input.name.trim(),
-    surname: input.surname.trim(),
-    email: input.email.trim(),
-    studentNumber: input.studentNumber,
-    status: "unverified",
-    createdAt: new Date().toISOString(),
-  };
-
-  // Keep the role-specific lists in step with the combined one - screens read
-  // from whichever suits them.
-  (user.role === "student" ? studentUsers : staffUsers).push(user);
-  users.push(user);
-
-  return delay(user, 800);
-};
-
-/**
- * Updates a registration that hasn't been verified yet, e.g. when a student goes
- * back and fixes a typo in their email before entering the code. Verified
- * accounts can't be changed this way.
- */
-export const updatePendingRegistration = (
-  userId: string,
-  input: { name: string; surname: string; email: string; studentNumber: string },
-): Promise<User> => {
-  const user = users.find((u) => u.id === userId);
-  if (!user || user.status !== "unverified") {
-    throw new RegistrationError(
-      "This registration can't be changed any more. Please sign in instead.",
-      "email",
-    );
-  }
-
-  const email = input.email.trim().toLowerCase();
-  if (users.some((u) => u.id !== userId && u.email.toLowerCase() === email)) {
-    throw new RegistrationError("An account already uses that email address.", "email");
-  }
-  if (users.some((u) => u.id !== userId && u.studentNumber === input.studentNumber)) {
-    throw new RegistrationError("An account already uses that student number.", "studentNumber");
-  }
-
-  // `users` and `studentUsers` hold the same object, so both lists see this.
-  user.name = input.name.trim();
-  user.surname = input.surname.trim();
-  user.email = input.email.trim();
-  user.studentNumber = input.studentNumber;
-
-  return delay(user, 600);
-};
-
-/**
- * Activates an account and, for a student, immediately attempts the class-list
- * match (FR-04). A student who is not on any imported list stays unmatched and
- * sees the explanation screen rather than an empty dashboard.
- */
-export const activateAccount = (email: string): Promise<User | null> => {
-  const user = users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
-  if (!user) return delay(null, 600);
-
-  user.status = "active";
-
-  if (user.role === "student" && user.studentNumber) {
-    const enrolment = enrolments.find((e) => e.studentNumber === user.studentNumber);
-    if (enrolment && !enrolment.userId) {
-      enrolment.userId = user.id;
-      enrolment.matchStatus = "matched";
-      enrolment.matchNote = undefined;
-    }
-  }
-
-  return delay(user, 600);
-};
-
-/** What an activation link needs to know about its account. */
-export interface ActivationAccount {
-  name: string;
-  email: string;
-  role: Role;
-}
-
-/**
- * Looks up the account an activation link belongs to, so the page knows whether
- * the holder sets a password now (Admin Portal accounts, FR-01/FR-03) or already
- * chose one at registration (students).
- */
-export const getActivationAccount = (email: string): Promise<ActivationAccount | null> => {
-  const user = users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
-  return delay(user ? { name: user.name, email: user.email, role: user.role } : null, 700);
-};
-
-/* ------------------------------ audit log ---------------------------- */
-
-/** Appends an audit entry (FR-27). Nothing in the app edits or removes one. */
-function recordAudit(
-  actor: Pick<User, "name" | "surname" | "role">,
-  eventType: AuditEventType,
-  objectDescription: string,
-  detail: string,
-  classId?: string,
-) {
-  auditEntries.push({
-    id: `aud-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
-    timestamp: new Date().toISOString(),
-    actorName: `${actor.name} ${actor.surname}`,
-    actorRole: actor.role,
-    eventType,
-    objectDescription,
-    detail,
-    classId,
-  });
-}
-
+export const getStudentRatingOptions = async (): Promise<StudentRatingOption[]> =>
+  // The server strips the numeric value for a student role; nothing is removed
+  // here, because removing it here would mean it had already arrived (SR-08).
+  (await get<{ options: StudentRatingOption[] }>("/api/assessments/rating-options")).options;
 /* ------------------------------- classes ----------------------------- */
 
-export class ClassError extends Error {
-  constructor(
-    override readonly message: string,
-    readonly field: "moduleCode" | "name" | "academicPeriod",
-  ) {
-    super(message);
-  }
-}
-
-/** FR-08: a lecturer creates a class. Its class list is imported afterwards. */
-export const createClass = (
+/**
+ * Creates a class (FR-08, BR-11).
+ *
+ * `lecturer` is ignored: a class is owned by whoever created it, taken from the
+ * session, so there is no way to create one on somebody else's behalf.
+ */
+export const createClass = async (
   input: { moduleCode: string; name: string; academicPeriod: string },
-  lecturer: User,
-): Promise<Class> => {
-  const moduleCode = input.moduleCode.trim().toUpperCase();
-  const duplicate = classes.some(
-    (c) =>
-      c.lecturerId === lecturer.id &&
-      c.moduleCode === moduleCode &&
-      c.academicPeriod === input.academicPeriod,
-  );
-  if (duplicate) {
-    throw new ClassError(
-      `You already have ${moduleCode} for ${input.academicPeriod}.`,
-      "moduleCode",
-    );
-  }
-
-  const klass: Class = {
-    id: `cls-${Math.random().toString(36).slice(2, 8)}`,
-    moduleCode,
-    name: input.name.trim(),
-    academicPeriod: input.academicPeriod,
-    lecturerId: lecturer.id,
-  };
-  classes.push(klass);
-  recordAudit(
-    lecturer,
-    "class.created",
-    `${klass.moduleCode} - ${klass.name}`,
-    `Created for ${klass.academicPeriod}`,
-    klass.id,
-  );
-  return delay(klass, 650);
-};
+  _lecturer: User,
+): Promise<Class> => (await post<{ klass: Class }>("/api/classes", input)).klass;
 
 /* ---------------------------- match conflicts ------------------------ */
 
 /** Registered student accounts that claim an enrolment's student number (FR-04). */
-export const getConflictCandidates = (enrolmentId: string): Promise<User[]> => {
-  const enrolment = enrolments.find((e) => e.id === enrolmentId);
-  return delay(
-    enrolment ? studentUsers.filter((u) => u.studentNumber === enrolment.studentNumber) : [],
-    350,
-  );
-};
+export const getConflictCandidates = async (enrolmentId: string): Promise<User[]> =>
+  (await get<{ candidates: User[] }>(`/api/classes/enrolments/${enrolmentId}/candidates`))
+    .candidates;
 
 export type ConflictDecision = { kind: "link"; userId: string } | { kind: "reject" };
 
@@ -758,172 +789,111 @@ export type ConflictDecision = { kind: "link"; userId: string } | { kind: "rejec
  * FR-04: a lecturer settles a Conflict by linking the class-list entry to one
  * account, or to none. Linking is what grants that account the class's data.
  */
-export const resolveEnrolmentConflict = (
+/**
+ * Records the lecturer's decision on a match conflict (FR-04).
+ *
+ * `lecturer` is ignored - the decision is attributed to the signed-in account,
+ * which is also what the audit entry names.
+ */
+export const resolveEnrolmentConflict = async (
   enrolmentId: string,
   decision: ConflictDecision,
-  lecturer: User,
-): Promise<Enrolment> => {
-  const enrolment = enrolments.find((e) => e.id === enrolmentId);
-  if (!enrolment || enrolment.matchStatus !== "conflict") {
-    throw new Error("This entry no longer has a conflict to resolve.");
-  }
-  const listed = `${enrolment.importedName} ${enrolment.importedSurname} (${enrolment.studentNumber})`;
-
-  if (decision.kind === "link") {
-    const account = studentUsers.find((u) => u.id === decision.userId);
-    if (!account) throw new Error("That account no longer exists.");
-    enrolment.matchStatus = "matched";
-    enrolment.userId = account.id;
-    enrolment.matchNote = undefined;
-    recordAudit(
-      lecturer,
-      "enrolment.resolved",
-      listed,
-      `Linked to ${account.name} ${account.surname} (${account.email})`,
-      enrolment.classId,
-    );
-  } else {
-    enrolment.matchStatus = "unmatched";
-    enrolment.userId = undefined;
-    enrolment.matchNote =
-      "Not linked: the conflict was reviewed and no account was matched to this entry.";
-    recordAudit(
-      lecturer,
-      "enrolment.resolved",
-      listed,
-      "Reviewed and left unmatched",
-      enrolment.classId,
-    );
-  }
-
-  return delay(enrolment, 600);
+  _lecturer: User,
+): Promise<void> => {
+  await post(`/api/classes/enrolments/${enrolmentId}/resolve`, decision);
 };
 
 /* -------------------------------- deletion --------------------------- */
 
-/** Removes every item matching `predicate` from `list`, in place. */
-function removeWhere<T>(list: T[], predicate: (item: T) => boolean) {
-  for (let i = list.length - 1; i >= 0; i -= 1) {
-    if (predicate(list[i])) list.splice(i, 1);
-  }
+/**
+ * What deleting would destroy, and whether any of it exists nowhere else
+ * (FR-28).
+ *
+ * Computed on the server from what is actually stored, so the warning cannot
+ * drift from the truth. `unexportedAssessments` is what makes the confirmation
+ * ask twice: results never exported have no copy anywhere.
+ */
+export interface DeletionImpact {
+  unexportedAssessments: string[];
+  submissions: number;
+  ratings: number;
+  assessments: number;
+  enrolments: number;
+  groups: number;
 }
 
-function deleteAssessmentRecords(assessmentId: string) {
-  const submissionIds = new Set(
-    submissions.filter((s) => s.assessmentId === assessmentId).map((s) => s.id),
-  );
-  removeWhere(peerRatings, (r) => submissionIds.has(r.submissionId));
-  removeWhere(submissions, (s) => s.assessmentId === assessmentId);
-  removeWhere(groupMarks, (m) => m.assessmentId === assessmentId);
-  removeWhere(calculatedResults, (r) => r.assessmentId === assessmentId);
-  removeWhere(assessments, (a) => a.id === assessmentId);
-}
+const EMPTY_IMPACT: DeletionImpact = {
+  unexportedAssessments: [],
+  submissions: 0,
+  ratings: 0,
+  assessments: 0,
+  enrolments: 0,
+  groups: 0,
+};
 
-/**
- * Whether an assessment holds ratings or marks that were never exported, in
- * which case deleting it must be confirmed a second time (FR-28).
- */
-export const hasUnexportedAssessmentData = (assessment: Assessment) =>
-  !assessment.exportedAt &&
-  (Boolean(assessment.calculatedAt) ||
-    submissions.some((s) => s.assessmentId === assessment.id && s.status === "submitted"));
+export const getClassDeletionImpact = async (classId: string): Promise<DeletionImpact> =>
+  unset(classId)
+    ? EMPTY_IMPACT
+    : (await get<{ impact: DeletionImpact }>(`/api/classes/${classId}/impact`)).impact;
 
-export const hasUnexportedClassData = (classId: string) =>
-  assessments.some((a) => a.classId === classId && hasUnexportedAssessmentData(a));
+export const getAssessmentDeletionImpact = async (assessmentId: string): Promise<DeletionImpact> =>
+  (await get<{ impact: DeletionImpact }>(`/api/assessments/${assessmentId}/impact`)).impact;
 
-/**
- * FR-28: permanently deletes an assessment with its submissions, ratings,
- * comments, base marks and results. The audit entry about the deletion stays.
- */
-export const deleteAssessment = (assessmentId: string, lecturer: User) => {
-  const assessment = assessments.find((a) => a.id === assessmentId);
-  if (!assessment) return delay(null);
-  const klass = classes.find((c) => c.id === assessment.classId);
-  const unexported = hasUnexportedAssessmentData(assessment);
-
-  deleteAssessmentRecords(assessmentId);
-  recordAudit(
-    lecturer,
-    "assessment.deleted",
-    `${klass?.moduleCode ?? ""} · ${assessment.name}`,
-    unexported ? "Deleted without an export, confirmed twice" : "Deleted",
-    assessment.classId,
-  );
-  return delay(assessment, 700);
+export const deleteAssessment = async (assessmentId: string, _lecturer: User): Promise<void> => {
+  await request(`/api/assessments/${assessmentId}`, { method: "DELETE" });
 };
 
 /** FR-28: permanently deletes a class with its class list, groups and assessments. */
-export const deleteClass = (classId: string, lecturer: User) => {
-  const klass = classes.find((c) => c.id === classId);
-  if (!klass) return delay(null);
-  const classAssessments = assessments.filter((a) => a.classId === classId);
-  const unexported = hasUnexportedClassData(classId);
-
-  classAssessments.forEach((a) => deleteAssessmentRecords(a.id));
-  removeWhere(enrolments, (e) => e.classId === classId);
-  // Groups live in three lists; clear the class from each.
-  for (const list of [groups, secondClassGroups, allGroups]) {
-    removeWhere(list, (g) => g.classId === classId);
-  }
-  removeWhere(classes, (c) => c.id === classId);
-
-  recordAudit(
-    lecturer,
-    "class.deleted",
-    `${klass.moduleCode} - ${klass.name}`,
-    `Deleted with its class list, groups and ${classAssessments.length} assessment(s)${
-      unexported ? ", including data never exported (confirmed twice)" : ""
-    }`,
-    classId,
-  );
-  return delay(klass, 800);
+export const deleteClass = async (classId: string, _lecturer: User): Promise<void> => {
+  await request(`/api/classes/${classId}`, { method: "DELETE" });
 };
 
 /** FR-25: records that an assessment's results have been exported. */
-export const markResultsExported = (assessmentId: string, lecturer: User) => {
-  const assessment = assessments.find((a) => a.id === assessmentId);
-  if (!assessment) return delay(null);
-  const klass = classes.find((c) => c.id === assessment.classId);
-  assessment.exportedAt = new Date().toISOString();
-  recordAudit(
-    lecturer,
-    "results.exported",
-    `${klass?.moduleCode ?? ""} · ${assessment.name}`,
-    `Exported calculation run ${assessment.calculationRunId ?? "(not calculated)"}`,
-    assessment.classId,
-  );
-  return delay(assessment, 300);
-};
-
-/* -------------------------------- passwords -------------------------- */
-
-export class PasswordChangeError extends Error {
-  constructor(
-    override readonly message: string,
-    readonly field: "current" | "next",
-  ) {
-    super(message);
-  }
-}
+/** Records that results were exported, which is what FR-28 checks before deleting. */
+export const markResultsExported = async (assessmentId: string, _lecturer: User): Promise<string> =>
+  (await post<{ exportedAt: string }>(`/api/assessments/${assessmentId}/exported`)).exportedAt;
 
 /**
- * FR-06: change a known password. The current password comes first, the new
- * one must meet SR-02, and every other session for the account ends (SR-05).
- * In the prototype any current password is accepted, as it is at sign-in.
+ * Downloads the results workbook (FR-25, CI-04).
+ *
+ * The file is built on the server and arrives as a binary attachment, so the
+ * hidden scale values and every rating behind the marks never pass through the
+ * browser as data - only as a file the browser saves (SR-08, OR-16).
+ *
+ * The download also records the export, which is what FR-28 checks before
+ * letting an assessment be deleted without asking twice.
  */
-export const changePassword = (user: User, current: string, next: string) => {
-  if (!current) throw new PasswordChangeError("Enter your current password.", "current");
-  const failed = passwordChecks(next, user).find((check) => !check.ok);
-  if (failed) throw new PasswordChangeError(failed.error, "next");
-  if (current === next) {
-    throw new PasswordChangeError("Choose a password different from your current one.", "next");
+export const downloadResults = async (assessmentId: string): Promise<string> => {
+  const response = await fetch(`/api/assessments/${assessmentId}/export`, {
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { error?: ApiErrorBody } | null;
+    throw new ApiError(
+      response.status,
+      payload?.error ?? { code: "error", message: "We couldn't build that export." },
+    );
   }
 
-  recordAudit(
-    user,
-    "password.changed",
-    `${user.name} ${user.surname} · ${user.email}`,
-    "Password changed; other sessions signed out",
-  );
-  return delay(true, 700);
+  // The name the server chose, so the saved file matches what the screen showed.
+  const disposition = response.headers.get("content-disposition") ?? "";
+  const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? "peerly-results.xlsx";
+
+  const url = URL.createObjectURL(await response.blob());
+  try {
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    // Firefox needs the element in the document for a programmatic click.
+    document.body.append(link);
+    link.click();
+    link.remove();
+  } finally {
+    // Revoking immediately can cancel the download in some browsers, so it is
+    // left for the next tick.
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
+  return filename;
 };

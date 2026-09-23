@@ -11,8 +11,9 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatDate } from "@/lib/format";
+import { useLecturerClasses } from "@/hooks/use-lecturer-context";
 import { useSession } from "@/lib/session";
-import { classes } from "@/mocks/data";
+
 import { getAssessmentRows, type AssessmentRow } from "@/services/peerly";
 
 export const Route = createFileRoute("/lecturer/assessments/")({
@@ -21,7 +22,8 @@ export const Route = createFileRoute("/lecturer/assessments/")({
 
 function AssessmentListPage() {
   const { activeClassId, setActiveAssessmentId } = useSession();
-  const klass = classes.find((c) => c.id === activeClassId);
+  const lecturerClasses = useLecturerClasses().data ?? [];
+  const klass = lecturerClasses.find((c) => c.id === activeClassId);
 
   const rows = useQuery({
     queryKey: ["assessment-rows", activeClassId],

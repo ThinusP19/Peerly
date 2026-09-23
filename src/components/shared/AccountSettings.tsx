@@ -16,7 +16,8 @@ import { formatDate, initials } from "@/lib/format";
 import { passwordChecks } from "@/lib/password";
 import { roleLabel, useSession } from "@/lib/session";
 import type { User } from "@/mocks/types";
-import { PasswordChangeError, changePassword } from "@/services/peerly";
+import { ApiError } from "@/lib/api";
+import { changePassword } from "@/services/auth";
 
 /** Who to ask when a detail on the profile is wrong. */
 const changeContact: Record<User["role"], string> = {
@@ -153,7 +154,7 @@ function PasswordPanel({ user }: { user: User }) {
 
     setBusy(true);
     try {
-      await changePassword(user, current, next);
+      await changePassword(current, next);
       setCurrent("");
       setNext("");
       setConfirm("");
@@ -162,8 +163,16 @@ function PasswordPanel({ user }: { user: User }) {
         "Password changed. Any other device signed in to your account has been signed out.",
       );
     } catch (error) {
-      if (error instanceof PasswordChangeError) setErrors({ [error.field]: error.message });
-      else toast.error("We couldn't change your password. Please try again.");
+      // The API names the field: `current` when the old password is wrong,
+      // `newPassword` when the new one breaks SR-02.
+      if (error instanceof ApiError && Object.keys(error.fields).length > 0) {
+        setErrors({
+          ...(error.field("current") ? { current: error.field("current") } : {}),
+          ...(error.field("newPassword") ? { next: error.field("newPassword") } : {}),
+        });
+      } else {
+        toast.error("We couldn't change your password. Please try again.");
+      }
     } finally {
       setBusy(false);
     }

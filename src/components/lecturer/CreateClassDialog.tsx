@@ -23,7 +23,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useSession } from "@/lib/session";
-import { ClassError, createClass } from "@/services/peerly";
+import { ApiError } from "@/lib/api";
+import { createClass } from "@/services/peerly";
 
 /** The periods a new class can belong to: this year and next, by semester. */
 const academicPeriods = (now = new Date()) =>
@@ -97,8 +98,16 @@ export function CreateClassDialog({
       onOpenChange(false);
       navigate({ to: "/lecturer/classes/import" });
     } catch (error) {
-      if (error instanceof ClassError) setErrors({ [error.field]: error.message });
-      else toast.error("We couldn't create that class. Please try again.");
+      // A duplicate module code for the same period comes back as a 409 with
+      // the explanation. It belongs beside the module code field, since that is
+      // what has to change.
+      if (error instanceof ApiError && error.status === 409) {
+        setErrors({ moduleCode: error.message });
+      } else if (error instanceof ApiError && Object.keys(error.fields).length > 0) {
+        setErrors(error.fields);
+      } else {
+        toast.error("We couldn't create that class. Please try again.");
+      }
     } finally {
       setBusy(false);
     }

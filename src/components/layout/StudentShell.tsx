@@ -11,6 +11,7 @@ import type { ReactNode } from "react";
 
 import { BrandLockup, BrandMark } from "@/components/layout/BrandMark";
 import { RoleGuard } from "@/components/layout/RoleGuard";
+import { MAIN_CONTENT_ID, SkipLink } from "@/components/layout/SkipLink";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { initials } from "@/lib/format";
@@ -58,8 +59,9 @@ function StudentShellInner({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background">
+      <SkipLink />
       {/* Floats: inset from the window edges with rounded corners. */}
-      <aside className="fixed inset-y-3 left-3 z-30 hidden w-64 flex-col overflow-hidden rounded-2xl bg-sidebar shadow-raised lg:flex">
+      <aside className="sidebar-surface fixed inset-y-3 left-3 z-30 hidden w-64 flex-col overflow-hidden rounded-2xl bg-sidebar shadow-raised lg:flex">
         <Link to="/student" className="flex items-center border-b border-sidebar-border px-5 py-5">
           <BrandLockup subtitle="Assessment Hub" tone="onDark" />
         </Link>
@@ -140,7 +142,13 @@ function StudentShellInner({ children }: { children: ReactNode }) {
 
         {/* Full width with the same 12px gutters as the sidebar; the extra
             bottom padding below lg clears the floating tab bar. */}
-        <main className="space-y-3 p-3 pb-28 lg:pb-3 lg:pl-0">{children}</main>
+        <main
+          id={MAIN_CONTENT_ID}
+          tabIndex={-1}
+          className="space-y-3 p-3 pb-28 outline-none lg:pb-3 lg:pl-0"
+        >
+          {children}
+        </main>
       </div>
 
       <nav

@@ -7,6 +7,8 @@ import { BusyButton } from "@/components/shared/BusyButton";
 import { FormField } from "@/components/shared/FormField";
 import { PasswordInput } from "@/components/shared/PasswordInput";
 import { Button } from "@/components/ui/button";
+import { ApiError } from "@/lib/api";
+import { resetPassword } from "@/services/auth";
 
 export const Route = createFileRoute("/reset-password")({
   validateSearch: (
@@ -25,9 +27,11 @@ function ResetPasswordPage() {
   const [confirm, setConfirm] = useState("");
   const [errors, setErrors] = useState<{ password?: string; confirm?: string }>({});
   const [busy, setBusy] = useState(false);
+  /** Set when the server refuses the link, not only when the URL says so. */
+  const [expired, setExpired] = useState(false);
   const [done, setDone] = useState(false);
 
-  if (token === "expired") {
+  if (expired || token === "expired") {
     return (
       <AuthShell
         title="This reset link has expired"
@@ -84,9 +88,26 @@ function ResetPasswordPage() {
     if (Object.keys(next).length) return;
 
     setBusy(true);
-    await new Promise((resolve) => setTimeout(resolve, 750));
-    setBusy(false);
-    setDone(true);
+    try {
+      await resetPassword(token ?? "", password);
+      setDone(true);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        // A spent or expired link comes back against `token`. It is not
+        // something the person can fix in this form, so the page turns into
+        // the expired state rather than showing an error beside a field.
+        if (error.field("token")) {
+          setExpired(true);
+          return;
+        }
+        // SR-02 failures name the field they belong to.
+        setErrors({ password: error.field("password") ?? error.message });
+        return;
+      }
+      setErrors({ password: "We couldn't change your password. Please try again." });
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (

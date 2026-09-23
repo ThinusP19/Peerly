@@ -21,9 +21,10 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { buildMatrix, deviationFrom } from "@/lib/domain";
 import { formatMark } from "@/lib/format";
+import { useClassRoster, useLecturerClasses } from "@/hooks/use-lecturer-context";
 import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
-import { classes, users } from "@/mocks/data";
+
 import {
   getAssessment,
   getGroups,
@@ -37,13 +38,22 @@ export const Route = createFileRoute("/lecturer/matrix")({
   component: MatrixPage,
 });
 
-const shortName = (id: string) => {
-  const user = users.find((u) => u.id === id);
+/**
+ * Names for the matrix axes.
+ *
+ * Built from the class roster the API returned, so a student who exists shows
+ * their name. Looking them up in a fixture array meant every cell said
+ * "Unknown" the moment the ids became real.
+ */
+type Roster = Map<string, { name: string; surname: string }>;
+
+const shortName = (roster: Roster, id: string) => {
+  const user = roster.get(id);
   return user ? `${user.name} ${user.surname.charAt(0)}.` : "Unknown";
 };
 
-const fullName = (id: string) => {
-  const user = users.find((u) => u.id === id);
+const fullName = (roster: Roster, id: string) => {
+  const user = roster.get(id);
   return user ? `${user.name} ${user.surname}` : "Unknown student";
 };
 
@@ -57,7 +67,9 @@ const stickyFootBg = "bg-[color-mix(in_oklab,var(--color-muted)_60%,var(--color-
 
 function MatrixPage() {
   const { activeAssessmentId, activeClassId } = useSession();
-  const klass = classes.find((c) => c.id === activeClassId);
+  const lecturerClasses = useLecturerClasses().data ?? [];
+  const { byId: roster } = useClassRoster(activeClassId);
+  const klass = lecturerClasses.find((c) => c.id === activeClassId);
 
   const assessmentQuery = useQuery({
     queryKey: ["assessment", activeAssessmentId],
@@ -196,11 +208,11 @@ function MatrixPage() {
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground sm:ml-auto">
           <span className="inline-flex items-center gap-1.5">
             <ArrowUp className="size-3.5 text-success" aria-hidden="true" />
-            More than 12.5 above the group mean
+            At least 5 above the group mean
           </span>
           <span className="inline-flex items-center gap-1.5">
             <ArrowDown className="size-3.5 text-danger" aria-hidden="true" />
-            More than 12.5 below
+            At least 5 below
           </span>
         </div>
       </Card>
@@ -233,9 +245,9 @@ function MatrixPage() {
                   >
                     <span
                       className="block font-semibold text-foreground"
-                      title={fullName(memberId)}
+                      title={fullName(roster, memberId)}
                     >
-                      {shortName(memberId)}
+                      {shortName(roster, memberId)}
                     </span>
                     <span className="mt-1 flex flex-wrap gap-1">
                       {flagsFor(memberId).map((flag) => (
@@ -275,7 +287,7 @@ function MatrixPage() {
                     )}
                   >
                     <span className="block font-semibold text-foreground">
-                      {fullName(row.evaluatorId)}
+                      {fullName(roster, row.evaluatorId)}
                     </span>
                     {!row.submitted ? (
                       <StatusBadge status="outstanding" label="Did not submit" className="mt-1" />
@@ -363,7 +375,8 @@ function MatrixPage() {
                               align="start"
                             >
                               <p className="font-semibold text-foreground">
-                                {fullName(row.evaluatorId)} on {shortName(cell.evaluatedId)}
+                                {fullName(roster, row.evaluatorId)} on{" "}
+                                {shortName(roster, cell.evaluatedId)}
                               </p>
                               <p className="mt-1 text-muted-foreground">“{cell.comment}”</p>
                             </PopoverContent>
@@ -430,7 +443,9 @@ function MatrixPage() {
           <ul className="divide-y">
             {flagged.map((id) => (
               <li key={id} className="flex flex-wrap items-center gap-2 px-5 py-3.5 sm:px-6">
-                <span className="text-sm font-semibold text-foreground">{fullName(id)}</span>
+                <span className="text-sm font-semibold text-foreground">
+                  {fullName(roster, id)}
+                </span>
                 {flagsFor(id).map((flag) => (
                   <FlagBadge key={flag} flag={flag} />
                 ))}

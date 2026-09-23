@@ -21,8 +21,11 @@ export function DevRoleSwitcher() {
   if (!import.meta.env.DEV) return null;
   if (!hydrated) return null;
 
-  const switchTo = (userId: string, role: (typeof personas)[number]["role"]) => {
-    signInAs(userId);
+  // A real sign-in against the API, so the navigation waits for the session to
+  // exist. Signing in optimistically would land on a portal that then bounces
+  // straight back out when its first request is refused.
+  const switchTo = async (email: string, role: (typeof personas)[number]["role"]) => {
+    await signInAs(email);
     setOpen(false);
     navigate({ to: homePathForRole(role) });
   };
@@ -30,7 +33,10 @@ export function DevRoleSwitcher() {
   return (
     // Lifted clear of the student portal's bottom tab bar on small screens,
     // where it otherwise covered - and swallowed clicks on - the last tab.
-    <div className="fixed right-4 bottom-20 z-50 lg:bottom-4 print:hidden">
+    // Marked so browser tests can hide it: it is development-only furniture,
+    // and a fixed widget in the corner sits on top of whatever the panel
+    // footers put there - which is usually the primary action.
+    <div data-dev-role-switcher className="fixed right-4 bottom-20 z-50 lg:bottom-4 print:hidden">
       {open ? (
         <div className="w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border bg-popover shadow-raised">
           <div className="flex items-center justify-between gap-2 border-b px-3 py-2.5">
@@ -51,12 +57,12 @@ export function DevRoleSwitcher() {
 
           <div className="max-h-80 overflow-y-auto p-1.5">
             {personas.map((persona) => {
-              const active = user?.id === persona.userId;
+              const active = user?.email === persona.email;
               return (
                 <button
-                  key={persona.userId}
+                  key={persona.email}
                   type="button"
-                  onClick={() => switchTo(persona.userId, persona.role)}
+                  onClick={() => void switchTo(persona.email, persona.role)}
                   className={cn(
                     "flex w-full cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-2 text-left transition-colors",
                     active ? "bg-accent text-accent-foreground" : "hover:bg-muted",

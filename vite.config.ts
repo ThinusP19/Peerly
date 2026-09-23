@@ -25,6 +25,22 @@ export default defineConfig(({ command }) => ({
     host: "127.0.0.1",
     port: 7331,
     strictPort: true,
+
+    // Everything under /api goes to the Express API, so the browser only ever
+    // sees one origin.
+    //
+    // This is not a convenience. The session cookie is SameSite=Lax, and "site"
+    // ignores the port but not the host - so a page on 127.0.0.1:7331 calling
+    // localhost:4000 is cross-site, and the browser withholds the cookie on
+    // every request. Proxying also matches CI-09, which puts the whole system
+    // behind one proxy on port 443 in production, so development and production
+    // agree about what the origin is.
+    proxy: {
+      "/api": {
+        target: "http://localhost:4000",
+        changeOrigin: false,
+      },
+    },
   },
 
   resolve: {

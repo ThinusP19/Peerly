@@ -8,92 +8,71 @@ import {
   type ReactNode,
 } from "react";
 
-import { classes, staffUsers, studentUsers, users } from "@/mocks/data";
-import type { Role, User } from "@/mocks/types";
+import { isUnauthorized } from "@/lib/api";
+import { classes, staffUsers } from "@/mocks/data";
+import type { Role } from "@/mocks/types";
+import * as auth from "@/services/auth";
+import type { AuthUser } from "@/services/auth";
 
-const STORAGE_KEY = "peerly.session";
+/**
+ * Who is signed in.
+ *
+ * The account comes from the API, which reads it from an HttpOnly session
+ * cookie the browser cannot see. That is the point: this module holds a copy
+ * for rendering, never the credential, and it cannot grant itself a session by
+ * writing to storage. What it does keep locally is which class and assessment
+ * you were last looking at - a convenience, not an identity.
+ *
+ * FR-07: none of this is an access control. It decides what to draw. The server
+ * decides what may happen.
+ */
 
-export interface SessionState {
-  userId: string | null;
+const PREFERENCES_KEY = "peerly.preferences";
+
+interface Preferences {
   activeClassId: string;
   activeAssessmentId: string;
 }
 
-const defaultState: SessionState = {
-  userId: null,
-  activeClassId: "cls-1",
-  activeAssessmentId: "asm-1",
+/**
+ * No class is selected until one has been loaded.
+ *
+ * These were once placeholder mock ids, which every lecturer screen then sent
+ * to the API as though they were real - producing a 400 on each one. A
+ * selection nobody has made is empty, and `useLecturerContext` fills it from
+ * what the server actually returned.
+ */
+const defaultPreferences: Preferences = {
+  activeClassId: "",
+  activeAssessmentId: "",
 };
 
-const student = (index: number) => studentUsers[index];
+const readPreferences = (): Preferences => {
+  try {
+    const raw = window.localStorage.getItem(PREFERENCES_KEY);
+    return raw
+      ? { ...defaultPreferences, ...(JSON.parse(raw) as Preferences) }
+      : defaultPreferences;
+  } catch {
+    return defaultPreferences;
+  }
+};
 
-/**
- * Prototype personas the dev role switcher can jump between.
- *
- * The student personas are chosen so every dashboard state in the spec is
- * reachable without hunting: submitted, not started, draft in progress,
- * unmatched enrolment and conflicting enrolment.
- */
-export const personas: Array<{
-  role: Role;
-  userId: string;
-  label: string;
-  hint: string;
-}> = [
-  {
-    role: "admin",
-    userId: "u-admin-1",
-    label: "Riaan Botha",
-    hint: "System Administrator",
-  },
-  {
-    role: "lecturer",
-    userId: "u-lec-1",
-    label: "Anneke van der Merwe",
-    hint: "Lecturer · owns CMPG323 + CMPG315",
-  },
-  {
-    role: "student",
-    userId: student(0).id,
-    label: `${student(0).name} ${student(0).surname}`,
-    hint: "Student · already submitted",
-  },
-  {
-    role: "student",
-    userId: student(4).id,
-    label: `${student(4).name} ${student(4).surname}`,
-    hint: "Student · not started",
-  },
-  {
-    role: "student",
-    userId: student(21).id,
-    label: `${student(21).name} ${student(21).surname}`,
-    hint: "Student · draft in progress",
-  },
-  {
-    role: "student",
-    userId: student(28).id,
-    label: `${student(28).name} ${student(28).surname}`,
-    hint: "Student · unmatched enrolment",
-  },
-  {
-    role: "student",
-    userId: student(29).id,
-    label: `${student(29).name} ${student(29).surname}`,
-    hint: "Student · conflicting enrolment",
-  },
-];
-
-interface SessionContextValue extends SessionState {
-  user: User | null;
+interface SessionContextValue extends Preferences {
+  user: AuthUser | null;
   /**
-   * False during the first render pass (server render + first client render),
-   * true once the persisted session has been read from localStorage. Route
-   * guards must wait for this or they will bounce a signed-in user to /login.
+   * False until the API has been asked who is signed in. Route guards must wait
+   * for this or they will bounce a signed-in person to /login on first paint,
+   * before the answer has come back.
    */
   hydrated: boolean;
-  signInAs: (userId: string) => void;
-  signOut: () => void;
+  /** Records the account a sign-in returned. The cookie is already set. */
+  signIn: (user: AuthUser) => void;
+  /** Signs in by email and password, for the development role switcher. */
+  signInAs: (email: string, password?: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  /** Re-asks the API, after something that may have changed the account. */
+  refresh: () => Promise<void>;
   setActiveClassId: (id: string) => void;
   setActiveAssessmentId: (id: string) => void;
 }
@@ -101,52 +80,79 @@ interface SessionContextValue extends SessionState {
 const SessionContext = createContext<SessionContextValue | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<SessionState>(defaultState);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [preferences, setPreferences] = useState<Preferences>(defaultPreferences);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) setState({ ...defaultState, ...(JSON.parse(raw) as SessionState) });
-    } catch {
-      /* prototype only - ignore unreadable storage */
-    }
-    setHydrated(true);
+    // Runs on the client only. During the server render there is no cookie jar
+    // to ask, so the first paint is always the signed-out shape.
+    const controller = new AbortController();
+
+    setPreferences(readPreferences());
+
+    auth
+      .me(controller.signal)
+      .then(setUser)
+      .catch((error: unknown) => {
+        // 401 is the ordinary "nobody is signed in" answer, not a failure.
+        if (!isUnauthorized(error) && !controller.signal.aborted) {
+          console.error("[session] could not read the current session:", error);
+        }
+        setUser(null);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setHydrated(true);
+      });
+
+    return () => controller.abort();
   }, []);
 
-  const persist = useCallback((next: SessionState) => {
-    setState(next);
+  const persist = useCallback((next: Preferences) => {
+    setPreferences(next);
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      window.localStorage.setItem(PREFERENCES_KEY, JSON.stringify(next));
     } catch {
-      /* ignore */
+      // A browser with storage blocked still works; it just forgets the choice.
     }
   }, []);
 
-  const value = useMemo<SessionContextValue>(() => {
-    const user = state.userId ? (users.find((u) => u.id === state.userId) ?? null) : null;
-    return {
-      ...state,
+  const value = useMemo<SessionContextValue>(
+    () => ({
+      ...preferences,
       user,
       hydrated,
-      signInAs: (userId: string) => {
-        const next = { ...state, userId };
-        // Jumping into a lecturer persona should land on a class they own.
-        const target = users.find((u) => u.id === userId);
-        if (target?.role === "lecturer") {
-          const owned = classes.filter((c) => c.lecturerId === userId);
-          if (owned.length && !owned.some((c) => c.id === next.activeClassId)) {
-            next.activeClassId = owned[0].id;
-          }
-        }
-        persist(next);
+
+      signIn: (next: AuthUser) => setUser(next),
+
+      signInAs: async (email: string, password = "peerly-dev-password") => {
+        setUser(await auth.login(email, password));
       },
-      signOut: () => persist({ ...state, userId: null }),
-      setActiveClassId: (activeClassId: string) => persist({ ...state, activeClassId }),
+
+      signOut: async () => {
+        try {
+          await auth.logout();
+        } finally {
+          // Clear locally whatever the API said. A failed sign-out that leaves
+          // the account on screen is worse than one that ends optimistically.
+          setUser(null);
+        }
+      },
+
+      refresh: async () => {
+        try {
+          setUser(await auth.me());
+        } catch {
+          setUser(null);
+        }
+      },
+
+      setActiveClassId: (activeClassId: string) => persist({ ...preferences, activeClassId }),
       setActiveAssessmentId: (activeAssessmentId: string) =>
-        persist({ ...state, activeAssessmentId }),
-    };
-  }, [state, hydrated, persist]);
+        persist({ ...preferences, activeAssessmentId }),
+    }),
+    [preferences, user, hydrated, persist],
+  );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
@@ -164,6 +170,35 @@ export const roleLabel = (role: Role) =>
 export const homePathForRole = (role: Role) =>
   role === "admin" ? "/admin" : role === "lecturer" ? "/lecturer" : "/student";
 
+/**
+ * Development sign-in shortcuts.
+ *
+ * These are real accounts now, created by `server/src/db/seed.ts`, and the
+ * switcher signs in through the API like anyone else - so what you see is what
+ * the session actually permits, not a pretend one.
+ */
+export const personas: Array<{ role: Role; email: string; label: string; hint: string }> = [
+  {
+    role: "admin",
+    email: "riaan.botha@nwu.ac.za",
+    label: "Riaan Botha",
+    hint: "System Administrator",
+  },
+  {
+    role: "lecturer",
+    email: "anneke.vdmerwe@nwu.ac.za",
+    label: "Anneke van der Merwe",
+    hint: "Lecturer · owns CMPG323 + CMPG315",
+  },
+  {
+    role: "student",
+    email: "41200345@mynwu.ac.za",
+    label: "Lerato Mokoena",
+    hint: "Student · matched, in a group",
+  },
+];
+
+/* Still mock-backed until the class endpoints land in phase 4. */
 export const lecturerClasses = (lecturerId: string) =>
   classes.filter((c) => c.lecturerId === lecturerId);
 

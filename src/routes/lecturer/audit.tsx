@@ -4,8 +4,8 @@ import { ScrollText } from "lucide-react";
 import { AuditLogView } from "@/components/shared/AuditLogView";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { useLecturerClasses } from "@/hooks/use-lecturer-context";
 import { useSession } from "@/lib/session";
-import { classes } from "@/mocks/data";
 
 export const Route = createFileRoute("/lecturer/audit")({
   component: LecturerAuditPage,
@@ -13,7 +13,8 @@ export const Route = createFileRoute("/lecturer/audit")({
 
 function LecturerAuditPage() {
   const { activeClassId } = useSession();
-  const klass = classes.find((c) => c.id === activeClassId);
+  const lecturerClasses = useLecturerClasses().data ?? [];
+  const klass = lecturerClasses.find((c) => c.id === activeClassId);
 
   return (
     <>

@@ -29,14 +29,19 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateTimeLong, formatDeadline } from "@/lib/format";
+import { useLecturerClasses } from "@/hooks/use-lecturer-context";
 import { useSession } from "@/lib/session";
-import { allGroups, assessments, classes } from "@/mocks/data";
+
 import {
+  activateAssessment,
+  closeAssessment,
   deleteAssessment,
   getAssessment,
+  getAssessmentDeletionImpact,
+  getAssessments,
+  getGroups,
   getSubmissions,
-  hasUnexportedAssessmentData,
-  setAssessmentStatus,
+  reopenAssessment,
   updateAssessment,
 } from "@/services/peerly";
 
@@ -62,6 +67,18 @@ function AssessmentDetailPage() {
     queryKey: ["assessment", assessmentId],
     queryFn: () => getAssessment(assessmentId),
   });
+  // FR-28: whether deleting would lose the only copy of these results. Asked of
+  // the server, because it is a fact about what is stored rather than about
+  // what this screen happens to have loaded.
+  //
+  // Placed with the other hooks, above the early returns: React requires the
+  // same hooks in the same order on every render, and the "not found" branch
+  // below returns before this point.
+  const impactQuery = useQuery({
+    queryKey: ["assessment-impact", assessmentId],
+    queryFn: () => getAssessmentDeletionImpact(assessmentId),
+  });
+
   const submissionsQuery = useQuery({
     queryKey: ["submissions", assessmentId],
     queryFn: () => getSubmissions(assessmentId),
@@ -74,6 +91,16 @@ function AssessmentDetailPage() {
   const [newClosesAt, setNewClosesAt] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
+
+  // Hooks belong above the early returns below: React requires the same hooks
+  // in the same order on every render, and both the loading and not-found
+  // branches return before this point.
+  const lecturerClasses = useLecturerClasses().data ?? [];
+  const groupsQuery = useQuery({
+    queryKey: ["groups", assessment?.classId],
+    queryFn: () => getGroups(assessment!.classId),
+    enabled: Boolean(assessment?.classId),
+  });
 
   // Keep the header's context selector in step with whatever is being viewed.
   useEffect(() => {
@@ -108,12 +135,12 @@ function AssessmentDetailPage() {
     );
   }
 
-  const klass = classes.find((c) => c.id === assessment.classId);
-  const groups = allGroups.filter((g) => assessment.groupIds.includes(g.id));
+  const klass = lecturerClasses.find((c) => c.id === assessment.classId);
+  const groups = (groupsQuery.data ?? []).filter((g) => assessment.groupIds.includes(g.id));
   const expected = groups.flatMap((g) => g.memberStudentIds).length;
   const submitted = (submissionsQuery.data ?? []).filter((s) => s.status === "submitted").length;
   const calculated = Boolean(assessment.calculatedAt);
-  const unexported = hasUnexportedAssessmentData(assessment);
+  const unexported = (impactQuery.data?.unexportedAssessments.length ?? 0) > 0;
 
   const refresh = () => queryClient.invalidateQueries();
 
@@ -294,7 +321,7 @@ function AssessmentDetailPage() {
         }
         confirmLabel="Open assessment"
         onConfirm={async () => {
-          await setAssessmentStatus(assessment.id, "open");
+          await activateAssessment(assessment.id);
           await refresh();
           toast.success(`“${assessment.name}” is now open to students.`);
           setPending(null);
@@ -321,7 +348,7 @@ function AssessmentDetailPage() {
         destructive
         confirmLabel="Close assessment"
         onConfirm={async () => {
-          await setAssessmentStatus(assessment.id, "closed");
+          await closeAssessment(assessment.id);
           await refresh();
           toast.success(`“${assessment.name}” has been closed.`);
           setPending(null);
@@ -353,7 +380,7 @@ function AssessmentDetailPage() {
         destructive={calculated}
         confirmLabel="Re-open assessment"
         onConfirm={async () => {
-          await setAssessmentStatus(assessment.id, "open");
+          await reopenAssessment(assessment.id);
           await refresh();
           toast.success(`“${assessment.name}” has been re-opened.`);
           setPending(null);
@@ -430,7 +457,9 @@ function AssessmentDetailPage() {
           if (!user) return;
           const name = assessment.name;
           await deleteAssessment(assessment.id, user);
-          const next = assessments.find((a) => a.classId === assessment.classId);
+          const next = (await getAssessments(assessment.classId)).find(
+            (a) => a.id !== assessment.id,
+          );
           if (next) setActiveAssessmentId(next.id);
           navigate({ to: "/lecturer/assessments" });
           void queryClient.invalidateQueries();

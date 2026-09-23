@@ -12,15 +12,11 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateTimeLong } from "@/lib/format";
+import { useLecturerClasses } from "@/hooks/use-lecturer-context";
 import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
-import { classes } from "@/mocks/data";
-import {
-  getAssessment,
-  getPeerRatings,
-  getResultRows,
-  markResultsExported,
-} from "@/services/peerly";
+
+import { getAssessment, getPeerRatings, getResultRows, downloadResults } from "@/services/peerly";
 
 export const Route = createFileRoute("/lecturer/export")({
   component: ExportPage,
@@ -28,7 +24,8 @@ export const Route = createFileRoute("/lecturer/export")({
 
 function ExportPage() {
   const { user, activeAssessmentId, activeClassId } = useSession();
-  const klass = classes.find((c) => c.id === activeClassId);
+  const lecturerClasses = useLecturerClasses().data ?? [];
+  const klass = lecturerClasses.find((c) => c.id === activeClassId);
 
   const assessmentQuery = useQuery({
     queryKey: ["assessment", activeAssessmentId],
@@ -186,7 +183,9 @@ function ExportPage() {
           onClick={async () => {
             setBusy(true);
             await new Promise((resolve) => setTimeout(resolve, 1200));
-            if (user) await markResultsExported(assessment.id, user);
+            // Downloading records the export server-side, so there is no
+            // separate call to keep in step with it.
+            await downloadResults(assessment.id);
             setBusy(false);
             toast.success(`${fileName} downloaded`);
           }}

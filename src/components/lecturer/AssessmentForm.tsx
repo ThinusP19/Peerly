@@ -14,9 +14,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { classes } from "@/mocks/data";
+
 import type { Assessment } from "@/mocks/types";
 import { getGroups, getRatingOptions } from "@/services/peerly";
+import { useLecturerClasses } from "@/hooks/use-lecturer-context";
 
 /** ISO → the "YYYY-MM-DDTHH:mm" that <input type="datetime-local"> expects. */
 const toLocalInput = (iso: string) => {
@@ -57,7 +58,8 @@ export function AssessmentForm({
   submitLabel: string;
 }) {
   const navigate = useNavigate();
-  const klass = classes.find((c) => c.id === classId);
+  const lecturerClasses = useLecturerClasses().data ?? [];
+  const klass = lecturerClasses.find((c) => c.id === classId);
 
   const groups = useQuery({ queryKey: ["groups", classId], queryFn: () => getGroups(classId) });
   const options = useQuery({ queryKey: ["rating-options"], queryFn: getRatingOptions });

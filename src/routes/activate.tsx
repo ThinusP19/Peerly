@@ -10,7 +10,9 @@ import { PasswordInput } from "@/components/shared/PasswordInput";
 import { PasswordRules } from "@/components/shared/PasswordRules";
 import { Button } from "@/components/ui/button";
 import { passwordChecks } from "@/lib/password";
-import { activateAccount, getActivationAccount, type ActivationAccount } from "@/services/peerly";
+import { ApiError } from "@/lib/api";
+import { useSession } from "@/lib/session";
+import { activate, getActivation, type ActivationAccount } from "@/services/auth";
 
 export const Route = createFileRoute("/activate")({
   // A real activation link carries a signed token. In the prototype the token
@@ -44,27 +46,19 @@ function ActivatePage() {
     let cancelled = false;
 
     void (async () => {
-      if (token === "expired" || token === "invalid") {
-        await new Promise((resolve) => setTimeout(resolve, 900));
+      if (!token) {
         if (!cancelled) setState("expired");
         return;
       }
-      if (!email) {
-        await new Promise((resolve) => setTimeout(resolve, 900));
-        if (!cancelled) setState("success");
-        return;
-      }
 
-      const found = await getActivationAccount(email);
+      // A link the server will not honour - spent, expired or never issued -
+      // comes back as no account at all. That is the expired state, offered
+      // with a resend rather than as an error.
+      const found = await getActivation(token).catch(() => null);
       if (cancelled) return;
+
       setAccount(found);
-      if (found && found.role !== "student") {
-        setState("set-password");
-        return;
-      }
-      // Flip the account to active and run the class-list match (FR-04).
-      await activateAccount(email);
-      if (!cancelled) setState("success");
+      setState(found ? "set-password" : "expired");
     })();
 
     return () => {
@@ -73,10 +67,12 @@ function ActivatePage() {
   }, [token, email]);
 
   const resend = async () => {
+    // Still a toast: re-issuing a staff activation link is an administrator
+    // action (FR-01), and that endpoint arrives with the admin portal.
     setResending(true);
     await new Promise((resolve) => setTimeout(resolve, 800));
     setResending(false);
-    toast.success("A new activation link is on its way to your inbox.");
+    toast.success("Ask your administrator to send a new activation link.");
   };
 
   if (state === "verifying") {
@@ -93,7 +89,11 @@ function ActivatePage() {
   }
 
   if (state === "set-password" && account && email) {
-    return <SetPassword account={account} onDone={() => setState("success")} />;
+    // `account` is only ever set from a token the server accepted, so there is
+    // always one here - but the router types it as optional, so narrow rather
+    // than assert.
+    if (!token) return null;
+    return <SetPassword account={account} token={token} onDone={() => setState("success")} />;
   }
 
   if (state === "success") {
@@ -175,7 +175,16 @@ function ActivatePage() {
   );
 }
 
-function SetPassword({ account, onDone }: { account: ActivationAccount; onDone: () => void }) {
+function SetPassword({
+  account,
+  token,
+  onDone,
+}: {
+  account: ActivationAccount;
+  token: string;
+  onDone: () => void;
+}) {
+  const { signIn } = useSession();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [errors, setErrors] = useState<{ password?: string; confirm?: string }>({});
@@ -195,9 +204,22 @@ function SetPassword({ account, onDone }: { account: ActivationAccount; onDone: 
     if (Object.keys(found).length) return;
 
     setBusy(true);
-    await activateAccount(account.email);
-    setBusy(false);
-    onDone();
+    try {
+      // Sets the first password, activates the account and signs them in, all
+      // against the token - the address is never taken from the URL, so a
+      // tampered link cannot activate somebody else.
+      signIn(await activate(token, password));
+      onDone();
+    } catch (error) {
+      setErrors({
+        password:
+          error instanceof ApiError
+            ? (error.field("password") ?? error.message)
+            : "We couldn't set your password. Please try again.",
+      });
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (

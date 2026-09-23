@@ -9,8 +9,9 @@ import { FormField } from "@/components/shared/FormField";
 import { PasswordInput } from "@/components/shared/PasswordInput";
 import { Input } from "@/components/ui/input";
 import { usePageTransition } from "@/hooks/use-page-transition";
+import { ApiError } from "@/lib/api";
 import { homePathForRole, useSession } from "@/lib/session";
-import { users } from "@/mocks/data";
+import { login } from "@/services/auth";
 
 type Audience = "student" | "lecturer";
 
@@ -54,7 +55,7 @@ interface Errors {
 }
 
 function SignInForm({ audience }: { audience: Audience }) {
-  const { signInAs } = useSession();
+  const { signIn } = useSession();
   const navigate = useNavigate();
   const copy = audiences[audience];
   const { transitionOnClick } = usePageTransition();
@@ -76,28 +77,29 @@ function SignInForm({ audience }: { audience: Audience }) {
     if (Object.keys(next).length) return;
 
     setBusy(true);
-    await new Promise((resolve) => setTimeout(resolve, 650));
+    try {
+      const account = await login(email.trim(), password);
 
-    // Prototype "auth": any password works for a seeded account. The failure
-    // message is deliberately generic - it must not reveal which field was wrong.
-    const account = users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
-
-    // FR-05: only active accounts may sign in. Unverified counts as not active -
-    // otherwise activation is optional, which defeats the point of it.
-    if (!account || account.status !== "active") {
-      setBusy(false);
+      // The API has already set the session cookie; this records who it belongs
+      // to so the shell can render without asking again.
+      signIn(account);
+      toast.success(`Signed in as ${account.name} ${account.surname}`);
+      // The account's own role decides the portal - a student who signs in on
+      // the lecturer form still lands in the Student Portal.
+      navigate({ to: homePathForRole(account.role) });
+    } catch (error) {
+      // FR-05 and SR-06: one message, whatever went wrong. An unknown address,
+      // a wrong password, an unverified account, a deactivated one and a
+      // locked-out one are all the same answer - the server does not
+      // distinguish them either, so there is nothing more specific to show.
       setFormError(
-        "Those details don't match an active Peerly account. Please check and try again.",
+        error instanceof ApiError && error.status !== 401
+          ? error.message
+          : "Those details don't match an active Peerly account. Please check and try again.",
       );
-      return;
+    } finally {
+      setBusy(false);
     }
-
-    signInAs(account.id);
-    setBusy(false);
-    toast.success(`Signed in as ${account.name} ${account.surname}`);
-    // The account's own role decides the portal - a student who signs in on the
-    // lecturer form still lands in the Student Portal.
-    navigate({ to: homePathForRole(account.role) });
   };
 
   return (

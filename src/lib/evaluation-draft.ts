@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { peerRatings, submissions } from "@/mocks/data";
+import { getMyEvaluation, saveEvaluationDraft } from "@/services/peerly";
 
 export interface DraftEntry {
   ratingOptionId?: string;
@@ -13,6 +13,12 @@ export interface EvaluationDraft {
   submittedAt?: string;
   /** Bumped on every autosave so the "saved" indicator can react. */
   savedAt?: string;
+  /**
+   * Set when the student chose to change a submitted evaluation. Their edits
+   * live on this device until they submit again - the server keeps the
+   * submitted version, which is the one that counts, in the meantime.
+   */
+  reopenedAt?: string;
 }
 
 export const COMMENT_LIMIT = 500;
@@ -20,54 +26,81 @@ export const COMMENT_LIMIT = 500;
 const storageKey = (assessmentId: string, studentId: string) =>
   `peerly.draft.${assessmentId}.${studentId}`;
 
-/** Seed a first-time draft from the mock data, so the seeded personas look real. */
-function seedFromMocks(assessmentId: string, studentId: string): EvaluationDraft {
-  const submission = submissions.find(
-    (s) => s.assessmentId === assessmentId && s.evaluatorStudentId === studentId,
-  );
-  if (!submission) return { entries: {} };
+const readLocal = (assessmentId: string, studentId: string): EvaluationDraft | null => {
+  try {
+    const raw = window.localStorage.getItem(storageKey(assessmentId, studentId));
+    return raw ? (JSON.parse(raw) as EvaluationDraft) : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Chooses between what the server holds and what this browser holds.
+ *
+ * The server is the record: it is what follows the student to another device
+ * and what the lecturer's monitor counts. This browser's copy wins only where
+ * it holds something the server cannot - edits to a reopened submission, or
+ * work typed while an autosave was failing (CI-10).
+ */
+function reconcile(
+  server: Awaited<ReturnType<typeof getMyEvaluation>> | null,
+  local: EvaluationDraft | null,
+): EvaluationDraft {
+  if (!server) return local ?? { entries: {} };
 
   const entries: Record<string, DraftEntry> = {};
-  peerRatings
-    .filter((rating) => rating.submissionId === submission.id)
-    .forEach((rating) => {
-      entries[rating.evaluatedStudentId] = {
-        ratingOptionId: rating.ratingOptionId,
-        comment: rating.comment,
-      };
-    });
+  for (const entry of server.entries) {
+    entries[entry.evaluatedStudentId] = {
+      ratingOptionId: entry.ratingOptionId,
+      ...(entry.comment ? { comment: entry.comment } : {}),
+    };
+  }
+  const submittedAt =
+    server.context.submission?.status === "submitted"
+      ? server.context.submission.submittedAt
+      : undefined;
 
-  return {
-    entries,
-    submittedAt: submission.status === "submitted" ? submission.submittedAt : undefined,
-  };
+  if (submittedAt) {
+    // Reopened on this device after this submission: keep editing that.
+    if (local?.reopenedAt && local.reopenedAt > submittedAt) return local;
+    return { entries, submittedAt };
+  }
+  // Not submitted. This device's copy is at least as fresh as the server's
+  // when it has one - every change is written here first, then sent.
+  if (local && !local.submittedAt && Object.keys(local.entries).length > 0) return local;
+  return { entries };
 }
 
 /**
  * A student's in-progress evaluation.
  *
- * Autosaves to localStorage on every change so the form, review screen and
- * confirmation all read the same draft, and so a half-finished evaluation
- * survives a refresh. A real backend would PATCH the draft instead.
+ * Loads what the server holds, then autosaves every change twice: to this
+ * browser at once, so a refresh or a dropped connection loses nothing, and to
+ * the server shortly after, so the draft follows the student to another device
+ * and the lecturer's monitor can see work in progress (CI-10).
  */
 export function useEvaluationDraft(assessmentId: string, studentId: string | undefined) {
   const [draft, setDraft] = useState<EvaluationDraft>({ entries: {} });
   const [hydrated, setHydrated] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!studentId) return;
+    let cancelled = false;
     setHydrated(false);
-    let next: EvaluationDraft;
-    try {
-      const raw = window.localStorage.getItem(storageKey(assessmentId, studentId));
-      next = raw ? (JSON.parse(raw) as EvaluationDraft) : seedFromMocks(assessmentId, studentId);
-    } catch {
-      next = seedFromMocks(assessmentId, studentId);
-    }
-    setDraft(next);
-    setHydrated(true);
+    getMyEvaluation(assessmentId)
+      .catch(() => null)
+      .then((server) => {
+        if (cancelled) return;
+        setDraft(reconcile(server, readLocal(assessmentId, studentId)));
+        setHydrated(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [assessmentId, studentId]);
 
   const persist = useCallback(
@@ -82,6 +115,26 @@ export function useEvaluationDraft(assessmentId: string, studentId: string | und
       setJustSaved(true);
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => setJustSaved(false), 2200);
+
+      // A submitted evaluation is not a draft - the server refuses to turn it
+      // back into one, and a reopened one is sent whole on resubmission.
+      if (next.submittedAt || next.reopenedAt) return;
+      if (syncTimer.current) clearTimeout(syncTimer.current);
+      syncTimer.current = setTimeout(() => {
+        const entries = Object.entries(next.entries).flatMap(([evaluatedStudentId, entry]) =>
+          entry.ratingOptionId
+            ? [
+                {
+                  evaluatedStudentId,
+                  ratingOptionId: entry.ratingOptionId,
+                  ...(entry.comment ? { comment: entry.comment } : {}),
+                },
+              ]
+            : [],
+        );
+        // Quiet on failure by design: the copy in this browser still holds it.
+        void saveEvaluationDraft(assessmentId, entries);
+      }, 600);
     },
     [assessmentId, studentId],
   );
@@ -89,6 +142,7 @@ export function useEvaluationDraft(assessmentId: string, studentId: string | und
   useEffect(
     () => () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
+      if (syncTimer.current) clearTimeout(syncTimer.current);
     },
     [],
   );
@@ -123,11 +177,14 @@ export function useEvaluationDraft(assessmentId: string, studentId: string | und
   );
 
   const markSubmitted = useCallback(
-    (submittedAt: string) => persist({ ...draft, submittedAt }),
+    (submittedAt: string) => persist({ ...draft, submittedAt, reopenedAt: undefined }),
     [draft, persist],
   );
 
-  const reopen = useCallback(() => persist({ ...draft, submittedAt: undefined }), [draft, persist]);
+  const reopen = useCallback(
+    () => persist({ ...draft, submittedAt: undefined, reopenedAt: new Date().toISOString() }),
+    [draft, persist],
+  );
 
   return {
     draft,

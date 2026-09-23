@@ -45,12 +45,13 @@ export const resultFlagMeta: Record<
   "incomplete-group": {
     label: "Incomplete group",
     description:
-      "Not everyone in this group submitted, so this student's mean is based on fewer ratings than the others.",
+      "Fewer than half of this group submitted, so the ratings that did arrive are a weak basis for adjusting anyone's mark.",
     tone: "warning",
   },
   "low-contribution": {
     label: "Low contribution",
-    description: "The group consistently rated this student below the halfway point of the scale.",
+    description:
+      "On average the group rated this student Marginal or lower - they sometimes failed to attend or to complete what was asked.",
     tone: "danger",
   },
   "no-submission": {
@@ -64,11 +65,35 @@ export const resultFlagMeta: Record<
       "With only two members, each student is rated once, so the mean is very sensitive to a single opinion.",
     tone: "warning",
   },
+  "group-of-one": {
+    label: "Group of one",
+    description:
+      "This student has nobody else in their group, so there are no peer ratings to adjust their mark by. They receive the group mark unchanged.",
+    tone: "warning",
+  },
   unmatched: {
     label: "Unmatched",
     description:
       "This student could not be matched to the imported class list, so their result may be incomplete.",
     tone: "warning",
+  },
+  "not-peer-assessed": {
+    label: "Not peer assessed",
+    description:
+      "Nobody in the group rated this student, so there is no factor to apply. They receive the group mark unchanged, which is not a peer-assessed mark.",
+    tone: "danger",
+  },
+  "zero-base-mark": {
+    label: "Group mark of zero",
+    description:
+      "This group's base mark is zero, so every member's mark is zero. Check it was entered deliberately.",
+    tone: "danger",
+  },
+  "zero-group-mean": {
+    label: "Whole group rated lowest",
+    description:
+      "Every rating in this group was the lowest option, so no factor can be calculated. Every member receives the group mark unchanged.",
+    tone: "danger",
   },
 };
 
@@ -77,11 +102,13 @@ export const resultFlagMeta: Record<
  * ------------------------------------------------------------------ */
 export const auditEventMeta: Record<AuditEventType, string> = {
   "account.created": "Account created",
+  "account.updated": "Account changed",
   "account.activated": "Account activated",
   "account.deactivated": "Account deactivated",
   "class.imported": "Class list imported",
   "groups.confirmed": "Groups confirmed",
   "assessment.created": "Assessment created",
+  "assessment.updated": "Assessment changed",
   "assessment.opened": "Assessment opened",
   "assessment.closed": "Assessment closed",
   "assessment.reopened": "Assessment re-opened",
@@ -218,7 +245,8 @@ export type Deviation = "above" | "below" | "normal";
 export function deviationFrom(
   value: number | undefined,
   groupMean: number | null,
-  threshold = 12.5,
+  // One step on the banded scale (0004), whose options sit about five apart.
+  threshold = 5,
 ): Deviation {
   if (value == null || groupMean == null) return "normal";
   if (value >= groupMean + threshold) return "above";

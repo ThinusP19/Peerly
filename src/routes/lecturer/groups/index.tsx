@@ -11,8 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useClassRoster, useLecturerClasses } from "@/hooks/use-lecturer-context";
 import { useSession } from "@/lib/session";
-import { classes, users } from "@/mocks/data";
+
 import { getAssessments, getGroups, getSubmissions } from "@/services/peerly";
 
 export const Route = createFileRoute("/lecturer/groups/")({
@@ -21,7 +22,9 @@ export const Route = createFileRoute("/lecturer/groups/")({
 
 function GroupsOverview() {
   const { activeClassId } = useSession();
-  const klass = classes.find((c) => c.id === activeClassId);
+  const lecturerClasses = useLecturerClasses().data ?? [];
+  const { byId: roster } = useClassRoster(activeClassId);
+  const klass = lecturerClasses.find((c) => c.id === activeClassId);
 
   const groups = useQuery({
     queryKey: ["groups", activeClassId],
@@ -136,9 +139,7 @@ function GroupsOverview() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {list.map((group) => {
-            const members = group.memberStudentIds
-              .map((id) => users.find((u) => u.id === id))
-              .filter(Boolean);
+            const members = group.memberStudentIds.map((id) => roster.get(id)).filter(Boolean);
 
             return (
               <Card

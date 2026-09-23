@@ -1,5 +1,5 @@
 import { FileSpreadsheet, UploadCloud, X } from "lucide-react";
-import { useId, useRef, useState, type DragEvent } from "react";
+import { useRef, useState, type DragEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -28,7 +28,6 @@ export function FileUpload({
   acceptLabel?: string;
   className?: string;
 }) {
-  const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -116,12 +115,14 @@ export function FileUpload({
         <Button variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
           Browse files
         </Button>
+        {/* Out of the tab order and the accessibility tree: "Browse files" is
+            the one control for this, and a visually hidden but focusable file
+            input was a second, unlabelled tab stop behind it. */}
         <input
           ref={inputRef}
-          id={inputId}
           type="file"
           accept={accept}
-          className="sr-only"
+          hidden
           onChange={(event) => accept_(event.target.files?.[0])}
         />
       </div>

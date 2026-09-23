@@ -106,7 +106,11 @@ export type ResultFlag =
   | "low-contribution"
   | "no-submission"
   | "group-of-two"
-  | "unmatched";
+  | "group-of-one"
+  | "unmatched"
+  | "not-peer-assessed"
+  | "zero-base-mark"
+  | "zero-group-mean";
 
 export interface MarkOverride {
   mark: number;
@@ -127,11 +131,13 @@ export interface CalculatedResult {
 
 export type AuditEventType =
   | "account.created"
+  | "account.updated"
   | "account.activated"
   | "account.deactivated"
   | "class.imported"
   | "groups.confirmed"
   | "assessment.created"
+  | "assessment.updated"
   | "assessment.opened"
   | "assessment.closed"
   | "assessment.reopened"

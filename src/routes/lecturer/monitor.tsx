@@ -16,8 +16,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateTimeLong, formatDeadline } from "@/lib/format";
+import { useLecturerClasses } from "@/hooks/use-lecturer-context";
 import { useSession } from "@/lib/session";
-import { classes } from "@/mocks/data";
+
 import {
   getAssessment,
   getEnrolmentRows,
@@ -31,7 +32,8 @@ export const Route = createFileRoute("/lecturer/monitor")({
 
 function SubmissionMonitorPage() {
   const { activeAssessmentId, activeClassId } = useSession();
-  const klass = classes.find((c) => c.id === activeClassId);
+  const lecturerClasses = useLecturerClasses().data ?? [];
+  const klass = lecturerClasses.find((c) => c.id === activeClassId);
 
   const assessmentQuery = useQuery({
     queryKey: ["assessment", activeAssessmentId],

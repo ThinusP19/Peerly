@@ -20,6 +20,7 @@ import { useState, type ReactNode } from "react";
 
 import { BrandMark } from "@/components/layout/BrandMark";
 import { RoleGuard } from "@/components/layout/RoleGuard";
+import { MAIN_CONTENT_ID, SkipLink } from "@/components/layout/SkipLink";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,9 +40,10 @@ import {
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { initials } from "@/lib/format";
+import { useLecturerContext } from "@/hooks/use-lecturer-context";
 import { roleLabel, useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
-import { assessments, classes } from "@/mocks/data";
+
 import type { Role } from "@/mocks/types";
 
 interface NavItem {
@@ -159,13 +161,19 @@ function SidebarBody({ role, onNavigate }: { role: Role; onNavigate?: () => void
 
 /** Which class and assessment the lecturer is currently working in. */
 function ContextSelector() {
-  const { user, activeClassId, activeAssessmentId, setActiveClassId, setActiveAssessmentId } =
-    useSession();
+  const { user } = useSession();
+  // The lists come from the API, and the hook corrects a remembered selection
+  // that no longer exists rather than passing it on to every screen.
+  const {
+    classes: owned,
+    classId,
+    assessments: classAssessments,
+    assessmentId,
+    setActiveClassId,
+    setActiveAssessmentId,
+  } = useLecturerContext();
 
   if (user?.role !== "lecturer") return null;
-
-  const owned = classes.filter((c) => c.lecturerId === user.id);
-  const classAssessments = assessments.filter((a) => a.classId === activeClassId);
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -173,11 +181,14 @@ function ContextSelector() {
         Active class
       </label>
       <Select
-        value={activeClassId}
+        // An empty value would make this uncontrolled, so the placeholder is
+        // shown by leaving it undefined until the classes have loaded.
+        {...(classId ? { value: classId } : {})}
         onValueChange={(value) => {
           setActiveClassId(value);
-          const first = assessments.find((a) => a.classId === value);
-          if (first) setActiveAssessmentId(first.id);
+          // The assessment belongs to the old class, so clear it and let the
+          // hook pick the new class's first one.
+          setActiveAssessmentId("");
         }}
       >
         <SelectTrigger id="context-class" className="h-9 w-auto min-w-44 gap-2 bg-card">
@@ -195,7 +206,10 @@ function ContextSelector() {
       <label className="sr-only" htmlFor="context-assessment">
         Active assessment
       </label>
-      <Select value={activeAssessmentId} onValueChange={setActiveAssessmentId}>
+      <Select
+        {...(assessmentId ? { value: assessmentId } : {})}
+        onValueChange={setActiveAssessmentId}
+      >
         <SelectTrigger id="context-assessment" className="h-9 w-auto min-w-44 gap-2 bg-card">
           <SelectValue placeholder="Select an assessment" />
         </SelectTrigger>
@@ -333,8 +347,9 @@ function AdminShellInner({
 
   return (
     <div className="min-h-screen bg-background">
+      <SkipLink />
       {/* Floats: inset from the window edges with rounded corners. */}
-      <aside className="fixed inset-y-3 left-3 z-30 hidden w-64 overflow-hidden rounded-2xl bg-sidebar shadow-raised lg:block">
+      <aside className="sidebar-surface fixed inset-y-3 left-3 z-30 hidden w-64 overflow-hidden rounded-2xl bg-sidebar shadow-raised lg:block">
         <SidebarBody role={role} />
       </aside>
 
@@ -351,7 +366,10 @@ function AdminShellInner({
                   <span className="sr-only">Open navigation</span>
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-72 border-sidebar-border bg-sidebar p-0">
+              <SheetContent
+                side="left"
+                className="sidebar-surface w-72 border-sidebar-border bg-sidebar p-0"
+              >
                 <SheetTitle className="sr-only">Portal navigation</SheetTitle>
                 <SidebarBody role={role} onNavigate={() => setMenuOpen(false)} />
               </SheetContent>
@@ -384,7 +402,9 @@ function AdminShellInner({
 
         {/* Full width, with the same 12px gutters the sidebar and top bar use,
             so every panel lines up as one set of tiles. */}
-        <main className="space-y-3 p-3 lg:pl-0">{children}</main>
+        <main id={MAIN_CONTENT_ID} tabIndex={-1} className="space-y-3 p-3 outline-none lg:pl-0">
+          {children}
+        </main>
       </div>
     </div>
   );

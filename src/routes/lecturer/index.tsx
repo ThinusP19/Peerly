@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { format } from "date-fns";
 import {
@@ -27,9 +27,9 @@ import { submissionProgress, type SubmissionProgress } from "@/lib/domain";
 import { formatDate, formatDeadline, isOverdue } from "@/lib/format";
 import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
-import { allGroups, submissions } from "@/mocks/data";
+
 import type { Assessment, Class } from "@/mocks/types";
-import { getAssessments, getClassSummaries, type ClassSummary } from "@/services/peerly";
+import { getAssessmentRows, getClassSummaries, type ClassSummary } from "@/services/peerly";
 
 export const Route = createFileRoute("/lecturer/")({
   component: LecturerDashboard,
@@ -80,14 +80,22 @@ function LecturerDashboard() {
     queryKey: ["class-summaries", lecturerId],
     queryFn: () => getClassSummaries(lecturerId),
   });
-  const allAssessments = useQuery({
-    queryKey: ["assessments"],
-    queryFn: () => getAssessments(),
+  const owned = summaries.data ?? [];
+
+  // One query per class rather than one for everything: assessments belong to a
+  // class, and the server scopes them to the one asked for. `useQueries` keeps
+  // the hook count stable as the class list loads, which a map of useQuery
+  // would not.
+  const assessmentQueries = useQueries({
+    queries: owned.map((summary) => ({
+      queryKey: ["assessment-rows", summary.klass.id],
+      queryFn: () => getAssessmentRows(summary.klass.id),
+    })),
   });
 
-  if (summaries.isPending || allAssessments.isPending) return <DashboardSkeleton />;
-
-  const owned = summaries.data ?? [];
+  if (summaries.isPending || assessmentQueries.some((q) => q.isPending)) {
+    return <DashboardSkeleton />;
+  }
 
   if (owned.length === 0) {
     return (
@@ -109,29 +117,32 @@ function LecturerDashboard() {
 
   const classById = new Map<string, Class>(owned.map((s) => [s.klass.id, s.klass]));
 
-  const rows: Row[] = (allAssessments.data ?? [])
-    .filter((a) => classById.has(a.classId))
+  // The server already counts groups and submissions per assessment, so the
+  // dashboard reports what it was told rather than recomputing it from a
+  // second source that could disagree.
+  const rows: Row[] = assessmentQueries
+    .flatMap((query) => query.data ?? [])
+    .filter((row) => classById.has(row.assessment.classId))
     .sort(
       (a, b) =>
-        statusOrder[a.status] - statusOrder[b.status] || a.closesAt.localeCompare(b.closesAt),
+        statusOrder[a.assessment.status] - statusOrder[b.assessment.status] ||
+        a.assessment.closesAt.localeCompare(b.assessment.closesAt),
     )
-    .map((assessment) => {
-      const groups = allGroups.filter((g) => assessment.groupIds.includes(g.id));
-      return {
-        assessment,
-        klass: classById.get(assessment.classId)!,
-        groupCount: groups.length,
-        progress: submissionProgress(
-          groups,
-          submissions.filter((s) => s.assessmentId === assessment.id),
-        ),
-      };
-    });
+    .map((row) => ({
+      assessment: row.assessment,
+      klass: classById.get(row.assessment.classId)!,
+      groupCount: row.groupCount,
+      progress: {
+        submitted: row.submitted,
+        outstanding: row.expected - row.submitted,
+        total: row.expected,
+        percent: row.expected ? (row.submitted / row.expected) * 100 : 0,
+      },
+    }));
 
-  const ownedGroups = allGroups.filter((g) => classById.has(g.classId));
-  const averageGroupSize = ownedGroups.length
-    ? ownedGroups.reduce((sum, g) => sum + g.memberStudentIds.length, 0) / ownedGroups.length
-    : 0;
+  const totalGroups = owned.reduce((sum, summary) => sum + summary.groupCount, 0);
+  const totalGrouped = owned.reduce((sum, summary) => sum + summary.matchedCount, 0);
+  const averageGroupSize = totalGroups ? totalGrouped / totalGroups : 0;
   const openCount = rows.filter((r) => r.assessment.status === "open").length;
   const draftCount = rows.filter((r) => r.assessment.status === "draft").length;
   const attention = attentionItems(rows, owned);
@@ -160,7 +171,7 @@ function LecturerDashboard() {
             },
             {
               label: "Groups",
-              value: ownedGroups.length,
+              value: totalGroups,
               detail: `${averageGroupSize.toFixed(1)} per group`,
             },
             {

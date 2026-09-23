@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { MoreHorizontal, Search, ShieldAlert, UserPlus, Users } from "lucide-react";
 import { useMemo, useState, type FormEvent } from "react";
 import { toast } from "sonner";
@@ -38,6 +38,7 @@ import {
 import { formatDate } from "@/lib/format";
 import { roleLabel } from "@/lib/session";
 import type { Role, User } from "@/mocks/types";
+import { ApiError } from "@/lib/api";
 import {
   activeAdminCount,
   createStaffAccount,
@@ -83,7 +84,11 @@ function AccountsPage() {
 
   const requestStatusChange = (account: User) => {
     // An institution must never be left without an administrator who can sign in.
-    if (account.role === "admin" && account.status === "active" && activeAdminCount() <= 1) {
+    if (
+      account.role === "admin" &&
+      account.status === "active" &&
+      activeAdminCount(accounts.data ?? []) <= 1
+    ) {
       setBlockedAccount(account);
       return;
     }
@@ -149,9 +154,17 @@ function AccountsPage() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => setEditing(row)}>View / edit details</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => requestStatusChange(row)}>
-              {row.status === "active" ? "Deactivate account" : "Activate account"}
-            </DropdownMenuItem>
+            {/*
+              An unverified account has never been activated, and only its
+              holder can do that - by using the link they were emailed (FR-03).
+              Offering "Activate account" here promised something the server
+              will always refuse, so it is not offered.
+            */}
+            {row.status === "unverified" ? null : (
+              <DropdownMenuItem onClick={() => requestStatusChange(row)}>
+                {row.status === "active" ? "Deactivate account" : "Activate account"}
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       ),
@@ -301,7 +314,21 @@ function AccountsPage() {
           }
           onConfirm={async () => {
             const next = statusTarget.status === "active" ? "inactive" : "active";
-            await setStaffAccountStatus(statusTarget.id, next);
+            try {
+              await setStaffAccountStatus(statusTarget.id, next);
+            } catch (error) {
+              // A refusal has to reach the administrator as words. Without this
+              // the server's explanation - that only the holder can activate an
+              // account, using the link they were emailed - was thrown away and
+              // the dialog simply sat there having apparently done nothing.
+              toast.error(
+                error instanceof ApiError
+                  ? error.message
+                  : "We couldn't change that account. Please try again.",
+              );
+              setStatusTarget(null);
+              return;
+            }
             await refresh();
             toast.success(
               `${statusTarget.name} ${statusTarget.surname} ${
@@ -386,7 +413,6 @@ function AccountFormDialog({
   const [errors, setErrors] = useState<Partial<Record<keyof AccountForm, string>>>({});
   const [busy, setBusy] = useState(false);
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
-  const navigate = useNavigate();
 
   // Seed the form when a different account is opened for editing.
   const seedKey = mode === "edit" ? (account?.id ?? null) : open ? "create" : null;
@@ -432,22 +458,32 @@ function AccountFormDialog({
       role: form.role,
     };
 
-    if (mode === "edit" && account) {
-      await updateStaffAccount(account.id, payload);
-      toast.success(`${payload.name} ${payload.surname}'s details have been updated.`);
-    } else {
-      await createStaffAccount(payload);
-      // No real email in the prototype, so offer the link the email would carry.
-      toast.success(`Account created. An activation link has been sent to ${payload.email}.`, {
-        action: {
-          label: "Open activation link",
-          onClick: () => navigate({ to: "/activate", search: { email: payload.email } }),
-        },
-      });
+    try {
+      if (mode === "edit" && account) {
+        await updateStaffAccount(account.id, payload);
+        toast.success(`${payload.name} ${payload.surname}'s details have been updated.`);
+      } else {
+        await createStaffAccount(payload);
+        toast.success(`Account created. An activation link has been sent to ${payload.email}.`);
+      }
+      await onSaved();
+    } catch (error) {
+      // Refused - a duplicate address, or demoting the last administrator.
+      // Put the reason beside the field it names, or in a toast if none, and
+      // leave the form open so it can be corrected.
+      if (error instanceof ApiError && Object.keys(error.fields).length > 0) {
+        setErrors(error.fields as Partial<Record<keyof AccountForm, string>>);
+      } else {
+        toast.error(
+          error instanceof Error && error.message
+            ? error.message
+            : "The account couldn't be saved. Please try again.",
+        );
+      }
+      return;
+    } finally {
+      setBusy(false);
     }
-
-    await onSaved();
-    setBusy(false);
     onOpenChange(false);
   };
 

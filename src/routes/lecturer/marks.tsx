@@ -12,6 +12,8 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -22,14 +24,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatMark } from "@/lib/format";
+import { useLecturerClasses } from "@/hooks/use-lecturer-context";
 import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
-import { classes } from "@/mocks/data";
+
 import {
   calculateMarks,
   getAssessment,
   getGroupMarks,
   getGroups,
+  getResultRows,
   setGroupBaseMark,
   updateAssessment,
 } from "@/services/peerly";
@@ -44,7 +48,8 @@ function MarkEntryPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { activeAssessmentId, activeClassId } = useSession();
-  const klass = classes.find((c) => c.id === activeClassId);
+  const lecturerClasses = useLecturerClasses().data ?? [];
+  const klass = lecturerClasses.find((c) => c.id === activeClassId);
 
   const assessmentQuery = useQuery({
     queryKey: ["assessment", activeAssessmentId],
@@ -60,6 +65,15 @@ function MarkEntryPage() {
   });
 
   const assessment = assessmentQuery.data;
+
+  // FR-24: a recalculation lists every override it affects and asks what to do
+  // with them. Only fetched once there is a previous run to have overridden.
+  const previousResults = useQuery({
+    queryKey: ["result-rows", activeAssessmentId],
+    queryFn: () => getResultRows(activeAssessmentId),
+    enabled: Boolean(assessmentQuery.data?.calculatedAt),
+  });
+  const overridden = (previousResults.data ?? []).filter((row) => row.result.override);
   const maxMark = assessment?.maxMark ?? 100;
   const groups = (groupsQuery.data ?? []).filter((g) => assessment?.groupIds.includes(g.id));
 
@@ -67,6 +81,7 @@ function MarkEntryPage() {
   const [errors, setErrors] = useState<Record<string, string | null>>({});
   const [states, setStates] = useState<Record<string, RowState>>({});
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [overrideChoice, setOverrideChoice] = useState<"keep" | "withdraw" | null>(null);
 
   // Seed the inputs once the saved marks arrive.
   useEffect(() => {
@@ -313,23 +328,63 @@ function MarkEntryPage() {
         }
         consequence={
           <p>
-            This replaces any marks from a previous calculation for this assessment, including
-            overrides you've entered. Re-opening the assessment afterwards invalidates the results
-            again.
+            This replaces the marks from any previous calculation for this assessment. Re-opening
+            the assessment afterwards invalidates the results again.
           </p>
         }
         confirmLabel="Calculate marks"
+        confirmDisabled={overridden.length > 0 && overrideChoice === null}
         onConfirm={async () => {
-          const run = await calculateMarks(assessment.id);
+          const run = await calculateMarks(
+            assessment.id,
+            overridden.length > 0 ? (overrideChoice ?? undefined) : undefined,
+          );
           await updateAssessment(assessment.id, {
             calculatedAt: new Date().toISOString(),
             calculationRunId: run.calculationRunId,
           });
           await queryClient.invalidateQueries();
           toast.success(`Marks calculated for ${groups.length} groups.`);
+          setOverrideChoice(null);
           navigate({ to: "/lecturer/results" });
         }}
-      />
+      >
+        {overridden.length > 0 ? (
+          <fieldset className="space-y-3 rounded-lg border p-3 text-sm">
+            <legend className="px-1 font-semibold">
+              {overridden.length === 1
+                ? "1 student has an override"
+                : `${overridden.length} students have overrides`}
+            </legend>
+            <ul className="space-y-1 text-muted-foreground">
+              {overridden.map((row) => (
+                <li key={row.result.studentId}>
+                  {row.student.name} {row.student.surname}: overridden to{" "}
+                  {formatMark(row.result.override!.mark)} - {row.result.override!.reason}
+                </li>
+              ))}
+            </ul>
+            <RadioGroup
+              value={overrideChoice ?? ""}
+              onValueChange={(value) => setOverrideChoice(value as "keep" | "withdraw")}
+              aria-label="What should happen to these overrides?"
+            >
+              <div className="flex items-start gap-2">
+                <RadioGroupItem value="keep" id="overrides-keep" className="mt-0.5" />
+                <Label htmlFor="overrides-keep" className="font-normal leading-snug">
+                  Keep them. Each stays in force beside its new calculated mark.
+                </Label>
+              </div>
+              <div className="flex items-start gap-2">
+                <RadioGroupItem value="withdraw" id="overrides-withdraw" className="mt-0.5" />
+                <Label htmlFor="overrides-withdraw" className="font-normal leading-snug">
+                  Withdraw them. The new calculated marks stand.
+                </Label>
+              </div>
+            </RadioGroup>
+          </fieldset>
+        ) : null}
+      </ConfirmDialog>
     </>
   );
 }

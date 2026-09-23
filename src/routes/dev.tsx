@@ -65,14 +65,16 @@ function DevPage() {
 
         <Card className="divide-y shadow-card">
           {personas.map((persona) => {
-            const active = user?.id === persona.userId;
+            const active = user?.email === persona.email;
             return (
               <button
-                key={persona.userId}
+                key={persona.email}
                 type="button"
                 onClick={() => {
-                  signInAs(persona.userId);
-                  navigate({ to: homePathForRole(persona.role) });
+                  // A real sign-in now, so the navigation waits for it.
+                  void signInAs(persona.email).then(() =>
+                    navigate({ to: homePathForRole(persona.role) }),
+                  );
                 }}
                 className={cn(
                   "flex w-full cursor-pointer items-center gap-3 p-4 text-left transition-colors first:rounded-t-lg last:rounded-b-lg",

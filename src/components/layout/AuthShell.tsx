@@ -4,14 +4,16 @@ import { BrandLockup, BrandMark } from "@/components/layout/BrandMark";
 import { Card } from "@/components/ui/card";
 import { FloatingPathsBackground } from "@/components/ui/floating-paths";
 import { cn } from "@/lib/utils";
-import { allGroups, assessments, studentUsers } from "@/mocks/data";
 
 // Mock counts. A live Peerly must not publish these before sign-in - swap for
 // static copy (or drop the row) once the backend is wired.
 const stats = [
-  { label: "Students", value: studentUsers.length },
-  { label: "Groups", value: allGroups.length },
-  { label: "Assessments", value: assessments.length },
+  // Illustrative figures on the sign-in page. Deliberately not live: this
+  // screen is shown to anyone who reaches the site, signed in or not, and how
+  // many students a university has is not something to publish to them.
+  { label: "Students", value: "30+" },
+  { label: "Groups", value: "9" },
+  { label: "Assessments", value: "2" },
 ];
 
 /**

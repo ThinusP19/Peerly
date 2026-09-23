@@ -7,6 +7,8 @@ import { BusyButton } from "@/components/shared/BusyButton";
 import { FormField } from "@/components/shared/FormField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ApiError } from "@/lib/api";
+import { forgotPassword } from "@/services/auth";
 
 type Audience = "student" | "lecturer";
 
@@ -40,7 +42,21 @@ function ForgotPasswordPage() {
     setError(null);
 
     setBusy(true);
-    await new Promise((resolve) => setTimeout(resolve, 750));
+    // SR-06: the same acknowledgement whether or not that address has an
+    // account, so the screen does not become a way to discover who is
+    // registered. A failure to reach the server is the one thing worth
+    // reporting, since the person would otherwise wait for an email that was
+    // never even requested.
+    try {
+      await forgotPassword(email.trim());
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 0) {
+        setBusy(false);
+        setError("We couldn't reach Peerly. Check your connection and try again.");
+        return;
+      }
+      // Anything else is deliberately indistinguishable from success.
+    }
     setBusy(false);
     setSent(true);
   };

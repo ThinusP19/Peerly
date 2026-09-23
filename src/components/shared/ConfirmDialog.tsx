@@ -17,6 +17,10 @@ import {
  * Built on Dialog rather than AlertDialog so the dialog stays open (and the
  * confirm button stays busy) while the action runs - Radix's AlertDialogAction
  * closes on click, which would hide the busy state.
+ *
+ * A refused action keeps the dialog open and says why. Callers throw; this is
+ * the one place that turns the throw into a sentence, so no dialog can sit
+ * there looking as if nothing happened.
  */
 export function ConfirmDialog({
   open,
@@ -49,19 +53,34 @@ export function ConfirmDialog({
   children?: ReactNode;
 }) {
   const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
 
   const handleConfirm = async () => {
     setBusy(true);
+    setFailure(null);
     try {
       await onConfirm();
       onOpenChange(false);
+    } catch (error) {
+      setFailure(
+        error instanceof Error && error.message
+          ? error.message
+          : "That didn't work. Please try again.",
+      );
     } finally {
       setBusy(false);
     }
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (busy) return;
+    // A reason from the last attempt belongs to that attempt only.
+    if (!next) setFailure(null);
+    onOpenChange(next);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(next) => !busy && onOpenChange(next)}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
@@ -82,8 +101,17 @@ export function ConfirmDialog({
 
         {children}
 
+        {failure ? (
+          <p
+            role="alert"
+            className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+          >
+            {failure}
+          </p>
+        ) : null}
+
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={busy}>
             {cancelLabel}
           </Button>
           <Button

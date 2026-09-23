@@ -131,20 +131,21 @@ describe("buildMatrix (FR-19)", () => {
 
 describe("deviationFrom (FR-19)", () => {
   it("flags a value materially above the group mean", () => {
-    expect(deviationFrom(100, 75)).toBe("above");
+    expect(deviationFrom(100, 89)).toBe("above");
   });
 
   it("flags a value materially below the group mean", () => {
-    expect(deviationFrom(50, 75)).toBe("below");
+    expect(deviationFrom(79, 89)).toBe("below");
   });
 
   it("treats a value inside the threshold as normal", () => {
-    expect(deviationFrom(80, 75)).toBe("normal");
+    expect(deviationFrom(91, 89)).toBe("normal");
   });
 
   it("treats the threshold itself as material, at both ends", () => {
-    expect(deviationFrom(87.5, 75)).toBe("above");
-    expect(deviationFrom(62.5, 75)).toBe("below");
+    // One step either side of Satisfactory (89) on the banded scale.
+    expect(deviationFrom(94, 89)).toBe("above");
+    expect(deviationFrom(84, 89)).toBe("below");
   });
 
   it("is normal when there is nothing to compare against", () => {

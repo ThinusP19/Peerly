@@ -18,13 +18,10 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { Label } from "@/components/ui/label";
+import { ApiError } from "@/lib/api";
+import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
-import {
-  RegistrationError,
-  activateAccount,
-  registerAccount,
-  updatePendingRegistration,
-} from "@/services/peerly";
+import { register, resendCode, verifyCode } from "@/services/auth";
 
 export const Route = createFileRoute("/register")({
   component: RegisterPage,
@@ -118,6 +115,9 @@ function validateAccount(form: Form, noticeAccepted: boolean): Errors {
 }
 
 function RegisterPage() {
+  // Verifying the code signs the student in, so the session has to learn about
+  // it here rather than on the next page load.
+  const { signIn } = useSession();
   const [step, setStep] = useState<Step>("details");
   const [form, setForm] = useState<Form>(empty);
   const [noticeAccepted, setNoticeAccepted] = useState(false);
@@ -167,24 +167,21 @@ function RegisterPage() {
 
     setBusy(true);
     try {
-      // First time: create the account, unverified. After going back: update
-      // that same account. Either way a code goes to the (possibly new) email,
-      // and nothing can sign in until it's confirmed.
-      if (pendingUserId) {
-        await updatePendingRegistration(pendingUserId, details);
-        toast.success(`We've sent a new code to ${form.email.trim()}.`);
-      } else {
-        const user = await registerAccount({ role: "student", ...details });
-        setPendingUserId(user.id);
-      }
+      // The same call either way. Submitting again after going back updates the
+      // unverified registration rather than creating a second one, and sends a
+      // fresh code to the (possibly corrected) address. Nothing can sign in
+      // until that code is entered.
+      await register({ ...details, password: form.password, noticeAccepted });
+      if (pendingUserId) toast.success(`We've sent a new code to ${form.email.trim()}.`);
+      setPendingUserId(form.email.trim());
       setCode("");
       setCooldown(RESEND_SECONDS);
       goTo("verify");
     } catch (error) {
-      if (error instanceof RegistrationError) {
+      if (error instanceof ApiError && Object.keys(error.fields).length > 0) {
         // A taken student number belongs to step 1, so take them back to it.
-        if (error.field === "studentNumber") setStep("details");
-        setErrors({ [error.field]: error.message });
+        if (error.field("studentNumber")) setStep("details");
+        setErrors(error.fields as Errors);
       } else {
         setErrors({ email: "We couldn't save your account. Please try again." });
       }
@@ -200,26 +197,32 @@ function RegisterPage() {
     }
     setBusy(true);
     setCodeError(null);
-    await new Promise((resolve) => setTimeout(resolve, 700));
-
-    // Prototype: any 6-digit code verifies, except 000000, which stands in for
-    // a wrong or expired code so that state can be seen.
-    if (value === "000000") {
-      setBusy(false);
+    try {
+      // Verifying proves the address belongs to them, so the API activates the
+      // account and signs them in in the same step.
+      const account = await verifyCode(form.email.trim(), value);
+      signIn(account);
+      setStep("done");
+    } catch (error) {
       setCode("");
-      setCodeError("That code isn't right. Check the latest email we sent and try again.");
-      return;
+      setCodeError(
+        error instanceof ApiError
+          ? (error.field("code") ?? error.message)
+          : "That code isn't right. Check the latest email we sent and try again.",
+      );
+    } finally {
+      setBusy(false);
     }
-
-    await activateAccount(form.email);
-    setBusy(false);
-    setStep("done");
   };
 
-  const resend = () => {
+  const resend = async () => {
     setCode("");
     setCodeError(null);
     setCooldown(RESEND_SECONDS);
+    // Acknowledged the same way whatever happened, as the server answers it
+    // (SR-06). The cooldown starts regardless, so a failure cannot be detected
+    // by the button staying enabled.
+    await resendCode(form.email.trim()).catch(() => undefined);
     toast.success(`A new code is on its way to ${form.email.trim()}.`);
   };
 

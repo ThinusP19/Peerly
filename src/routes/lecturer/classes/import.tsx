@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, Check, CheckCircle2, Info, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { BusyButton } from "@/components/shared/BusyButton";
@@ -27,10 +27,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useLecturerClasses } from "@/hooks/use-lecturer-context";
 import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
-import { classes } from "@/mocks/data";
-import { getImportPreview } from "@/services/peerly";
+
+import { ApiError } from "@/lib/api";
+import { commitClassList, inspectClassList, previewClassList } from "@/services/peerly";
 
 export const Route = createFileRoute("/lecturer/classes/import")({
   component: ImportPage,
@@ -46,7 +48,6 @@ const steps = [
 type StepKey = (typeof steps)[number]["key"];
 
 /** Headers as they appear in a typical exported class list - deliberately messy. */
-const fileHeaders = ["Stud No.", "Given Name", "Family Name", "Email Address", "Programme"];
 
 type FieldKey = "studentNumber" | "name" | "surname" | "email";
 
@@ -75,23 +76,57 @@ function ImportPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { activeClassId } = useSession();
-  const klass = classes.find((c) => c.id === activeClassId);
+  const lecturerClasses = useLecturerClasses().data ?? [];
+  const klass = lecturerClasses.find((c) => c.id === activeClassId);
 
   const [step, setStep] = useState<StepKey>("upload");
   const [file, setFile] = useState<File | null>(null);
   const [mapping, setMapping] = useState<Record<FieldKey, string>>(
-    Object.fromEntries(fields.map((field) => [field.key, field.guess])) as Record<FieldKey, string>,
+    Object.fromEntries(fields.map((field) => [field.key, ""])) as Record<FieldKey, string>,
   );
   const [mappingError, setMappingError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const preview = useQuery({
-    queryKey: ["import-preview"],
-    queryFn: getImportPreview,
-    enabled: step === "preview" || step === "confirm",
+  /**
+   * The file is read on the server (SI-04), so choosing one asks what columns
+   * it has. The suggestion that comes back is only a suggestion - FR-08 has the
+   * lecturer confirm it, because a wrong guess would put surnames in the
+   * student-number column and every row would fail for the wrong reason.
+   */
+  const inspection = useQuery({
+    queryKey: ["import-inspect", activeClassId, file?.name, file?.size],
+    queryFn: () => inspectClassList(activeClassId, file!),
+    enabled: Boolean(file && activeClassId),
   });
 
-  const rows = preview.data ?? [];
+  const fileHeaders = inspection.data?.headers ?? [];
+
+  // Apply the server's suggestion once, when it arrives.
+  useEffect(() => {
+    const suggested = inspection.data?.suggested;
+    if (!suggested) return;
+    setMapping((current) => ({
+      studentNumber: current.studentNumber || (suggested.studentNumber ?? ""),
+      name: current.name || (suggested.name ?? ""),
+      surname: current.surname || (suggested.surname ?? ""),
+      email: current.email || (suggested.email ?? ""),
+    }));
+  }, [inspection.data]);
+
+  const preview = useQuery({
+    queryKey: ["import-preview", activeClassId, file?.name, mapping],
+    queryFn: () =>
+      previewClassList(activeClassId, file!, {
+        studentNumber: mapping.studentNumber,
+        name: mapping.name,
+        surname: mapping.surname,
+        ...(mapping.email ? { email: mapping.email } : {}),
+      }),
+    enabled: Boolean(file && activeClassId) && (step === "preview" || step === "confirm"),
+  });
+
+  const rows = preview.data?.rows ?? [];
   const errorRows = rows.filter((row) => row.errors.length > 0);
   const validRows = rows.filter((row) => row.errors.length === 0);
 
@@ -171,7 +206,27 @@ function ImportPage() {
           />
 
           <div className="px-5 py-5 sm:px-6">
-            <FileUpload file={file} onFileChange={setFile} />
+            <FileUpload
+              file={file}
+              onFileChange={(next) => {
+                setFile(next);
+                setUploadError(null);
+                setMapping(
+                  Object.fromEntries(fields.map((field) => [field.key, ""])) as Record<
+                    FieldKey,
+                    string
+                  >,
+                );
+              }}
+            />
+            {inspection.isError || uploadError ? (
+              <p className="mt-3 text-sm text-destructive">
+                {uploadError ??
+                  (inspection.error instanceof ApiError
+                    ? inspection.error.message
+                    : "We couldn't read that file.")}
+              </p>
+            ) : null}
           </div>
 
           <div className={panelFooterClass}>
@@ -182,7 +237,11 @@ function ImportPage() {
             >
               Cancel
             </Button>
-            <Button disabled={!file} onClick={() => setStep("mapping")} className="h-10 px-4">
+            <Button
+              disabled={!file || inspection.isPending || inspection.isError}
+              onClick={() => setStep("mapping")}
+              className="h-10 px-4"
+            >
               Continue
             </Button>
           </div>
@@ -431,12 +490,26 @@ function ImportPage() {
         }
         confirmLabel="Import class list"
         onConfirm={async () => {
-          await new Promise((resolve) => setTimeout(resolve, 900));
-          await queryClient.invalidateQueries();
-          toast.success(
-            `${validRows.length} students imported into ${klass?.moduleCode ?? "the class"}.`,
-          );
-          navigate({ to: "/lecturer/classes" });
+          try {
+            const result = await commitClassList(activeClassId, file!, {
+              studentNumber: mapping.studentNumber,
+              name: mapping.name,
+              surname: mapping.surname,
+              ...(mapping.email ? { email: mapping.email } : {}),
+            });
+            await queryClient.invalidateQueries();
+            // FR-04 runs on commit, so report what matched - an unmatched row
+            // is not a failure, it is a student who has not registered yet.
+            toast.success(
+              `${result.imported} imported into ${klass?.moduleCode ?? "the class"}. ` +
+                `${result.matched} matched to an account, ${result.unmatched} still unmatched.`,
+            );
+            navigate({ to: "/lecturer/classes" });
+          } catch (error) {
+            toast.error(
+              error instanceof ApiError ? error.message : "We couldn't import that file.",
+            );
+          }
         }}
       />
     </>

@@ -39,8 +39,9 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDateTimeLong, formatFactor, formatMark } from "@/lib/format";
+import { useLecturerClasses } from "@/hooks/use-lecturer-context";
 import { useSession } from "@/lib/session";
-import { classes } from "@/mocks/data";
+
 import {
   getAssessment,
   getRatingOptions,
@@ -57,7 +58,8 @@ type Filter = "all" | "flagged" | "overridden";
 
 function ResultsPage() {
   const { user, activeAssessmentId, activeClassId } = useSession();
-  const klass = classes.find((c) => c.id === activeClassId);
+  const lecturerClasses = useLecturerClasses().data ?? [];
+  const klass = lecturerClasses.find((c) => c.id === activeClassId);
   const queryClient = useQueryClient();
 
   const assessmentQuery = useQuery({
@@ -468,6 +470,7 @@ function ResultsPage() {
         row={overriding}
         actorName={`${user?.name} ${user?.surname}`}
         assessmentId={activeAssessmentId}
+        maxMark={assessment.maxMark}
         onClose={() => setOverriding(null)}
         onSaved={() => queryClient.invalidateQueries()}
       />
@@ -483,12 +486,15 @@ function OverrideDialog({
   row,
   actorName,
   assessmentId,
+  maxMark,
   onClose,
   onSaved,
 }: {
   row: ResultRow | null;
   actorName: string;
   assessmentId: string;
+  /** The assessment's own maximum, which the server enforces (FR-24). */
+  maxMark: number;
   onClose: () => void;
   onSaved: () => void | Promise<unknown>;
 }) {
@@ -517,8 +523,8 @@ function OverrideDialog({
       next.mark = "Enter the mark you want this student to receive.";
     } else if (Number.isNaN(value)) {
       next.mark = "Enter the mark as a number, for example 52 or 52.5.";
-    } else if (value < 0 || value > 100) {
-      next.mark = "A final mark has to be between 0 and 100.";
+    } else if (value < 0 || value > maxMark) {
+      next.mark = `A final mark has to be between 0 and ${maxMark}.`;
     }
     if (!reasonGiven) {
       next.reason = "Explain why you're changing this mark - it's kept in the audit log.";
@@ -527,9 +533,21 @@ function OverrideDialog({
     if (Object.keys(next).length) return;
 
     setBusy(true);
-    await overrideMark(assessmentId, row.student.id, value, reason.trim(), actorName);
-    await onSaved();
-    setBusy(false);
+    try {
+      await overrideMark(assessmentId, row.student.id, value, reason.trim(), actorName);
+      await onSaved();
+    } catch (error) {
+      // Refused: say why beside the mark, and leave the dialog open to fix it.
+      setErrors({
+        mark:
+          error instanceof Error && error.message
+            ? error.message
+            : "The override couldn't be saved. Please try again.",
+      });
+      return;
+    } finally {
+      setBusy(false);
+    }
     toast.success(
       `${row.student.name} ${row.student.surname}'s mark has been overridden to ${formatMark(value)}.`,
     );
