@@ -19,6 +19,15 @@ export interface StudentEnrolment {
   moduleCode: string;
   className: string;
   studentNumber: string;
+  /**
+   * The name as it appears on the class list the lecturer imported.
+   *
+   * The student's own explanation screen puts this beside the name on their
+   * account, because seeing the two side by side is how they spot which of the
+   * two is wrong. It is their own enrolment row and nobody else's.
+   */
+  importedName: string;
+  importedSurname: string;
   matchStatus: "matched" | "unmatched" | "conflict";
   matchNote?: string;
 }
@@ -37,11 +46,14 @@ export async function getStudentEnrolment(studentId: string): Promise<StudentEnr
     module_code: string;
     class_name: string;
     student_number: string;
+    imported_name: string;
+    imported_surname: string;
     match_status: "matched" | "unmatched" | "conflict";
     match_note: string | null;
   }>(
     `SELECT e.id, e.class_id, c.module_code, c.name AS class_name,
-            e.student_number, e.match_status, e.match_note
+            e.student_number, e.imported_name, e.imported_surname,
+            e.match_status, e.match_note
        FROM users u
        JOIN enrolments e ON e.student_number = u.student_number
        JOIN classes c ON c.id = e.class_id
@@ -60,6 +72,8 @@ export async function getStudentEnrolment(studentId: string): Promise<StudentEnr
     moduleCode: row.module_code,
     className: row.class_name,
     studentNumber: row.student_number,
+    importedName: row.imported_name,
+    importedSurname: row.imported_surname,
     matchStatus: row.match_status,
     ...(row.match_note ? { matchNote: row.match_note } : {}),
   };

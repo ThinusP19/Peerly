@@ -550,8 +550,8 @@ export const getStudentEnrolment = async (_studentId: string): Promise<Enrolment
     id: enrolment.id,
     classId: enrolment.classId,
     studentNumber: enrolment.studentNumber,
-    importedName: "",
-    importedSurname: "",
+    importedName: enrolment.importedName,
+    importedSurname: enrolment.importedSurname,
     matchStatus: enrolment.matchStatus,
     ...(enrolment.matchNote ? { matchNote: enrolment.matchNote } : {}),
   };
@@ -560,6 +560,8 @@ export const getStudentEnrolment = async (_studentId: string): Promise<Enrolment
 interface StudentEnrolmentReply {
   id: string;
   classId: string;
+  importedName: string;
+  importedSurname: string;
   moduleCode: string;
   className: string;
   studentNumber: string;

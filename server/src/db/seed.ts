@@ -219,7 +219,12 @@ async function seed() {
           cmpg323,
           student.studentNumber,
           student.name,
-          student.surname,
+          // The conflict row carries a DIFFERENT surname on the class list.
+          // Seeding it identical to the account made the student's explanation
+          // screen useless: it said the details needed checking and then showed
+          // the same name twice. A real conflict is usually exactly this - a
+          // surname changed or recorded differently since the list was drawn up.
+          status === "conflict" ? "Odendaal" : student.surname,
           `${student.studentNumber}@mynwu.ac.za`,
           status,
           status === "matched" ? studentIds[i] : null,

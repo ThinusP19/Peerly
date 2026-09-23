@@ -443,9 +443,22 @@ function EnrolmentProblem({ enrolment }: { enrolment: Enrolment }) {
         <div className="px-5 py-5 sm:px-6">
           <h2 className="text-sm font-semibold text-foreground">What to do next</h2>
           <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm text-muted-foreground">
+            {/* The two states need different advice. For a conflict the student
+                number matched - that is what created the conflict - so telling
+                them to check it sends them after the wrong thing. */}
             <li>
-              Check that the student number above is the one printed on your student card. If it
-              isn't, that's the mismatch.
+              {isConflict ? (
+                <>
+                  Compare the two names above. If the class list has an old surname, a different
+                  spelling or a second name you don't use, that's the mismatch - your lecturer can
+                  correct it.
+                </>
+              ) : (
+                <>
+                  Check that the student number above is the one printed on your student card. If it
+                  isn't, that's the mismatch.
+                </>
+              )}
             </li>
             <li>
               Email your lecturer with your student number and the module code, and ask them to
