@@ -104,6 +104,10 @@ interface SessionContextValue extends SessionState {
   signOut: () => void;
   setActiveClassId: (id: string) => void;
   setActiveAssessmentId: (id: string) => void;
+  setActiveContext: (
+  classId: string,
+  assessmentId: string
+) => void;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -164,8 +168,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       },
       setActiveAssessmentId: (activeAssessmentId: string) =>
         persist({ ...state, activeAssessmentId }),
+      setActiveContext: (
+  activeClassId: string,
+  activeAssessmentId: string,
+) => {
+  if (!assessmentBelongsToClass(activeAssessmentId, activeClassId)) {
+    throw new Error("The assessment does not belong to the selected class.");
+  }
+
+  persist({
+    ...state,
+    activeClassId,
+    activeAssessmentId,
+  });
+},
     };
+
   }, [state, hydrated, persist]);
+
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

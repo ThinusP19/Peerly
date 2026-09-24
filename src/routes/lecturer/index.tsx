@@ -406,12 +406,17 @@ const toneStyles: Record<AttentionTone, string> = {
 };
 
 function AttentionPanel({ items }: { items: AttentionItem[] }) {
-  const { setActiveClassId, setActiveAssessmentId } = useSession();
 
-  const select = (target: AttentionItem["target"]) => {
+const { setActiveClassId, setActiveContext } = useSession();
+
+const select = (target: AttentionItem["target"]) => {
+  if ("assessmentId" in target) {
+    setActiveContext(target.classId, target.assessmentId);
+  } else {
     setActiveClassId(target.classId);
-    if ("assessmentId" in target) setActiveAssessmentId(target.assessmentId);
-  };
+  }
+};
+
 
   const rowClass =
     "group flex items-start gap-3 px-5 py-3.5 transition-colors hover:bg-muted/50 sm:px-6";
@@ -565,15 +570,14 @@ function SubmissionMeter({ submitted, total }: { submitted: number; total: numbe
 
 /** Opens the assessment, and makes it (and its class) the working context. */
 function ViewLink({ assessment }: { assessment: Assessment }) {
-  const { setActiveClassId, setActiveAssessmentId } = useSession();
+  const { setActiveContext } = useSession();
   return (
     <Link
       to="/lecturer/assessments/$assessmentId"
       params={{ assessmentId: assessment.id }}
-      onClick={() => {
-        setActiveClassId(assessment.classId);
-        setActiveAssessmentId(assessment.id);
-      }}
+      onClick={() =>
+  setActiveContext(assessment.classId, assessment.id)
+}
       className="inline-flex items-center gap-1 font-semibold whitespace-nowrap text-primary hover:underline"
     >
       View
