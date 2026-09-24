@@ -90,7 +90,9 @@ function EvaluationForm() {
 
   const { assessment, klass, group } = view.data;
 
-  if (assessment.status !== "open") {
+  const isPastDeadline = Date.now() >= new Date(assessment.closesAt).getTime();
+
+if (assessment.status !== "open" || isPastDeadline) {
     return (
       <div className={FLOW}>
         <PageHeader title={assessment.name} backTo="/student" backLabel="Your assessments" />

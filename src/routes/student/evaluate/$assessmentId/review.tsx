@@ -83,6 +83,39 @@ function ReviewPage() {
   }
 
   const { assessment, klass, group } = view.data;
+  const isPastDeadline =
+  Date.now() >= new Date(assessment.closesAt).getTime();
+
+if (assessment.status !== "open" || isPastDeadline) {
+  return (
+    <div className={FLOW}>
+      <PageHeader
+        title={assessment.name}
+        backTo="/student"
+        backLabel="Your assessments"
+      />
+      <EmptyState
+        title={
+          assessment.status === "draft" && !isPastDeadline
+            ? "This assessment isn't open yet"
+            : "This assessment has closed"
+        }
+        description={
+          assessment.status === "draft" && !isPastDeadline
+            ? `It opens on ${formatDateTimeLong(assessment.opensAt)}.`
+            : `It closed on ${formatDateTimeLong(assessment.closesAt)}. Speak to your lecturer if you think this is a mistake.`
+        }
+        action={
+          <Button asChild variant="outline">
+            <Link to="/student">
+              Back to your assessments
+            </Link>
+          </Button>
+        }
+      />
+    </div>
+  );
+}
   const missingMembers = members.filter((member) => progress.missing.includes(member.id));
 
   const handleSubmit = async () => {

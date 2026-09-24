@@ -224,7 +224,11 @@ export const submitEvaluation = (
   // FR-19/BR: once an assessment is no longer open (draft = not started,
   // closed = already marked), it can't accept new or changed submissions.
   const assessment = assessments.find((a) => a.id === assessmentId);
-  if (!assessment || assessment.status !== "open") {
+  if (
+  !assessment ||
+  assessment.status !== "open" ||
+  Date.now() >= new Date(assessment.closesAt).getTime()
+) {
     throw new EvaluationError(
       "This assessment is no longer accepting submissions. Refresh the page to see its current status.",
     );

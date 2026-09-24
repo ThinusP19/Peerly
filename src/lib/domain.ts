@@ -128,10 +128,26 @@ export function studentAssessmentState(
   assessment: Assessment,
   submission: Submission | undefined,
 ): StudentAssessmentState {
+
+  // Students who already submitted stay in Submitted.
   if (submission?.status === "submitted") return "submitted";
+
+  // Assessments that haven't opened yet.
   if (assessment.status === "draft") return "not-open";
-  if (assessment.status === "closed") return "closed-missed";
+
+  // Check whether the deadline has passed.
+  const isPastDeadline =
+    Date.now() >= new Date(assessment.closesAt).getTime();
+
+  // Closed or expired assessments cannot be started.
+  if (assessment.status === "closed" || isPastDeadline) {
+    return "closed-missed";
+  }
+
+  // An existing draft that can still be completed.
   if (submission?.status === "draft") return "in-progress";
+
+  // An available assessment that hasn't been started.
   return "not-started";
 }
 
