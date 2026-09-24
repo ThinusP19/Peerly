@@ -259,6 +259,41 @@ describe("regroupingBlockedReason (FR-11)", () => {
     return s;
   };
 
+  /**
+   * Found on xstin9's branch, 2026-09-24, and it is a real hole: the guard asked
+   * only about submissions. An assessment can be closed and calculated with
+   * none - every member still gets a mark, from a neutral factor - and those
+   * marks name a group. Regrouping then left results pointing at groups that no
+   * longer existed in that shape.
+   */
+  it("refuses when an assessment has calculated marks, even with no submissions", async () => {
+    const s = await withOpenAssessment(0);
+    const { rows: asm } = await query<{ id: string }>(
+      "SELECT id FROM assessments WHERE class_id = $1",
+      [s.classId],
+    );
+    const { rows: grp } = await query<{ id: string }>(
+      "SELECT id FROM groups WHERE class_id = $1 LIMIT 1",
+      [s.classId],
+    );
+    const { rows: run } = await query<{ id: string }>(
+      `INSERT INTO calculation_runs (assessment_id, run_by, rule_version, config)
+       VALUES ($1, $2, 'test', '{}') RETURNING id`,
+      [asm[0]!.id, s.user.id],
+    );
+    await query(
+      `INSERT INTO calculated_results
+         (run_id, assessment_id, student_id, group_id, ratings_received, adjustment_factor, flags)
+       VALUES ($1, $2, $3, $4, 0, 1, '{}')`,
+      [run[0]!.id, asm[0]!.id, s.studentIds[0], grp[0]!.id],
+    );
+
+    const reason = await regroupingBlockedReason(s.classId);
+    expect(reason, "calculated marks must lock the groups they were worked out over").toMatch(
+      /calculated marks/,
+    );
+  });
+
   it("allows regrouping while an open assessment has no submissions yet", async () => {
     const { classId } = await withOpenAssessment(0);
     expect(await regroupingBlockedReason(classId)).toBeNull();

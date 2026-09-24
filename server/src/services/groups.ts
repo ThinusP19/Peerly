@@ -117,9 +117,18 @@ export async function proposeGroups(
  * student moved out of their group breaks that for ratings in both directions.
  */
 export async function regroupingBlockedReason(classId: string): Promise<string | null> {
-  const { rows } = await query<{ assessment_name: string; submissions: string }>(
+  const { rows } = await query<{
+    assessment_name: string;
+    submissions: string;
+    results: string;
+  }>(
     `SELECT a.name AS assessment_name,
-            (SELECT count(*) FROM submissions s WHERE s.assessment_id = a.id) AS submissions
+            (SELECT count(*) FROM submissions s WHERE s.assessment_id = a.id) AS submissions,
+            -- Results are keyed to the groups they were calculated over, so a
+            -- calculated assessment locks the groups even if nobody submitted:
+            -- an assessment can be closed and calculated with no submissions at
+            -- all, and every member still has a mark that refers to a group.
+            (SELECT count(*) FROM calculated_results r WHERE r.assessment_id = a.id) AS results
        FROM assessments a
       WHERE a.class_id = $1 AND a.status <> 'draft'
       ORDER BY a.opens_at DESC`,
@@ -129,6 +138,10 @@ export async function regroupingBlockedReason(classId: string): Promise<string |
   const live = rows.find((row) => Number(row.submissions) > 0);
   if (live) {
     return `"${live.assessment_name}" already has submissions, so the groups it was set up with can't be changed.`;
+  }
+  const calculated = rows.find((row) => Number(row.results) > 0);
+  if (calculated) {
+    return `"${calculated.assessment_name}" has calculated marks, which belong to the current groups, so they can't be changed.`;
   }
   return null;
 }

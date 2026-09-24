@@ -149,7 +149,17 @@ function MarkEntryPage() {
     return raw != null && raw.trim() !== "" && !validate(raw);
   });
   const outstanding = groups.length - entered.length;
-  const canCalculate = groups.length > 0 && outstanding === 0;
+  /**
+   * BR-06: only a closed assessment is calculated.
+   *
+   * The server refuses otherwise, and a button that offers what the server will
+   * refuse is worse than one that explains itself. Marks worked out while the
+   * assessment is open change as more students submit, so anything published
+   * from them would already be wrong.
+   */
+  const notClosed = Boolean(assessment) && assessment?.status !== "closed";
+  const marksAllIn = groups.length > 0 && outstanding === 0;
+  const canCalculate = marksAllIn && !notClosed;
 
   if (assessmentQuery.isPending || groupsQuery.isPending || marksQuery.isPending) {
     return (
@@ -311,12 +321,16 @@ function MarkEntryPage() {
             <h2 className="font-semibold text-foreground">
               {canCalculate
                 ? "Every group has a base mark"
-                : `${outstanding} ${outstanding === 1 ? "group is" : "groups are"} still missing a base mark`}
+                : notClosed && marksAllIn
+                  ? "This assessment is still open"
+                  : `${outstanding} ${outstanding === 1 ? "group is" : "groups are"} still missing a base mark`}
             </h2>
             <p className="mt-0.5 text-sm text-muted-foreground">
               {canCalculate
                 ? "Calculating produces one individual mark per student from their peer ratings."
-                : "Calculation stays disabled until every group has a mark, so nobody ends up with a mark of zero by accident."}
+                : notClosed && marksAllIn
+                  ? "Close it before calculating. While it is open more students may still submit, and every mark would change."
+                  : "Calculation stays disabled until every group has a mark, so nobody ends up with a mark of zero by accident."}
             </p>
           </div>
         </div>

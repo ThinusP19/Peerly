@@ -37,6 +37,49 @@ async function withOverride() {
   return scene;
 }
 
+/**
+ * BR-06, found on xstin9's branch 2026-09-24.
+ *
+ * The guard refused a draft and let an open assessment through, and scope.md
+ * recorded that as a known gap. It matters because marks calculated while an
+ * assessment is open change as more students submit - a lecturer who published
+ * them would have published figures that were already wrong.
+ */
+describe("only a closed assessment is calculated (BR-06)", () => {
+  it("refuses an assessment that is still open", async () => {
+    const { assessmentId, user } = await closedAssessment();
+    await query("UPDATE assessments SET status = 'open' WHERE id = $1", [assessmentId]);
+
+    await expect(runCalculation(assessmentId, user)).rejects.toThrow(/Close this assessment/);
+  });
+
+  it("refuses a draft, and says why in its own words", async () => {
+    const { assessmentId, user } = await closedAssessment();
+    await query("UPDATE assessments SET status = 'draft' WHERE id = $1", [assessmentId]);
+
+    await expect(runCalculation(assessmentId, user)).rejects.toThrow(/hasn't opened yet/);
+  });
+
+  it("writes nothing when it refuses", async () => {
+    const { assessmentId, user } = await closedAssessment();
+    await query("UPDATE assessments SET status = 'open' WHERE id = $1", [assessmentId]);
+
+    await expect(runCalculation(assessmentId, user)).rejects.toThrow();
+    const { rows } = await query<{ n: string }>(
+      "SELECT count(*) AS n FROM calculation_runs WHERE assessment_id = $1",
+      [assessmentId],
+    );
+    expect(Number(rows[0]!.n)).toBe(0);
+  });
+
+  it("allows it once closed", async () => {
+    const { assessmentId, user } = await closedAssessment();
+
+    const summary = await runCalculation(assessmentId, user);
+    expect(summary.students).toBeGreaterThan(0);
+  });
+});
+
 describe("recalculating with overrides in place (FR-24)", () => {
   it("runs without asking when there are no overrides", async () => {
     const { assessmentId, user } = await closedAssessment();

@@ -112,8 +112,18 @@ export async function runCalculation(
   const assessment = await getAssessment(assessmentId, user);
   const klass = await getClass(assessment.classId, user);
 
-  if (assessment.status === "draft") {
-    throw conflict("This assessment hasn't opened yet, so there is nothing to calculate.");
+  // BR-06: only a closed assessment is calculated. While it is still open, more
+  // students may yet submit, so every mark produced is provisional and would
+  // change without anybody touching the button - and a lecturer who published
+  // those figures would have published numbers that were already wrong. The
+  // deadline no longer accepts submissions (BR-05), but closing is the
+  // lecturer's own statement that the assessment is finished with.
+  if (assessment.status !== "closed") {
+    throw conflict(
+      assessment.status === "draft"
+        ? "This assessment hasn't opened yet, so there is nothing to calculate."
+        : "Close this assessment before calculating. While it is open, more students may still submit and every mark would change.",
+    );
   }
 
   const groups = await gatherGroups(assessmentId);
