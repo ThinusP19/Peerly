@@ -86,8 +86,22 @@ export const getPeerRatings = (assessmentId: string): Promise<PeerRating[]> => {
 export const getGroupMarks = (assessmentId: string): Promise<GroupMark[]> =>
   delay(groupMarks.filter((m) => m.assessmentId === assessmentId));
 
-export const getResults = (assessmentId: string): Promise<CalculatedResult[]> =>
-  delay(calculatedResults.filter((r) => r.assessmentId === assessmentId));
+export const getResults = (
+  assessmentId: string,
+): Promise<CalculatedResult[]> => {
+  const assessment = assessments.find(
+    (a) => a.id === assessmentId,
+  );
+
+  // Do not return results without a valid calculation.
+  if (!assessment?.calculatedAt) return delay([]);
+
+  return delay(
+    calculatedResults.filter(
+      (result) => result.assessmentId === assessmentId,
+    ),
+  );
+};
 
 export const getAuditEntries = (): Promise<AuditEntry[]> =>
   delay([...auditEntries].sort((a, b) => b.timestamp.localeCompare(a.timestamp)));
@@ -141,9 +155,33 @@ export const setGroupBaseMark = (
   return delay(created, 350);
 };
 
-export const setAssessmentStatus = (assessmentId: string, status: Assessment["status"]) => {
-  const assessment = assessments.find((a) => a.id === assessmentId);
-  if (assessment) assessment.status = status;
+export const setAssessmentStatus = (
+  assessmentId: string,
+  status: Assessment["status"],
+) => {
+  const assessment = assessments.find(
+    (a) => a.id === assessmentId
+  );
+
+  if (assessment) {
+
+    // Reopening invalidates the previous calculation.
+    if (assessment.status === "closed" && status === "open") {
+
+      // Clear the old calculation information.
+      assessment.calculatedAt = undefined;
+      assessment.calculationRunId = undefined;
+
+      // Remove outdated calculated student results.
+      removeWhere(
+        calculatedResults,
+        (result) => result.assessmentId === assessmentId
+      );
+    }
+
+    assessment.status = status;
+  }
+
   return delay(assessment);
 };
 
@@ -538,8 +576,10 @@ export interface ResultRow {
 
 /** Results summary rows, joined to everything the drill-down needs. */
 export const getResultRows = (assessmentId: string): Promise<ResultRow[]> => {
-  const assessment = assessments.find((a) => a.id === assessmentId);
-  if (!assessment) return delay([]);
+ const assessment = assessments.find((a) => a.id === assessmentId);
+
+// Only return results when a valid calculation exists.
+if (!assessment?.calculatedAt) return delay([]);
 
   const assessmentSubmissions = submissions.filter(
     (s) => s.assessmentId === assessmentId && s.status === "submitted",
