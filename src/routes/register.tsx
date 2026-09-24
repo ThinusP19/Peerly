@@ -174,7 +174,11 @@ function RegisterPage() {
         await updatePendingRegistration(pendingUserId, details);
         toast.success(`We've sent a new code to ${form.email.trim()}.`);
       } else {
-        const user = await registerAccount({ role: "student", ...details });
+        const user = await registerAccount({
+          role: "student",
+          ...details,
+          password: form.password,
+        });
         setPendingUserId(user.id);
       }
       setCode("");

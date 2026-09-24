@@ -78,17 +78,25 @@ function SignInForm({ audience }: { audience: Audience }) {
     setBusy(true);
     await new Promise((resolve) => setTimeout(resolve, 650));
 
-    // Prototype "auth": any password works for a seeded account. The failure
-    // message is deliberately generic - it must not reveal which field was wrong.
+    // The failure message is deliberately generic across every reason a sign-in
+    // can fail (unknown email, inactive account, wrong password) - it must not
+    // reveal which one it was, or an attacker could use it to enumerate accounts.
     const account = users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
+    const genericError =
+      "Those details don't match an active Peerly account. Please check and try again.";
 
     // FR-05: only active accounts may sign in. Unverified counts as not active -
     // otherwise activation is optional, which defeats the point of it.
     if (!account || account.status !== "active") {
       setBusy(false);
-      setFormError(
-        "Those details don't match an active Peerly account. Please check and try again.",
-      );
+      setFormError(genericError);
+      return;
+    }
+
+    // SR-01: the submitted password must match the account's stored one.
+    if (account.password === undefined || account.password !== password) {
+      setBusy(false);
+      setFormError(genericError);
       return;
     }
 

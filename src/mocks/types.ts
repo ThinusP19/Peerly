@@ -17,6 +17,13 @@ export interface User {
   studentNumber?: string;
   status: UserStatus;
   createdAt: string;
+  /**
+   * Prototype-only credential store. In the mock layer this is a plaintext
+   * stand-in for a hashed value; the real backend must hash it (SR-01) and
+   * never expose it to the client. Undefined means "no password set yet"
+   * (unverified/pending accounts).
+   */
+  password?: string;
 }
 
 export interface Class {

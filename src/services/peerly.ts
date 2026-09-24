@@ -72,7 +72,14 @@ export const getSubmissions = (assessmentId: string): Promise<Submission[]> =>
   delay(submissions.filter((s) => s.assessmentId === assessmentId));
 
 export const getPeerRatings = (assessmentId: string): Promise<PeerRating[]> => {
-  const ids = new Set(submissions.filter((s) => s.assessmentId === assessmentId).map((s) => s.id));
+  // Only ratings from *submitted* evaluations count for the lecturer-facing
+  // matrix, results and calculation - an evaluator's draft is still theirs to
+  // change, and half-finished ratings must never leak into marks (see #3).
+  const ids = new Set(
+    submissions
+      .filter((s) => s.assessmentId === assessmentId && s.status === "submitted")
+      .map((s) => s.id),
+  );
   return delay(peerRatings.filter((r) => ids.has(r.submissionId)));
 };
 
@@ -122,8 +129,16 @@ export const setGroupBaseMark = (
   baseMark: number | null,
 ) => {
   const mark = groupMarks.find((m) => m.assessmentId === assessmentId && m.groupId === groupId);
-  if (mark) mark.baseMark = baseMark;
-  return delay(mark, 350);
+  if (mark) {
+    mark.baseMark = baseMark;
+    return delay(mark, 350);
+  }
+  // No row existed yet for this assessment/group pair (true for every
+  // assessment except the seeded asm-1) - create it instead of silently
+  // discarding the mark (see #5).
+  const created: GroupMark = { assessmentId, groupId, baseMark };
+  groupMarks.push(created);
+  return delay(created, 350);
 };
 
 export const setAssessmentStatus = (assessmentId: string, status: Assessment["status"]) => {
@@ -194,6 +209,8 @@ export const updateStaffAccount = (
 export const activeAdminCount = () =>
   staffUsers.filter((u) => u.role === "admin" && u.status === "active").length;
 
+export class EvaluationError extends Error {}
+
 /**
  * Records a student's evaluation against the in-memory mock data so the
  * lecturer-facing screens reflect it in the same session. A real backend would
@@ -204,6 +221,15 @@ export const submitEvaluation = (
   evaluatorStudentId: string,
   entries: Array<{ evaluatedStudentId: string; ratingOptionId: string; comment?: string }>,
 ) => {
+  // FR-19/BR: once an assessment is no longer open (draft = not started,
+  // closed = already marked), it can't accept new or changed submissions.
+  const assessment = assessments.find((a) => a.id === assessmentId);
+  if (!assessment || assessment.status !== "open") {
+    throw new EvaluationError(
+      "This assessment is no longer accepting submissions. Refresh the page to see its current status.",
+    );
+  }
+
   const submissionId = `sub-${assessmentId}-${evaluatorStudentId}`;
   const now = new Date().toISOString();
 
@@ -434,8 +460,21 @@ export const updateAssessment = (
   return delay(assessment, 700);
 };
 
+export class GroupRegenerationError extends Error {}
+
 /** Replaces the confirmed groups for a class with a proposed allocation. */
 export const confirmGroups = (classId: string, proposed: Group[]) => {
+  // A closed assessment's marks, ratings and audit history are keyed to its
+  // groupIds. Deleting and recreating groups under new ids would silently
+  // orphan every one of those references (see #4) - so it's a hard stop, not
+  // just a UI hint.
+  const closedAssessment = assessments.find((a) => a.classId === classId && a.status === "closed");
+  if (closedAssessment) {
+    throw new GroupRegenerationError(
+      `"${closedAssessment.name}" is closed and its results depend on the current groups. Regenerating would disconnect them.`,
+    );
+  }
+
   for (let i = allGroups.length - 1; i >= 0; i -= 1) {
     if (allGroups[i].classId === classId) allGroups.splice(i, 1);
   }
@@ -498,7 +537,9 @@ export const getResultRows = (assessmentId: string): Promise<ResultRow[]> => {
   const assessment = assessments.find((a) => a.id === assessmentId);
   if (!assessment) return delay([]);
 
-  const assessmentSubmissions = submissions.filter((s) => s.assessmentId === assessmentId);
+  const assessmentSubmissions = submissions.filter(
+    (s) => s.assessmentId === assessmentId && s.status === "submitted",
+  );
   const submissionById = new Map(assessmentSubmissions.map((s) => [s.id, s]));
 
   const rows = calculatedResults
@@ -551,7 +592,7 @@ export const getStudentRatingOptions = (): Promise<StudentRatingOption[]> =>
 export class RegistrationError extends Error {
   constructor(
     override readonly message: string,
-    readonly field: "email" | "studentNumber",
+    readonly field: "email" | "studentNumber" | "password",
   ) {
     super(message);
   }
@@ -568,6 +609,7 @@ export const registerAccount = (input: {
   surname: string;
   email: string;
   studentNumber?: string;
+  password: string;
 }): Promise<User> => {
   const email = input.email.trim().toLowerCase();
 
@@ -577,6 +619,8 @@ export const registerAccount = (input: {
   if (input.studentNumber && users.some((u) => u.studentNumber === input.studentNumber)) {
     throw new RegistrationError("An account already uses that student number.", "studentNumber");
   }
+  const failedCheck = passwordChecks(input.password, input).find((check) => !check.ok);
+  if (failedCheck) throw new RegistrationError(failedCheck.error, "password");
 
   const user: User = {
     id: `u-${input.role}-${Math.random().toString(36).slice(2, 8)}`,
@@ -587,12 +631,25 @@ export const registerAccount = (input: {
     studentNumber: input.studentNumber,
     status: "unverified",
     createdAt: new Date().toISOString(),
+    // Students set their password at registration (see activate.tsx); it's
+    // stored now so the activation link only needs to flip the status.
+    password: input.password,
   };
 
   // Keep the role-specific lists in step with the combined one - screens read
   // from whichever suits them.
   (user.role === "student" ? studentUsers : staffUsers).push(user);
   users.push(user);
+
+  // FR-27: every account creation belongs in the audit log, self-registered
+  // ones included - it's a self-service action, so the new account is its
+  // own actor (see #8).
+  recordAudit(
+    user,
+    "account.created",
+    `${user.name} ${user.surname} · ${user.email}`,
+    `Self-registered as ${user.role}${user.studentNumber ? ` (${user.studentNumber})` : ""}`,
+  );
 
   return delay(user, 800);
 };
@@ -636,9 +693,14 @@ export const updatePendingRegistration = (
  * match (FR-04). A student who is not on any imported list stays unmatched and
  * sees the explanation screen rather than an empty dashboard.
  */
-export const activateAccount = (email: string): Promise<User | null> => {
+export const activateAccount = (email: string, password?: string): Promise<User | null> => {
   const user = users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
   if (!user) return delay(null, 600);
+
+  // Staff accounts (admin/lecturer) choose their password here, on first
+  // activation - students already set theirs at registration and this call
+  // gets no `password` argument for them, so their stored one is untouched.
+  if (password) user.password = password;
 
   user.status = "active";
 
@@ -650,6 +712,13 @@ export const activateAccount = (email: string): Promise<User | null> => {
       enrolment.matchNote = undefined;
     }
   }
+
+  recordAudit(
+    user,
+    "account.activated",
+    `${user.name} ${user.surname} · ${user.email}`,
+    "Activated via emailed link",
+  );
 
   return delay(user, 600);
 };
@@ -907,17 +976,24 @@ export class PasswordChangeError extends Error {
 }
 
 /**
- * FR-06: change a known password. The current password comes first, the new
- * one must meet SR-02, and every other session for the account ends (SR-05).
- * In the prototype any current password is accepted, as it is at sign-in.
+ * FR-06: change a known password. The current password comes first and must
+ * match the account's stored one (SR-01), the new one must meet SR-02, and
+ * every other session for the account ends (SR-05).
  */
 export const changePassword = (user: User, current: string, next: string) => {
   if (!current) throw new PasswordChangeError("Enter your current password.", "current");
+  if (user.password === undefined || current !== user.password) {
+    throw new PasswordChangeError("That's not your current password.", "current");
+  }
   const failed = passwordChecks(next, user).find((check) => !check.ok);
   if (failed) throw new PasswordChangeError(failed.error, "next");
   if (current === next) {
     throw new PasswordChangeError("Choose a password different from your current one.", "next");
   }
+
+  // Persist the new password on the same object `users`/`staffUsers`/
+  // `studentUsers` share, so every screen sees it immediately.
+  user.password = next;
 
   recordAudit(
     user,

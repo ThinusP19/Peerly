@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { classes, staffUsers, studentUsers, users } from "@/mocks/data";
+import { assessments, classes, staffUsers, studentUsers, users } from "@/mocks/data";
 import type { Role, User } from "@/mocks/types";
 
 const STORAGE_KEY = "peerly.session";
@@ -26,6 +26,14 @@ const defaultState: SessionState = {
 };
 
 const student = (index: number) => studentUsers[index];
+
+/** Whether `assessmentId` belongs to `classId`. */
+const assessmentBelongsToClass = (assessmentId: string, classId: string) =>
+  assessments.find((a) => a.id === assessmentId)?.classId === classId;
+
+/** The first assessment for a class, or "" if it has none yet. */
+const firstAssessmentIdForClass = (classId: string) =>
+  assessments.find((a) => a.classId === classId)?.id ?? "";
 
 /**
  * Prototype personas the dev role switcher can jump between.
@@ -139,10 +147,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             next.activeClassId = owned[0].id;
           }
         }
+        // The persisted assessment might belong to a different class (e.g. a
+        // previous persona's) - re-sync it so every tab, not just Dashboard,
+        // opens on data that actually matches the active class (see #2).
+        if (!assessmentBelongsToClass(next.activeAssessmentId, next.activeClassId)) {
+          next.activeAssessmentId = firstAssessmentIdForClass(next.activeClassId);
+        }
         persist(next);
       },
       signOut: () => persist({ ...state, userId: null }),
-      setActiveClassId: (activeClassId: string) => persist({ ...state, activeClassId }),
+      setActiveClassId: (activeClassId: string) => {
+        const activeAssessmentId = assessmentBelongsToClass(state.activeAssessmentId, activeClassId)
+          ? state.activeAssessmentId
+          : firstAssessmentIdForClass(activeClassId);
+        persist({ ...state, activeClassId, activeAssessmentId });
+      },
       setActiveAssessmentId: (activeAssessmentId: string) =>
         persist({ ...state, activeAssessmentId }),
     };

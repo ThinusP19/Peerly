@@ -17,7 +17,12 @@ import { useDraftProgress, useEvaluationDraft } from "@/lib/evaluation-draft";
 import { formatDateTimeLong } from "@/lib/format";
 import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
-import { getStudentRatingOptions, getStudentAssessment, submitEvaluation } from "@/services/peerly";
+import {
+  getStudentRatingOptions,
+  getStudentAssessment,
+  submitEvaluation,
+  EvaluationError,
+} from "@/services/peerly";
 
 export const Route = createFileRoute("/student/evaluate/$assessmentId/review")({
   component: ReviewPage,
@@ -95,7 +100,15 @@ function ReviewPage() {
       const { submittedAt } = await submitEvaluation(assessmentId, studentId, entries);
       markSubmitted(submittedAt);
       await queryClient.invalidateQueries();
-    } catch {
+    } catch (error) {
+      if (error instanceof EvaluationError) {
+        toast.error(error.message);
+        await queryClient.invalidateQueries({
+          queryKey: ["student-assessment", studentId, assessmentId],
+        });
+        navigate({ to: "/student" });
+        return;
+      }
       // Keep the draft so nothing is lost, and let the student try again.
       toast.error("We couldn't submit your evaluation. Your ratings are saved - please try again.");
       return;
