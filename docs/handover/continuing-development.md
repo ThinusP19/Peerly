@@ -94,8 +94,46 @@ real gaps that `backend` also had - calculation running on a still-open
 assessment (BR-06), and regrouping not checking calculated marks - and both are
 now fixed here with credit in the commit message. The other nine were already
 solved differently by the API work. **That branch cannot usefully be merged**; it
-would reintroduce mock-data code this branch deliberately removed. Talk to its
-author before closing it.
+would reintroduce mock-data code this branch deliberately removed.
+
+### Settling that branch with its author
+
+Do this once you have tested and are confident, not before - you may yet find
+that something of theirs matters more than it looks. Then send them something
+like this, adjusted to how you actually talk to each other:
+
+> Hi - about `fix/frontend-audit-marks-sync`.
+>
+> Two of the eleven were real gaps we also had, and they are now fixed on
+> `backend` with your branch credited in the commit:
+>
+> - **Calculation ran on a still-open assessment.** You were right that it should
+>   require a closed one (BR-06). We had it recorded as a known gap and had not
+>   acted on it. It is now enforced in the API, not just the button, with tests.
+> - **Regrouping did not check calculated marks.** Our guard only asked about
+>   submissions - but an assessment can be closed and calculated with none, and
+>   those marks still name a group. Your status-based lock caught a case ours
+>   missed.
+>
+> The other nine had already been fixed on `backend`, though differently. Your
+> branch was cut from `main`, which is the frontend prototype from before the API
+> existed, so those fixes were to the mock-data layer. On `backend` the same
+> defects were fixed in the API, where the rule actually has to hold - a screen
+> that refuses is a courtesy, and the endpoint is reachable without it.
+>
+> That also means the branch itself cannot be merged: it would pull back
+> mock-data code that `backend` removes on purpose. Nothing is lost - the two
+> findings are in - but the branch should be closed rather than landed.
+>
+> Worth saying plainly: two people testing the same system independently found
+> overlapping defects, and two of the ones that survived review were yours.
+>
+> Going forward, branch from `main` once it has been merged. `AGENTS.md` and
+> `docs/handover/continuing-development.md` explain the layout.
+
+If they disagree, or think one of the other nine is still live, check it against
+the current code before dismissing it. Two of the thirteen defects found here
+came from exactly that kind of second look.
 
 ---
 
