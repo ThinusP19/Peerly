@@ -15,6 +15,33 @@ Each job is its own status check, so branch protection can require any of them.
 
 Node 24 is used everywhere, the same major as local development.
 
+## Running the browser tests locally: leave a minute between runs
+
+Worth knowing before it costs you an hour. The API refuses more than **300
+requests a minute from one IP** (`server/src/app.ts`). Locally everything - the
+suite, your browser, any `curl` you run - arrives from `127.0.0.1`, so it all
+shares one bucket. A full suite fits inside the limit comfortably. **Two runs
+back to back do not.**
+
+When it happens the failures do not look like rate limiting. They look like a
+real regression:
+
+- pages that never finish loading, `.preloader` still on screen after 15 seconds
+- a run that takes twenty minutes instead of six
+- `429` in a smoke test's console-error assertion
+- and, worst of all, an **exit code of 0** along"4 failed", so a piped
+  `npx playwright test | tail` can read as green
+
+This happened twice while verifying the build on 24 September, and both times
+the same tests passed on their own moments later. If a run fails on lecturer
+pages, or times out on the preloader, **wait a minute and run the failing spec
+by itself** before believing it.
+
+In CI each job gets its own container and its own fresh limiter, so it does not
+arise there.
+
+---
+
 ## Branching and releases - how to work on this from here
 
 **Read this before starting.** As of 24 September 2026 the whole system lives on
