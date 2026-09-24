@@ -201,11 +201,28 @@ export const overrideMark = (
   return delay(result);
 };
 
-export const calculateMarks = (assessmentId: string) =>
-  delay(
-    { assessmentId, calculationRunId: `run-${new Date().toISOString().slice(0, 10)}-02` },
+export const calculateMarks = (assessmentId: string) => {
+  const assessment = assessments.find(
+    (a) => a.id === assessmentId,
+  );
+
+  // Issue #7: Only closed assessments can be calculated.
+  if (!assessment || assessment.status !== "closed") {
+    return Promise.reject(
+      new Error(
+        "This assessment must be closed before marks can be calculated.",
+      ),
+    );
+  }
+
+  return delay(
+    {
+      assessmentId,
+      calculationRunId: `run-${new Date().toISOString().slice(0, 10)}-02`,
+    },
     1200,
   );
+};
 
 /* Groups helpers used by generation/review screens. */
 export const proposeGroups = (

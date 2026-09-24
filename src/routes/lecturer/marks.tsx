@@ -330,16 +330,30 @@ function MarkEntryPage() {
           </p>
         }
         confirmLabel="Calculate marks"
-        onConfirm={async () => {
-          const run = await calculateMarks(assessment.id);
-          await updateAssessment(assessment.id, {
-            calculatedAt: new Date().toISOString(),
-            calculationRunId: run.calculationRunId,
-          });
-          await queryClient.invalidateQueries();
-          toast.success(`Marks calculated for ${groups.length} groups.`);
-          navigate({ to: "/lecturer/results" });
-        }}
+       onConfirm={async () => {
+  try {
+    const run = await calculateMarks(assessment.id);
+
+    await updateAssessment(assessment.id, {
+      calculatedAt: new Date().toISOString(),
+      calculationRunId: run.calculationRunId,
+    });
+
+    await queryClient.invalidateQueries();
+
+    toast.success(
+      `Marks calculated for ${groups.length} groups.`,
+    );
+
+    navigate({ to: "/lecturer/results" });
+  } catch (error) {
+    toast.error(
+      error instanceof Error
+        ? error.message
+        : "Could not complete the calculation. Please try again.",
+    );
+  }
+}}
       />
     </>
   );
