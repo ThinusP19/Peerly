@@ -152,12 +152,24 @@ Both are requirements with numbers on them and neither has ever been measured.
 
 ## Repository and process
 
-- [ ] **Merge `backend` into `main`.** It is currently 26 commits ahead
+- [ ] **Merge `backend` into `main`, and tag it. Do this first, before anyone
+      starts new work.** `main` has **no API at all** - no routes, no services, no
+      browser tests, no CI workflow and none of the handover documents. It is the
+      frontend prototype from before the backend existed, so anyone who clones
+      this repository and does nothing else gets a version that cannot work.
+      Nothing can be deployed from it either. **Connecting Mailgun and the server
+      needs no code change**, so there is nothing to hold back from `main` while
+      it is tested. Full reasoning and the commands are in
+      [ci.md → Branching and releases](./docs/handover/ci.md#branching-and-releases---how-to-work-on-this-from-here)
 - [ ] **Turn on branch protection for `main`** in GitHub: require a pull request
       with 1 approval, and require the four CI checks (`calculation`, `server`,
       `frontend`, `e2e`). Until someone does this, CI runs but **blocks nothing**,
       so "a failing calculation test blocks the merge" is not yet true. Steps are
-      in [docs/handover/ci.md](./docs/handover/ci.md) *(OR-24, SI-08)*
+      in [docs/handover/ci.md](./docs/handover/ci.md). Do it **after** the merge
+      above - `main` has no workflow file yet, so there are no checks to require
+      *(OR-24, SI-08)*
+- [ ] **Delete the stale branches** `backend` and `feat/portals-and-backend` once
+      merged, so nobody picks one up by mistake
 
 ---
 
