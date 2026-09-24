@@ -5,6 +5,7 @@ This guide covers requirements OR-26 and OR-27 (the deployment runbook). It is w
 | Document | What it covers |
 | --- | --- |
 | [README.md](../../README.md#running-the-project) | Quick start for developers: commands and seeded sign-in accounts |
+| **[continuing-development.md](./continuing-development.md)** | **Carrying on with the code: where it stands, how to run it, how to work, and how to merge to `main`. Start there if that is your job.** |
 | **[deployment.md](./deployment.md)** | **Deploying to a server: the short path, start to finish, with every credential and value you must obtain collected up front. Start there if that is your job.** |
 | This guide | Architecture, setup, tests, deployment, backup, maintenance, troubleshooting |
 | [test-plan.md](./test-plan.md) | A scripted test pass over the whole system, written for testers |
