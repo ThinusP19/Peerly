@@ -69,6 +69,40 @@ Start here. Each one has a long lead time and nothing below moves without them.
 Full instructions: [docs/handover/deployment.md](./docs/handover/deployment.md).
 It has a worksheet of every value needed, collected up front.
 
+### Status on srv01 (25 September 2026)
+
+Peerly runs at `peerlylearning.co.za` on a shared server, alongside other pm2
+apps. How it is set up there, so nobody has to rediscover it:
+
+| | |
+| --- | --- |
+| Code | `/var/www/peerly`, a clone of `main` using a read-only deploy key (`~/.ssh/peerly_github`) |
+| Processes | pm2 via `ecosystem.config.cjs`: `peerly-api` on `127.0.0.1:4310`, `peerly-web` on `127.0.0.1:3310` |
+| Proxy | nginx site `/etc/nginx/sites-available/peerly` |
+| Database | the server's existing PostgreSQL **14** (not 17), database `peerly`, non-superuser role `peerly` |
+| Node | the server's existing Node **22** (not 24). 22.12 is the floor, and the suites pass on 22 |
+| E-mail | Mailgun HTTP API (`MAIL_TRANSPORT=mailgun`), EU region, domain `mg.peerlylearning.co.za`. DNS records are in |
+| Web build | built on the server with `nice -n 19`. It peaks near 900 MB and the server is short of memory, so build outside busy hours |
+
+To update: `cd /var/www/peerly && git pull && npm ci && nice -n 19 npm run build && (cd server && npm ci --omit=dev) && pm2 reload ecosystem.config.cjs`.
+Run migrations first if the release has any (section 3 of the deployment guide).
+
+Still open from that deployment:
+
+- [ ] **Confirm the Mailgun key sends.** From a Mac it was refused with 401 on
+      both regions. That fits an IP allowlist, but it is unconfirmed. Test from
+      the server: register a test account and watch `pm2 logs peerly-api` for
+      `[mail] could not send`. If refused, create a new sending key under
+      `mg.peerlylearning.co.za` and replace `MAILGUN_API_KEY` in
+      `/var/www/peerly/server/.env`, then `pm2 restart peerly-api`
+- [ ] **Create the first administrator** (deployment guide section 8). Needs a
+      name and an e-mail on a `STAFF_EMAIL_DOMAINS` domain - add the domain
+      first if it is not `nwu.ac.za`
+- [ ] **Add an e-mail to the Let's Encrypt account** so expiry warnings reach
+      someone: `certbot update_account -m <address>`. Renewal itself is automatic
+- [ ] **Add `Strict-Transport-Security` to the nginx site.** The API sends it;
+      the web app does not
+
 - [ ] Linux host: 2 vCPU, 4 GB RAM, 20 GB disk *(HI-03)*
 - [ ] DNS name and TLS certificate for it
 - [ ] PostgreSQL 17 instance; create the `peerly` role and database. **The role
