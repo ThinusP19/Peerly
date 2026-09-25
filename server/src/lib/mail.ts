@@ -9,7 +9,7 @@ import { env } from "../config/env.ts";
  *          calculating or exporting. So `send` never throws. It reports the
  *          failure and returns false, and callers carry on.
  *   CI-05  Dispatch is asynchronous. `queue` hands the message off and returns
- *          immediately, so no request waits on an SMTP round trip.
+ *          immediately, so no request waits on an SMTP or HTTP round trip.
  *
  * The consequence of OR-03 is worth stating plainly: a student can be left
  * without their verification code and the request that triggered it will still
@@ -77,7 +77,73 @@ const smtpTransport: Transport = async (mail) => {
   });
 };
 
-const transport: Transport = env.mail.transport === "smtp" ? smtpTransport : logTransport;
+/** The API host for each Mailgun region. A domain and its keys live in one. */
+const mailgunHosts = { eu: "https://api.eu.mailgun.net", us: "https://api.mailgun.net" } as const;
+
+export interface MailgunSettings {
+  apiKey: string;
+  domain: string;
+  region: keyof typeof mailgunHosts;
+  from: { name: string; address: string };
+  replyTo?: string | undefined;
+}
+
+/**
+ * Builds the Mailgun "send a message" request. Kept apart from the fetch so the
+ * exact request - URL, credentials and fields - can be tested without a network.
+ */
+export function mailgunRequest(mail: Mail, settings: MailgunSettings) {
+  const body = new URLSearchParams({
+    from: `${settings.from.name} <${settings.from.address}>`,
+    to: mail.to,
+    subject: mail.subject,
+    text: mail.text,
+  });
+  if (settings.replyTo) body.set("h:Reply-To", settings.replyTo);
+
+  return {
+    url: `${mailgunHosts[settings.region]}/v3/${encodeURIComponent(settings.domain)}/messages`,
+    init: {
+      method: "POST",
+      headers: {
+        authorization: `Basic ${Buffer.from(`api:${settings.apiKey}`).toString("base64")}`,
+      },
+      body,
+      signal: AbortSignal.timeout(15_000),
+    } satisfies RequestInit,
+  };
+}
+
+/**
+ * Mailgun HTTP API transport. Same contract as SMTP: it throws on any refusal,
+ * and `send` below turns that into a logged failure rather than an error.
+ *
+ * Mailgun's error body names the problem ("Forbidden", "Domain not found") and
+ * never echoes the message, so it is safe to put in the log line.
+ */
+const mailgunTransport: Transport = async (mail) => {
+  const { url, init } = mailgunRequest(mail, {
+    apiKey: env.mail.mailgun.apiKey!,
+    domain: env.mail.mailgun.domain!,
+    region: env.mail.mailgun.region,
+    from: { name: env.mail.from.name, address: env.mail.from.address! },
+    replyTo: env.mail.replyTo,
+  });
+
+  const response = await fetch(url, init);
+  if (!response.ok) {
+    const reason = (await response.text().catch(() => "")).slice(0, 200).trim();
+    throw new Error(`Mailgun answered ${response.status}${reason ? `: ${reason}` : ""}`);
+  }
+};
+
+const transports: Record<typeof env.mail.transport, Transport> = {
+  log: logTransport,
+  smtp: smtpTransport,
+  mailgun: mailgunTransport,
+};
+
+const transport = transports[env.mail.transport];
 
 /**
  * Sends and reports whether it worked. Never throws - see OR-03 above.
