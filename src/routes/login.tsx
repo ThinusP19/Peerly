@@ -11,15 +11,14 @@ import { Input } from "@/components/ui/input";
 import { usePageTransition } from "@/hooks/use-page-transition";
 import { ApiError } from "@/lib/api";
 import { homePathForRole, useSession } from "@/lib/session";
+import { type SignInAudience, parseSignInAudience } from "@/lib/sign-in-audience";
 import { login } from "@/services/auth";
-
-type Audience = "student" | "lecturer";
 
 export const Route = createFileRoute("/login")({
   // `?as=` picks the form's wording. It never decides the portal - that is
   // always the account's own role.
-  validateSearch: (search: Record<string, unknown>): { as?: Audience } => ({
-    as: search["as"] === "student" || search["as"] === "lecturer" ? search["as"] : undefined,
+  validateSearch: (search: Record<string, unknown>): { as?: SignInAudience } => ({
+    as: parseSignInAudience(search["as"]),
   }),
   // Choosing how you sign in happens on the welcome page, so a bare /login
   // (sign-out, the route guard, "back to sign in" links) goes there first.
@@ -29,19 +28,27 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
-const audiences: Record<Audience, { title: string; description: string; placeholder: string }> = {
+const audiences: Record<
+  SignInAudience,
+  { title: string; description: string; placeholder: string; footer: string }
+> = {
   student: {
     title: "Student sign in",
     description: "Use your NWU student email address to continue.",
     placeholder: "studentno@mynwu.ac.za",
+    footer: "",
   },
   lecturer: {
     title: "Lecturer sign in",
-    // Administrators use this form too - the portal comes from the account's
-    // role, not from this choice - and saying so here saves the one or two of
-    // them wondering whether they are in the wrong place.
-    description: "Use your NWU email address to continue. Administrators sign in here too.",
+    description: "Use your NWU email address to continue.",
     placeholder: "name.surname@nwu.ac.za",
+    footer: "Lecturer accounts are set up for you, so there's nothing to register.",
+  },
+  admin: {
+    title: "Administrator sign in",
+    description: "Use your NWU staff email address to continue.",
+    placeholder: "name.surname@nwu.ac.za",
+    footer: "Administrator accounts are set up by another administrator.",
   },
 };
 
@@ -57,7 +64,7 @@ interface Errors {
   password?: string;
 }
 
-function SignInForm({ audience }: { audience: Audience }) {
+function SignInForm({ audience }: { audience: SignInAudience }) {
   const { signIn } = useSession();
   const navigate = useNavigate();
   const copy = audiences[audience];
@@ -123,8 +130,8 @@ function SignInForm({ audience }: { audience: Audience }) {
       title={copy.title}
       description={copy.description}
       // Registration is for students only, so its link lives on the student
-      // form - the one place a new student is guaranteed to pass. Lecturers
-      // can't register, so they get the line that says where accounts come from.
+      // form - the one place a new student is guaranteed to pass. Staff can't
+      // register, so they get the line that says where accounts come from.
       footer={
         audience === "student" ? (
           <>
@@ -134,7 +141,7 @@ function SignInForm({ audience }: { audience: Audience }) {
             </Link>
           </>
         ) : (
-          "Lecturer accounts are set up for you, so there's nothing to register."
+          copy.footer
         )
       }
     >

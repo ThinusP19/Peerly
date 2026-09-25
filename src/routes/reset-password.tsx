@@ -8,15 +8,14 @@ import { FormField } from "@/components/shared/FormField";
 import { PasswordInput } from "@/components/shared/PasswordInput";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api";
+import { type SignInAudience, parseSignInAudience } from "@/lib/sign-in-audience";
 import { resetPassword } from "@/services/auth";
 
 export const Route = createFileRoute("/reset-password")({
-  validateSearch: (
-    search: Record<string, unknown>,
-  ): { token?: string; as?: "student" | "lecturer" } => ({
+  validateSearch: (search: Record<string, unknown>): { token?: string; as?: SignInAudience } => ({
     token: typeof search["token"] === "string" ? search["token"] : undefined,
     // Which sign-in form to return to afterwards.
-    as: search["as"] === "student" || search["as"] === "lecturer" ? search["as"] : undefined,
+    as: parseSignInAudience(search["as"]),
   }),
   component: ResetPasswordPage,
 });

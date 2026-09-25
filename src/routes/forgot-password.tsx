@@ -8,15 +8,14 @@ import { FormField } from "@/components/shared/FormField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ApiError } from "@/lib/api";
+import { type SignInAudience, parseSignInAudience } from "@/lib/sign-in-audience";
 import { forgotPassword } from "@/services/auth";
-
-type Audience = "student" | "lecturer";
 
 export const Route = createFileRoute("/forgot-password")({
   // Carries which sign-in form the user came from, so "Back to sign in" goes
   // one step back to that form instead of starting over at role selection.
-  validateSearch: (search: Record<string, unknown>): { as?: Audience } => ({
-    as: search["as"] === "student" || search["as"] === "lecturer" ? search["as"] : undefined,
+  validateSearch: (search: Record<string, unknown>): { as?: SignInAudience } => ({
+    as: parseSignInAudience(search["as"]),
   }),
   component: ForgotPasswordPage,
 });

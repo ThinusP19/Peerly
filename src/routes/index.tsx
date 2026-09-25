@@ -122,15 +122,21 @@ function WelcomePage() {
           </div>
 
           {/*
-            Administrators have no door of their own, and would otherwise stand
-            here guessing. There are only ever one or two of them, so a third
-            card would weigh the choice down for everybody to serve almost
-            nobody - and the choice only picks the form's wording anyway: the
-            portal you land in comes from the account's own role.
+            Administrators get a door of their own, but a quiet one: there are
+            only ever a few of them, so a third card would weigh the choice down
+            for every student to serve almost nobody. Like the cards, it only
+            picks the form's wording - the portal comes from the account's role.
           */}
-          <p className="mt-6 text-sm text-muted-foreground">
-            Administrators sign in under <span className="font-semibold">I'm a lecturer</span> -
-            you'll land in the Admin Portal.
+          <p className="mt-6 text-sm">
+            <Link
+              to="/login"
+              search={{ as: "admin" }}
+              onClick={transitionOnClick("Opening administrator sign in")}
+              className="inline-flex items-center gap-1.5 font-semibold text-auth-panel-heading underline-offset-4 hover:underline focus-visible:outline-auth-panel-heading"
+            >
+              Administrator sign in
+              <ArrowRight className="size-4" aria-hidden="true" />
+            </Link>
           </p>
         </div>
       </main>
