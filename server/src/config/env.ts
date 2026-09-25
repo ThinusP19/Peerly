@@ -32,6 +32,10 @@ const schema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     PORT: z.coerce.number().int().positive().default(4000),
+    // The address to listen on. Unset listens on every interface, which is right
+    // for development. In production set 127.0.0.1, so only the reverse proxy on
+    // the same host can reach the API and nothing bypasses TLS (CI-09).
+    HOST: optional,
     DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
     CORS_ORIGINS: z.string().default("http://127.0.0.1:7331,http://localhost:7331"),
 
@@ -118,6 +122,7 @@ export const env = {
   nodeEnv: raw.NODE_ENV,
   isProduction: raw.NODE_ENV === "production",
   port: raw.PORT,
+  host: raw.HOST,
   databaseUrl: raw.DATABASE_URL,
   corsOrigins: csv(raw.CORS_ORIGINS),
   appUrl: raw.APP_URL,
