@@ -35,9 +35,12 @@ export default defineConfig(({ command }) => ({
     // every request. Proxying also matches CI-09, which puts the whole system
     // behind one proxy on port 443 in production, so development and production
     // agree about what the origin is.
+    //
+    // API_PROXY_TARGET moves it off port 4000 when another project already
+    // holds that port on this machine. It is read by the dev server only.
     proxy: {
       "/api": {
-        target: "http://localhost:4000",
+        target: process.env["API_PROXY_TARGET"] ?? "http://localhost:4000",
         changeOrigin: false,
       },
     },
