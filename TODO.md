@@ -89,12 +89,10 @@ Run migrations first if the release has any (section 3 of the deployment guide).
 
 Still open from that deployment:
 
-- [ ] **Confirm the Mailgun key sends.** From a Mac it was refused with 401 on
-      both regions. That fits an IP allowlist, but it is unconfirmed. Test from
-      the server: register a test account and watch `pm2 logs peerly-api` for
-      `[mail] could not send`. If refused, create a new sending key under
-      `mg.peerlylearning.co.za` and replace `MAILGUN_API_KEY` in
-      `/var/www/peerly/server/.env`, then `pm2 restart peerly-api`
+- [x] **Confirm the Mailgun key sends.** Confirmed 25 September: a student
+      registered on the live site and received the verification code. The key
+      is refused from other machines because of the Mailgun IP allowlist, so
+      test it from the server
 - [ ] **Create the first administrator** (deployment guide section 8). Needs a
       name and an e-mail on a `STAFF_EMAIL_DOMAINS` domain - add the domain
       first if it is not `nwu.ac.za`
