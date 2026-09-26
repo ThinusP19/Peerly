@@ -222,18 +222,50 @@ export async function confirmGroups(
     );
   }
 
+  // Assessments not yet closed that take part through these groups. Deleting
+  // the old groups deletes their links too, and an assessment with no groups
+  // disappears from every student's dashboard. One that used every group moves
+  // to every new group; one that used only some cannot be carried over, because
+  // nothing says which new groups correspond to the old ones.
+  const { rows: inUse } = await query<{ id: string; name: string; linked: string; total: string }>(
+    `SELECT a.id, a.name,
+            (SELECT count(*) FROM assessment_groups ag WHERE ag.assessment_id = a.id) AS linked,
+            (SELECT count(*) FROM groups g WHERE g.class_id = a.class_id) AS total
+       FROM assessments a
+      WHERE a.class_id = $1 AND a.status IN ('draft', 'open')`,
+    [classId],
+  );
+  const partial = inUse.find((a) => Number(a.linked) > 0 && Number(a.linked) < Number(a.total));
+  if (partial) {
+    throw conflict(
+      `"${partial.name}" takes part with only some of the current groups, and new groups can't be matched to them. Remove it or create a new assessment after regrouping.`,
+    );
+  }
+  const carried = inUse.filter((a) => Number(a.linked) > 0);
+
   return withTransaction(async (sql) => {
     const { rowCount } = await sql.query("DELETE FROM groups WHERE class_id = $1", [classId]);
+    const newGroupIds: string[] = [];
 
     for (const group of groups) {
       const { rows } = await sql.query<{ id: string }>(
         "INSERT INTO groups (class_id, group_number) VALUES ($1, $2) RETURNING id",
         [classId, group.groupNumber],
       );
+      newGroupIds.push(rows[0]!.id);
       for (const studentId of group.memberStudentIds) {
         await sql.query(
           "INSERT INTO group_members (group_id, class_id, student_id) VALUES ($1, $2, $3)",
           [rows[0]!.id, classId, studentId],
+        );
+      }
+    }
+
+    for (const assessment of carried) {
+      for (const groupId of newGroupIds) {
+        await sql.query(
+          "INSERT INTO assessment_groups (assessment_id, group_id, class_id) VALUES ($1, $2, $3)",
+          [assessment.id, groupId, classId],
         );
       }
     }
@@ -243,7 +275,11 @@ export async function confirmGroups(
         actor: { id: user.id, name: user.name, surname: user.surname, role: user.role },
         eventType: "groups.confirmed",
         objectDescription: `${klass.moduleCode} · ${klass.name}`,
-        detail: `${groups.length} group(s) confirmed for ${seen.size} student(s), replacing ${rowCount ?? 0}.`,
+        detail:
+          `${groups.length} group(s) confirmed for ${seen.size} student(s), replacing ${rowCount ?? 0}.` +
+          (carried.length
+            ? ` ${carried.map((a) => `"${a.name}"`).join(", ")} now ${carried.length === 1 ? "uses" : "use"} the new groups.`
+            : ""),
         classId,
         before: { groupCount: rowCount ?? 0 },
         after: {

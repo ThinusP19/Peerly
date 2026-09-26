@@ -380,3 +380,70 @@ describe("regroupingBlockedReason (FR-11)", () => {
     expect(await regroupingBlockedReason(classId)).toBeNull();
   });
 });
+
+/**
+ * Found in the 26 September re-test: confirming new groups deleted the old
+ * ones, and with them every assessment's link to them. An open assessment with
+ * no submissions yet - which regrouping is allowed for - was left with no
+ * groups at all and vanished from every student's dashboard.
+ */
+describe("regrouping with an assessment that uses the groups", () => {
+  const withAssessment = async (status: "draft" | "open", linkAll: boolean) => {
+    const s = await scenario(6);
+    await confirmGroups(
+      s.classId,
+      (await proposeGroups(s.classId, "count", 2, s.user)).groups,
+      s.user,
+    );
+    const { rows: asm } = await query<{ id: string }>(
+      `INSERT INTO assessments (class_id, name, status, opens_at, closes_at)
+       VALUES ($1, 'Phase 2', $2, now() - interval '1 day', now() + interval '7 days')
+       RETURNING id`,
+      [s.classId, status],
+    );
+    const { rows: groups } = await query<{ id: string }>(
+      "SELECT id FROM groups WHERE class_id = $1 ORDER BY group_number",
+      [s.classId],
+    );
+    for (const g of linkAll ? groups : groups.slice(0, 1)) {
+      await query(
+        "INSERT INTO assessment_groups (assessment_id, group_id, class_id) VALUES ($1,$2,$3)",
+        [asm[0]!.id, g.id, s.classId],
+      );
+    }
+    return { ...s, assessmentId: asm[0]!.id };
+  };
+
+  const linkedGroups = async (assessmentId: string) =>
+    Number(
+      (
+        await query<{ count: string }>(
+          "SELECT count(*) AS count FROM assessment_groups WHERE assessment_id = $1",
+          [assessmentId],
+        )
+      ).rows[0]!.count,
+    );
+
+  for (const status of ["open", "draft"] as const) {
+    it(`keeps an ${status} assessment that used every group on every new group`, async () => {
+      const s = await withAssessment(status, true);
+
+      await confirmGroups(
+        s.classId,
+        (await proposeGroups(s.classId, "count", 3, s.user)).groups,
+        s.user,
+      );
+
+      expect(await linkedGroups(s.assessmentId)).toBe(3);
+    });
+  }
+
+  it("refuses when an assessment uses only some of the groups, which cannot be carried over", async () => {
+    const s = await withAssessment("open", false);
+
+    await expect(
+      confirmGroups(s.classId, (await proposeGroups(s.classId, "count", 3, s.user)).groups, s.user),
+    ).rejects.toThrow(/Phase 2/);
+    expect(await linkedGroups(s.assessmentId), "nothing may change on refusal").toBe(1);
+  });
+});
