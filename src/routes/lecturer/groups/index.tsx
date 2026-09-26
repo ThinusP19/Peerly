@@ -15,8 +15,10 @@ import { useClassRoster, useLecturerClasses } from "@/hooks/use-lecturer-context
 import { useSession } from "@/lib/session";
 
 import { getAssessments, getGroups, getSubmissions } from "@/services/peerly";
+import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/lecturer/groups/")({
+  head: () => titleHead("Groups"),
   component: GroupsOverview,
 });
 

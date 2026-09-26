@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { homePathForRole, personas, roleLabel, useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
+import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/dev")({
+  head: () => titleHead("Prototype tools"),
   component: DevPage,
 });
 

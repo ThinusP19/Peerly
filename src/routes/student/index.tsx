@@ -40,8 +40,10 @@ import {
   type StudentAssessmentView,
   type StudentEnrolment,
 } from "@/services/peerly";
+import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/student/")({
+  head: () => titleHead("My assessments"),
   component: StudentDashboard,
 });
 

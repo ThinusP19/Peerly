@@ -11,8 +11,10 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { assessmentChanges } from "@/lib/assessment-form";
 import { getAssessment, updateAssessment } from "@/services/peerly";
+import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/lecturer/assessments/$assessmentId/edit")({
+  head: () => titleHead("Edit assessment"),
   component: EditAssessmentPage,
 });
 

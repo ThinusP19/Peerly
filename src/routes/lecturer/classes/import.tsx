@@ -40,8 +40,10 @@ import {
   mappingProblem,
 } from "@/lib/class-import";
 import { commitClassList, inspectClassList, previewClassList } from "@/services/peerly";
+import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/lecturer/classes/import")({
+  head: () => titleHead("Import a class list"),
   component: ImportPage,
 });
 

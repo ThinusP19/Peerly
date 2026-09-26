@@ -6,8 +6,10 @@ import { AssessmentForm } from "@/components/lecturer/AssessmentForm";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { useSession } from "@/lib/session";
 import { createAssessment } from "@/services/peerly";
+import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/lecturer/assessments/new")({
+  head: () => titleHead("New assessment"),
   component: NewAssessmentPage,
 });
 

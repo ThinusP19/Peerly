@@ -35,8 +35,10 @@ import {
   getGroups,
   type EnrolmentRow,
 } from "@/services/peerly";
+import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/lecturer/classes/")({
+  head: () => titleHead("Class list"),
   component: ClassListPage,
 });
 

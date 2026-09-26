@@ -6,8 +6,10 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { useLecturerClasses } from "@/hooks/use-lecturer-context";
 import { useSession } from "@/lib/session";
+import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/lecturer/audit")({
+  head: () => titleHead("Audit log"),
   component: LecturerAuditPage,
 });
 

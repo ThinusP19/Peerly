@@ -53,8 +53,10 @@ import {
   setStaffAccountStatus,
   updateStaffAccount,
 } from "@/services/peerly";
+import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/admin/accounts")({
+  head: () => titleHead("Staff accounts"),
   component: AccountsPage,
 });
 

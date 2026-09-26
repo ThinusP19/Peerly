@@ -8,8 +8,10 @@ import { RatingOptionList } from "@/components/shared/RatingOptionList";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getStudentRatingOptions } from "@/services/peerly";
+import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/student/guide")({
+  head: () => titleHead("How rating works"),
   component: RatingGuidePage,
 });
 

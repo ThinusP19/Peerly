@@ -34,8 +34,10 @@ import {
   getSubmissions,
   proposeGroups,
 } from "@/services/peerly";
+import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/lecturer/groups/generate")({
+  head: () => titleHead("Generate groups"),
   component: GenerateGroupsPage,
 });
 

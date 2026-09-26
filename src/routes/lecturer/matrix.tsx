@@ -33,8 +33,10 @@ import {
   getResults,
   getSubmissions,
 } from "@/services/peerly";
+import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/lecturer/matrix")({
+  head: () => titleHead("Evaluation matrix"),
   component: MatrixPage,
 });
 

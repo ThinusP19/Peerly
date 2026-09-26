@@ -10,8 +10,10 @@ import { Input } from "@/components/ui/input";
 import { ApiError } from "@/lib/api";
 import { type SignInAudience, parseSignInAudience } from "@/lib/sign-in-audience";
 import { forgotPassword } from "@/services/auth";
+import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/forgot-password")({
+  head: () => titleHead("Forgot password"),
   // Carries which sign-in form the user came from, so "Back to sign in" goes
   // one step back to that form instead of starting over at role selection.
   validateSearch: (search: Record<string, unknown>): { as?: SignInAudience } => ({

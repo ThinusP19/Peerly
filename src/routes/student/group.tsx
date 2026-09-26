@@ -11,8 +11,10 @@ import { initials } from "@/lib/format";
 import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { getStudentAssessments } from "@/services/peerly";
+import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/student/group")({
+  head: () => titleHead("My group"),
   component: MyGroupPage,
 });
 

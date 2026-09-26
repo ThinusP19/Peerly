@@ -12,8 +12,10 @@ import { formatDateTimeLong, isOverdue } from "@/lib/format";
 import { closedAtOf } from "@/lib/assessment-form";
 import { useSession } from "@/lib/session";
 import { getStudentRatingOptions, getStudentAssessment } from "@/services/peerly";
+import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/student/evaluate/$assessmentId/submitted")({
+  head: () => titleHead("Evaluation submitted"),
   component: SubmittedPage,
 });
 

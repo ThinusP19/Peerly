@@ -11,8 +11,10 @@ import { ApiError } from "@/lib/api";
 import { resetLinkState } from "@/lib/reset-link";
 import { type SignInAudience, parseSignInAudience } from "@/lib/sign-in-audience";
 import { resetPassword } from "@/services/auth";
+import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/reset-password")({
+  head: () => titleHead("Reset password"),
   validateSearch: (search: Record<string, unknown>): { token?: string; as?: SignInAudience } => ({
     token: typeof search["token"] === "string" ? search["token"] : undefined,
     // Which sign-in form to return to afterwards.

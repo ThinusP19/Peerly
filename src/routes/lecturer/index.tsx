@@ -30,8 +30,10 @@ import { cn } from "@/lib/utils";
 
 import type { Assessment, Class } from "@/mocks/types";
 import { getAssessmentRows, getClassSummaries, type ClassSummary } from "@/services/peerly";
+import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/lecturer/")({
+  head: () => titleHead("Lecturer dashboard"),
   component: LecturerDashboard,
 });
 

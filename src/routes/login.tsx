@@ -10,6 +10,7 @@ import { PasswordInput } from "@/components/shared/PasswordInput";
 import { Input } from "@/components/ui/input";
 import { usePageTransition } from "@/hooks/use-page-transition";
 import { ApiError } from "@/lib/api";
+import { titleHead } from "@/lib/page-title";
 import { homePathForRole, useSession } from "@/lib/session";
 import { type SignInAudience, parseSignInAudience } from "@/lib/sign-in-audience";
 import { login } from "@/services/auth";
@@ -25,6 +26,8 @@ export const Route = createFileRoute("/login")({
   beforeLoad: ({ search }) => {
     if (!search.as) throw redirect({ to: "/" });
   },
+  // Each form names itself, so the three sign-in tabs can be told apart.
+  head: ({ match }) => titleHead(match.search.as ? audiences[match.search.as].title : "Sign in"),
   component: LoginPage,
 });
 

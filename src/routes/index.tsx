@@ -4,6 +4,7 @@ import { ArrowRight, GraduationCap, ShieldCheck, Users, type LucideIcon } from "
 import { BrandMark } from "@/components/layout/BrandMark";
 import { FloatingPathsBackground } from "@/components/ui/floating-paths";
 import { usePageTransition } from "@/hooks/use-page-transition";
+import { titleHead } from "@/lib/page-title";
 
 /**
  * The first screen of Peerly: pick how you're signing in. It always shows,
@@ -11,6 +12,7 @@ import { usePageTransition } from "@/hooks/use-page-transition";
  * and a page that silently jumps into someone's dashboard reads as broken.
  */
 export const Route = createFileRoute("/")({
+  head: () => titleHead("Welcome"),
   component: WelcomePage,
 });
 

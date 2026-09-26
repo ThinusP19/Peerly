@@ -45,8 +45,10 @@ import {
   reopenAssessment,
   updateAssessment,
 } from "@/services/peerly";
+import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/lecturer/assessments/$assessmentId/")({
+  head: () => titleHead("Assessment details"),
   component: AssessmentDetailPage,
 });
 

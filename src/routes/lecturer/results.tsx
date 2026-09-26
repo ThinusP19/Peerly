@@ -51,8 +51,10 @@ import {
   removeOverride,
   type ResultRow,
 } from "@/services/peerly";
+import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/lecturer/results")({
+  head: () => titleHead("Results"),
   component: ResultsPage,
 });
 

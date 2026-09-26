@@ -18,8 +18,10 @@ import {
   requestActivationLink,
   type ActivationAccount,
 } from "@/services/auth";
+import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/activate")({
+  head: () => titleHead("Activate your account"),
   // A real activation link carries a signed token. In the prototype the token
   // value simply picks which landing state to show, and is optional so
   // `/activate` on its own still renders the happy path.

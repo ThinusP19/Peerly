@@ -38,8 +38,10 @@ import {
   setGroupBaseMark,
   updateAssessment,
 } from "@/services/peerly";
+import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/lecturer/marks")({
+  head: () => titleHead("Marks & calculation"),
   component: MarkEntryPage,
 });
 

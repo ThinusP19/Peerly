@@ -10,8 +10,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { auditEventMeta } from "@/lib/domain";
 import { formatDateTimeSast } from "@/lib/sast";
 import { getAuditPage, getStaffAccounts } from "@/services/peerly";
+import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/admin/")({
+  head: () => titleHead("Administrator dashboard"),
   component: AdminDashboard,
 });
 

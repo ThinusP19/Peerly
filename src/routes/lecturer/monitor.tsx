@@ -28,8 +28,10 @@ import {
   sendSubmissionReminders,
   type GroupProgressRow,
 } from "@/services/peerly";
+import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/lecturer/monitor")({
+  head: () => titleHead("Submission monitor"),
   component: SubmissionMonitorPage,
 });
 

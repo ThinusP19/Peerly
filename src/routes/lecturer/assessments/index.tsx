@@ -15,8 +15,10 @@ import { useLecturerClasses } from "@/hooks/use-lecturer-context";
 import { useSession } from "@/lib/session";
 
 import { getAssessmentRows, type AssessmentRow } from "@/services/peerly";
+import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/lecturer/assessments/")({
+  head: () => titleHead("Assessments"),
   component: AssessmentListPage,
 });
 

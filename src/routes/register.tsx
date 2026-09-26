@@ -22,8 +22,10 @@ import { ApiError } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { register, resendCode, verifyCode } from "@/services/auth";
+import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/register")({
+  head: () => titleHead("Student registration"),
   component: RegisterPage,
 });
 

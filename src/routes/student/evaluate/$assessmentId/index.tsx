@@ -21,8 +21,10 @@ import { useSession } from "@/lib/session";
 import { acceptsWork } from "@/lib/student-dashboard";
 import { cn } from "@/lib/utils";
 import { getStudentRatingOptions, getStudentAssessment } from "@/services/peerly";
+import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/student/evaluate/$assessmentId/")({
+  head: () => titleHead("Peer evaluation"),
   component: EvaluationForm,
 });
 

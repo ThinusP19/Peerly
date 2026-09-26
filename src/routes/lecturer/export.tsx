@@ -17,8 +17,10 @@ import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
 import { getAssessment, getPeerRatings, getResultRows, downloadResults } from "@/services/peerly";
+import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/lecturer/export")({
+  head: () => titleHead("Export results"),
   component: ExportPage,
 });
 
