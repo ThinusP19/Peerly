@@ -153,6 +153,25 @@ export async function updateStaffAccount(
   const before = await loadStaff(userId);
   if (changes.email) assertStaffEmail(changes.email);
 
+  const next = {
+    name: changes.name?.trim() ?? before.name,
+    surname: changes.surname?.trim() ?? before.surname,
+    email: changes.email?.trim() ?? before.email,
+    role: changes.role ?? before.role,
+  };
+  const emailChanged = next.email.toLowerCase() !== before.email.toLowerCase();
+
+  // SR-16: once an account is activated, its address is how its holder proves
+  // who they are - every password reset goes there. If an administrator could
+  // point it at an address they hold, "Forgot password" would hand them the
+  // lecturer's account, ratings and marks. So only an address that has never
+  // been used to sign in can be corrected.
+  if (emailChanged && before.status !== "unverified") {
+    throw conflict(
+      "The email address of an account that has been activated can't be changed, because whoever holds the new address could reset the password and take the account over. Create a new account for the new address, then deactivate this one.",
+    );
+  }
+
   // Demoting the last active administrator locks everyone out just as surely as
   // deactivating them does.
   if (
@@ -166,32 +185,47 @@ export async function updateStaffAccount(
     );
   }
 
-  const updated = await query<StaffRow>(
-    `UPDATE users SET name = $2, surname = $3, email = $4, role = $5, updated_at = now()
-      WHERE id = $1
-      RETURNING id, role, name, surname, email, status, created_at`,
-    [
-      userId,
-      changes.name?.trim() ?? before.name,
-      changes.surname?.trim() ?? before.surname,
-      changes.email?.trim() ?? before.email,
-      changes.role ?? before.role,
-    ],
+  const changed = (["name", "surname", "email", "role"] as const).filter((field) =>
+    field === "email" ? emailChanged : next[field] !== before[field],
   );
 
-  const after = toAccount(updated.rows[0]!);
-  if (after.role !== before.role) {
-    await record({
-      actor: { id: admin.id, name: admin.name, surname: admin.surname, role: admin.role },
-      eventType: "account.updated",
-      objectDescription: `${after.name} ${after.surname} · ${after.email}`,
-      detail: `Role changed from ${before.role} to ${after.role}.`,
-      before: { role: before.role },
-      after: { role: after.role },
-    });
-  }
+  const after = await withTransaction(async (sql) => {
+    const updated = await sql.query<StaffRow>(
+      `UPDATE users SET name = $2, surname = $3, email = $4, role = $5, updated_at = now()
+        WHERE id = $1
+        RETURNING id, role, name, surname, email, status, created_at`,
+      [userId, next.name, next.surname, next.email, next.role],
+    );
+    const row = toAccount(updated.rows[0]!);
+
+    // FR-27: every change to who an account belongs to or what it may do.
+    if (changed.length) {
+      await record(
+        {
+          actor: { id: admin.id, name: admin.name, surname: admin.surname, role: admin.role },
+          eventType: "account.updated",
+          objectDescription: `${row.name} ${row.surname} · ${row.email}`,
+          detail: changed
+            .map((field) => `${label[field]} changed from ${before[field]} to ${row[field]}.`)
+            .join(" "),
+          before: Object.fromEntries(changed.map((field) => [field, before[field]])),
+          after: Object.fromEntries(changed.map((field) => [field, row[field]])),
+        },
+        sql,
+      );
+    }
+    return row;
+  });
+
+  // The link already sent went to the wrong address. Reissuing kills it - so
+  // whoever received the mistyped one can no longer activate this account - and
+  // sends a working one to the address that is now on it.
+  if (emailChanged) await sendActivationLink(userId);
+
   return after;
 }
+
+const label = { name: "First name", surname: "Surname", email: "Email", role: "Role" } as const;
 
 /**
  * Activates or deactivates a staff account (FR-01).
@@ -221,11 +255,24 @@ export async function setStaffAccountStatus(
     );
   }
 
+  // Nothing to do, and nothing to record: an entry saying an active account was
+  // "re-activated" would be false.
+  if (before.status === status) return before;
+
+  // An account deactivated before its holder ever activated it has no password.
+  // Re-activating returns it to where it was - waiting for its holder - rather
+  // than making it active without anyone having confirmed the address.
+  const { rows: passwords } = await query<{ has_password: boolean }>(
+    "SELECT password_hash IS NOT NULL AS has_password FROM users WHERE id = $1",
+    [userId],
+  );
+  const target = status === "active" && !passwords[0]?.has_password ? "unverified" : status;
+
   const account = await withTransaction(async (sql) => {
     const { rows } = await sql.query<StaffRow>(
       `UPDATE users SET status = $2, updated_at = now() WHERE id = $1
        RETURNING id, role, name, surname, email, status, created_at`,
-      [userId, status],
+      [userId, target],
     );
     const row = toAccount(rows[0]!);
 
@@ -237,9 +284,11 @@ export async function setStaffAccountStatus(
         detail:
           status === "inactive"
             ? "Account deactivated; all sessions ended."
-            : "Account re-activated.",
+            : target === "unverified"
+              ? "Account re-activated. It was never activated by its holder, so it is waiting for them to use their link."
+              : "Account re-activated.",
         before: { status: before.status },
-        after: { status },
+        after: { status: target },
       },
       sql,
     );

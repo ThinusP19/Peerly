@@ -445,7 +445,10 @@ function AccountFormDialog({
   const [busy, setBusy] = useState(false);
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
 
-  // Seed the form when a different account is opened for editing.
+  // Seed the form each time the dialog opens. Forgetting what was loaded when it
+  // closes is what makes the next opening start clean: without it, "Create"
+  // re-opened with the last person's details and "Edit" with a cancelled draft.
+  if (!open && loadedFor !== null) setLoadedFor(null);
   const seedKey = mode === "edit" ? (account?.id ?? null) : open ? "create" : null;
   if (open && seedKey !== loadedFor) {
     setLoadedFor(seedKey);
@@ -464,6 +467,9 @@ function AccountFormDialog({
 
   const set = (key: keyof AccountForm, value: string) =>
     setForm((current) => ({ ...current, [key]: value }));
+
+  // The server refuses to change an activated account's address (SR-16).
+  const emailLocked = mode === "edit" && !!account && account.status !== "unverified";
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -529,7 +535,9 @@ function AccountFormDialog({
             <DialogDescription>
               {mode === "create"
                 ? "The account starts as unverified. We'll email an activation link so they can set their own password."
-                : "Changing an email address also changes the address they sign in with."}
+                : emailLocked
+                  ? "The email address stays fixed once an account has been activated."
+                  : "This account hasn't been activated yet. Correcting its address sends a new activation link there and stops the old one working."}
             </DialogDescription>
           </DialogHeader>
 
@@ -559,7 +567,11 @@ function AccountFormDialog({
             <FormField
               label="Institutional email"
               error={errors.email}
-              hint="Must end in nwu.ac.za."
+              hint={
+                emailLocked
+                  ? "Can't be changed on an activated account - whoever held a new address could reset the password. Create a new account instead."
+                  : "Must end in nwu.ac.za."
+              }
               required
             >
               {(props) => (
@@ -567,6 +579,9 @@ function AccountFormDialog({
                   {...props}
                   type="email"
                   value={form.email}
+                  readOnly={emailLocked}
+                  aria-readonly={emailLocked}
+                  className={emailLocked ? "bg-muted text-muted-foreground" : undefined}
                   onChange={(event) => set("email", event.target.value)}
                 />
               )}

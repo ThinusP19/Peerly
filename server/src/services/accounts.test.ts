@@ -173,6 +173,27 @@ describe("setStaffAccountStatus (FR-01, SR-05)", () => {
     );
   });
 
+  it("returns an account deactivated before activation to unverified, never to active", async () => {
+    // It has no password. "Active" would let it past every check that relies
+    // on the holder having confirmed their address.
+    const admin = await anAdmin();
+    const account = await createStaffAccount(newLecturer, admin);
+    await setStaffAccountStatus(account.id, "inactive", admin);
+
+    const reactivated = await setStaffAccountStatus(account.id, "active", admin);
+
+    expect(reactivated.status).toBe("unverified");
+  });
+
+  it("writes no audit entry when the status does not change", async () => {
+    const admin = await anAdmin();
+    const target = await createUser({ role: "lecturer", status: "active" });
+
+    await setStaffAccountStatus(target.id, "active", admin);
+
+    expect(await getAuditEntries({ eventType: "account.activated" })).toHaveLength(0);
+  });
+
   it("refuses a student id as though it did not exist (SR-16)", async () => {
     const admin = await anAdmin();
     const student = await createUser({ role: "student", studentNumber: "41200345" });
@@ -230,6 +251,93 @@ describe("updateStaffAccount", () => {
     await expect(
       updateStaffAccount(target.id, { email: "anneke@gmail.com" }, admin),
     ).rejects.toThrow(/institutional address/);
+  });
+
+  it("refuses to change the address of an activated account (SR-16)", async () => {
+    // Otherwise an administrator points the account at an address they hold,
+    // asks for a password reset there, and signs in as the lecturer.
+    const admin = await anAdmin();
+    const target = await createUser({ role: "lecturer", status: "active" });
+
+    await expect(
+      updateStaffAccount(target.id, { email: "someone.else@nwu.ac.za" }, admin),
+    ).rejects.toThrow(/can't be changed/);
+
+    const { rows } = await query<{ email: string }>("SELECT email FROM users WHERE id = $1", [
+      target.id,
+    ]);
+    expect(rows[0]!.email).toBe(target.email);
+  });
+
+  it("still allows other changes to an activated account, and the same address in another case", async () => {
+    const admin = await anAdmin();
+    const target = await createUser({ role: "lecturer", status: "active" });
+
+    const account = await updateStaffAccount(
+      target.id,
+      { name: "Renamed", email: target.email.toUpperCase() },
+      admin,
+    );
+    expect(account.name).toBe("Renamed");
+  });
+
+  describe("correcting the address of an account not yet activated", () => {
+    const typo = {
+      role: "lecturer" as const,
+      name: "Thabo",
+      surname: "Maseko",
+      email: "thabo.masek@nwu.ac.za",
+    };
+
+    it("kills the link sent to the old address and sends a new one to the corrected address", async () => {
+      const admin = await anAdmin();
+      const account = await createStaffAccount(typo, admin);
+      vi.mocked(mail.queue).mockClear();
+
+      await updateStaffAccount(account.id, { email: "thabo.maseko@nwu.ac.za" }, admin);
+
+      const { rows } = await query<{ live: string }>(
+        `SELECT count(*) AS live FROM auth_tokens
+          WHERE user_id = $1 AND purpose = 'activation' AND consumed_at IS NULL`,
+        [account.id],
+      );
+      expect(Number(rows[0]!.live), "only the new link may work").toBe(1);
+      expect(mail.queue).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(mail.queue).mock.calls[0]![0].to).toBe("thabo.maseko@nwu.ac.za");
+    });
+
+    it("records the change of address on the audit trail (FR-27)", async () => {
+      const admin = await anAdmin();
+      const account = await createStaffAccount(typo, admin);
+
+      await updateStaffAccount(account.id, { email: "thabo.maseko@nwu.ac.za" }, admin);
+
+      const [entry] = await getAuditEntries({ eventType: "account.updated" });
+      expect(entry, "an address change must leave an entry").toBeDefined();
+      expect(entry!.detail).toContain("thabo.masek@nwu.ac.za");
+      expect(entry!.detail).toContain("thabo.maseko@nwu.ac.za");
+    });
+  });
+
+  it("records a change of name on the audit trail (FR-27)", async () => {
+    const admin = await anAdmin();
+    const target = await createUser({ role: "lecturer", name: "Anneke", surname: "Smit" });
+
+    await updateStaffAccount(target.id, { surname: "Botha" }, admin);
+
+    const [entry] = await getAuditEntries({ eventType: "account.updated" });
+    expect(entry, "a change of name must leave an entry").toBeDefined();
+    expect(entry!.detail).toContain("Smit");
+    expect(entry!.detail).toContain("Botha");
+  });
+
+  it("writes no audit entry when nothing changed", async () => {
+    const admin = await anAdmin();
+    const target = await createUser({ role: "lecturer", name: "Anneke" });
+
+    await updateStaffAccount(target.id, { name: "Anneke" }, admin);
+
+    expect(await getAuditEntries({ eventType: "account.updated" })).toHaveLength(0);
   });
 });
 
