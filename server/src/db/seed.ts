@@ -250,9 +250,23 @@ async function seed() {
     const [cmpg323, cmpg315] = classRows.map((r) => r.rows[0]!.id) as [string, string];
 
     /* Class list: 28 matched, one unmatched, one conflict - the three states
-       the class-list screen and the student explanation page are built for. */
-    for (const [i, student] of students.entries()) {
+       the class-list screen and the student explanation page are built for.
+
+       The unmatched entry belongs to somebody who has not registered yet, which
+       is the only way a real class list ends up with one: matching links any
+       active account with the same number and name, at import and again when
+       an account is activated. Student 28 (Lwazi Gumede) is registered and on
+       no class list at all, as test-plan.md describes - seeding him onto the
+       list with his own name gave him a screen saying no account used the
+       number he had just signed in with. */
+    const unregistered = {
+      name: "Sizwe",
+      surname: "Mahlangu",
+      studentNumber: "41209871",
+    };
+    for (const [i, registered] of students.entries()) {
       const status = i === 28 ? "unmatched" : i === 29 ? "conflict" : "matched";
+      const student = status === "unmatched" ? unregistered : registered;
       await sql.query(
         `INSERT INTO enrolments
            (class_id, student_number, imported_name, imported_surname, imported_email,

@@ -29,17 +29,25 @@ export interface StudentEnrolment {
   importedName: string;
   importedSurname: string;
   matchStatus: "matched" | "unmatched" | "conflict";
-  matchNote?: string;
+  // No match note. That text is written for the lecturer ("No registered
+  // Peerly account uses this student number yet") and reads as false to the
+  // student signed in with that very number, so the student's screen words its
+  // own explanation from the status instead.
 }
 
 /**
- * The class-list row this student maps to, matched on student number.
+ * Every class-list row this student maps to, matched on student number, oldest
+ * first.
  *
  * Matched on the number rather than the account id on purpose: an unmatched or
  * conflicting row has no account id - that is precisely what those states mean -
  * and the student needs to be told about exactly those cases.
+ *
+ * All of them, not the first. A student can be on several class lists (OR-23),
+ * and a problem on one list must not hide the assessments open in another -
+ * nor may a clean match on the oldest hide a conflict on a newer one.
  */
-export async function getStudentEnrolment(studentId: string): Promise<StudentEnrolment | null> {
+export async function getStudentEnrolments(studentId: string): Promise<StudentEnrolment[]> {
   const { rows } = await query<{
     id: string;
     class_id: string;
@@ -49,24 +57,18 @@ export async function getStudentEnrolment(studentId: string): Promise<StudentEnr
     imported_name: string;
     imported_surname: string;
     match_status: "matched" | "unmatched" | "conflict";
-    match_note: string | null;
   }>(
     `SELECT e.id, e.class_id, c.module_code, c.name AS class_name,
-            e.student_number, e.imported_name, e.imported_surname,
-            e.match_status, e.match_note
+            e.student_number, e.imported_name, e.imported_surname, e.match_status
        FROM users u
        JOIN enrolments e ON e.student_number = u.student_number
        JOIN classes c ON c.id = e.class_id
       WHERE u.id = $1
-      ORDER BY e.created_at
-      LIMIT 1`,
+      ORDER BY e.created_at, c.module_code`,
     [studentId],
   );
 
-  const row = rows[0];
-  if (!row) return null;
-
-  return {
+  return rows.map((row) => ({
     id: row.id,
     classId: row.class_id,
     moduleCode: row.module_code,
@@ -75,8 +77,7 @@ export async function getStudentEnrolment(studentId: string): Promise<StudentEnr
     importedName: row.imported_name,
     importedSurname: row.imported_surname,
     matchStatus: row.match_status,
-    ...(row.match_note ? { matchNote: row.match_note } : {}),
-  };
+  }));
 }
 
 export interface StudentPeer {

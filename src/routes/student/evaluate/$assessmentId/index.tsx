@@ -13,10 +13,12 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { useNow } from "@/hooks/use-now";
 import { COMMENT_LIMIT, useDraftProgress, useEvaluationDraft } from "@/lib/evaluation-draft";
 import { formatDateTimeLong, formatDeadline } from "@/lib/format";
 import { closedAtOf } from "@/lib/assessment-form";
 import { useSession } from "@/lib/session";
+import { acceptsWork } from "@/lib/student-dashboard";
 import { cn } from "@/lib/utils";
 import { getStudentRatingOptions, getStudentAssessment } from "@/services/peerly";
 
@@ -50,6 +52,9 @@ function EvaluationForm() {
     studentId,
   );
   const progress = useDraftProgress(draft, memberIds);
+  // Re-renders when the closing time arrives, so a form left open turns
+  // read-only then rather than collecting answers the server refuses.
+  const now = useNow(view.data?.assessment.closesAt);
 
   // A submitted evaluation belongs on the confirmation screen, where it can be
   // read back and - while the assessment is still open - amended.
@@ -91,7 +96,9 @@ function EvaluationForm() {
 
   const { assessment, klass, group } = view.data;
 
-  if (assessment.status !== "open") {
+  // BR-05: past the closing time it is closed, even while the status still
+  // says open - the server refuses drafts and submissions from then on.
+  if (!acceptsWork(assessment, now)) {
     return (
       <div className={FLOW}>
         <PageHeader title={assessment.name} backTo="/student" backLabel="Your assessments" />

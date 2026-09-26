@@ -633,37 +633,32 @@ export interface StudentAssessmentView {
   submission?: Submission;
 }
 
-/** The enrolment row a student maps to, matched on student number. */
-export const getStudentEnrolment = async (_studentId: string): Promise<Enrolment | null> => {
-  // No id crosses the wire: the endpoint answers for the signed-in student and
-  // nobody else, so there is no parameter to tamper with (SR-07).
-  const { enrolment } = await get<{ enrolment: StudentEnrolmentReply | null }>(
-    "/api/student/enrolment",
-  );
-  if (!enrolment) return null;
-
-  return {
-    id: enrolment.id,
-    classId: enrolment.classId,
-    studentNumber: enrolment.studentNumber,
-    importedName: enrolment.importedName,
-    importedSurname: enrolment.importedSurname,
-    matchStatus: enrolment.matchStatus,
-    ...(enrolment.matchNote ? { matchNote: enrolment.matchNote } : {}),
-  };
-};
-
-interface StudentEnrolmentReply {
+/**
+ * One class-list row a student maps to, with the module it belongs to so the
+ * student can tell their lecturer which list needs attention. Carries no match
+ * note: that is the lecturer's wording, and false for the student reading it.
+ */
+export interface StudentEnrolment {
   id: string;
   classId: string;
-  importedName: string;
-  importedSurname: string;
   moduleCode: string;
   className: string;
   studentNumber: string;
+  importedName: string;
+  importedSurname: string;
   matchStatus: Enrolment["matchStatus"];
-  matchNote?: string;
 }
+
+/**
+ * Every class-list row a student maps to, matched on student number, oldest
+ * first. All of them: a problem on one list must not hide another list's work.
+ */
+export const getStudentEnrolments = async (_studentId: string): Promise<StudentEnrolment[]> => {
+  // No id crosses the wire: the endpoint answers for the signed-in student and
+  // nobody else, so there is no parameter to tamper with (SR-07).
+  const { enrolments } = await get<{ enrolments: StudentEnrolment[] }>("/api/student/enrolments");
+  return enrolments;
+};
 export const getStudentAssessments = async (
   _studentId: string,
 ): Promise<StudentAssessmentView[]> => {

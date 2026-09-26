@@ -27,12 +27,18 @@ import { useDraftSummaries } from "@/lib/evaluation-draft";
 import { formatDate, formatDateTimeLong, formatDeadline, isOverdue } from "@/lib/format";
 import { closedAtOf } from "@/lib/assessment-form";
 import { useSession } from "@/lib/session";
+import {
+  dashboardSubmission,
+  enrolmentProblems,
+  needsEnrolmentExplanation,
+  submittedMeta,
+} from "@/lib/student-dashboard";
 import { cn } from "@/lib/utils";
-import type { Enrolment } from "@/mocks/types";
 import {
   getStudentAssessments,
-  getStudentEnrolment,
+  getStudentEnrolments,
   type StudentAssessmentView,
+  type StudentEnrolment,
 } from "@/services/peerly";
 
 export const Route = createFileRoute("/student/")({
@@ -55,9 +61,9 @@ function StudentDashboard() {
   const { user } = useSession();
   const studentId = user!.id;
 
-  const enrolment = useQuery({
-    queryKey: ["student-enrolment", studentId],
-    queryFn: () => getStudentEnrolment(studentId),
+  const enrolments = useQuery({
+    queryKey: ["student-enrolments", studentId],
+    queryFn: () => getStudentEnrolments(studentId),
   });
   const views = useQuery({
     queryKey: ["student-assessments", studentId],
@@ -75,17 +81,11 @@ function StudentDashboard() {
   // Split by what the student can actually do about it. Three of four cards
   // being unactionable is the whole reason this page needs sections.
   const groups = useMemo(() => {
-    const stateOf = (view: StudentAssessmentView) => {
-      const draft = draftSummaries[view.assessment.id];
-      const submission = draft
-        ? draft.submittedAt
-          ? { ...view.submission, status: "submitted" as const, submittedAt: draft.submittedAt }
-          : draft.ratedCount > 0
-            ? { ...view.submission, status: "draft" as const }
-            : view.submission
-        : view.submission;
-      return studentAssessmentState(view.assessment, submission as typeof view.submission);
-    };
+    const stateOf = (view: StudentAssessmentView) =>
+      studentAssessmentState(
+        view.assessment,
+        dashboardSubmission(view.submission, draftSummaries[view.assessment.id]),
+      );
 
     const all = views.data ?? [];
     return {
@@ -98,7 +98,7 @@ function StudentDashboard() {
     };
   }, [views.data, draftSummaries]);
 
-  if (enrolment.isPending || views.isPending) {
+  if (enrolments.isPending || views.isPending) {
     return (
       <div className="space-y-3">
         <Skeleton className="h-44 w-full rounded-2xl" />
@@ -108,10 +108,12 @@ function StudentDashboard() {
     );
   }
 
-  // An unmatched or conflicting enrolment means we can't show any assessments -
-  // explain what happened and what to do rather than showing an empty list.
-  if (enrolment.data && enrolment.data.matchStatus !== "matched") {
-    return <EnrolmentProblem enrolment={enrolment.data} />;
+  // A student can be on several class lists. A problem on one of them is
+  // explained beside the assessments from the others, never instead of them -
+  // only a student with nothing to show at all gets the full-page explanation.
+  const problems = enrolmentProblems(enrolments.data ?? []);
+  if (enrolments.data && needsEnrolmentExplanation(enrolments.data, groups.total)) {
+    return <EnrolmentExplanation problems={problems} />;
   }
 
   const todo = groups.action.length;
@@ -148,6 +150,10 @@ function StudentDashboard() {
         }
       />
 
+      {problems.map((problem) => (
+        <EnrolmentProblemCard key={problem.id} enrolment={problem} />
+      ))}
+
       {groups.total === 0 ? (
         <EmptyState
           icon={CalendarClock}
@@ -177,7 +183,9 @@ function StudentDashboard() {
                   view={view}
                   icon={CheckCircle2}
                   tone="success"
-                  meta={`Submitted · closes ${formatDate(view.assessment.closesAt)}`}
+                  meta={submittedMeta(view.assessment, {
+                    unsentChanges: draftSummaries[view.assessment.id]?.reopened,
+                  })}
                   action="View"
                 />
               ))}
@@ -366,19 +374,14 @@ function CompactRow({
   );
 }
 
-/** Full-page explanation for a student we couldn't match to a class list. */
-function EnrolmentProblem({ enrolment }: { enrolment: Enrolment }) {
-  const { user } = useSession();
-  const isConflict = enrolment.matchStatus === "conflict";
-
-  const details = [
-    { label: "Name on your account", value: `${user?.name ?? ""} ${user?.surname ?? ""}` },
-    {
-      label: "Name on the class list",
-      value: `${enrolment.importedName} ${enrolment.importedSurname}`,
-    },
-    { label: "Student number", value: enrolment.studentNumber, numeric: true },
-  ];
+/**
+ * Full-page explanation for a student with nothing else to see: no matched
+ * class list and no assessment. Either the number is on no class list yet, or
+ * every list it is on has a problem - each of which is explained on its own.
+ */
+function EnrolmentExplanation({ problems }: { problems: StudentEnrolment[] }) {
+  const onNoList = problems.length === 0;
+  const onlyConflicts = !onNoList && problems.every((p) => p.matchStatus === "conflict");
 
   return (
     <>
@@ -386,10 +389,10 @@ function EnrolmentProblem({ enrolment }: { enrolment: Enrolment }) {
         <span
           className={cn(
             "flex size-12 items-center justify-center rounded-xl",
-            isConflict ? "bg-danger-muted text-danger" : "bg-warning-muted text-warning",
+            onlyConflicts ? "bg-danger-muted text-danger" : "bg-warning-muted text-warning",
           )}
         >
-          {isConflict ? (
+          {onlyConflicts ? (
             <TriangleAlert className="size-6" aria-hidden="true" />
           ) : (
             <Link2Off className="size-6" aria-hidden="true" />
@@ -397,89 +400,177 @@ function EnrolmentProblem({ enrolment }: { enrolment: Enrolment }) {
         </span>
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            {isConflict
-              ? "We need to check your class list entry"
-              : "We couldn't match your account to a class list yet"}
+            {onNoList
+              ? "You're not on a class list yet"
+              : onlyConflicts
+                ? "We need to check your class list entry"
+                : "We couldn't match your account to a class list yet"}
           </h1>
           <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
             Your account is active, but it isn't linked to a class yet - so there's nothing for you
             to evaluate at the moment.
           </p>
         </div>
-        <StatusBadge status={isConflict ? "conflict" : "unmatched"} />
+        {onNoList ? null : <StatusBadge status={onlyConflicts ? "conflict" : "unmatched"} />}
       </Card>
 
-      <Card className="divide-y overflow-hidden rounded-2xl border-0 shadow-card">
-        <div className="px-5 py-5 sm:px-6">
-          <h2 className="text-sm font-semibold text-foreground">What happened</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{enrolment.matchNote}</p>
-        </div>
+      {onNoList ? <NotOnAListCard /> : null}
+      {problems.map((problem) => (
+        <EnrolmentProblemCard key={problem.id} enrolment={problem} />
+      ))}
+    </>
+  );
+}
 
-        <div>
-          <h2 className="px-5 pt-5 pb-1 text-sm font-semibold text-foreground sm:px-6">
-            Your details
-          </h2>
-          <dl className="divide-y">
-            {details.map((detail) => (
-              <div
-                key={detail.label}
-                className="flex flex-col gap-1 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6"
-              >
-                <dt className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                  {detail.label}
-                </dt>
-                <dd
-                  className={cn(
-                    "text-sm break-words text-foreground sm:text-right",
-                    detail.numeric && "tabular-nums",
-                  )}
-                >
-                  {detail.value}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </div>
+/** A number that is on no class list: nothing to compare, only who to ask. */
+function NotOnAListCard() {
+  const { user } = useSession();
 
-        <div className="px-5 py-5 sm:px-6">
-          <h2 className="text-sm font-semibold text-foreground">What to do next</h2>
-          <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm text-muted-foreground">
-            {/* The two states need different advice. For a conflict the student
-                number matched - that is what created the conflict - so telling
-                them to check it sends them after the wrong thing. */}
-            <li>
-              {isConflict ? (
-                <>
-                  Compare the two names above. If the class list has an old surname, a different
-                  spelling or a second name you don't use, that's the mismatch - your lecturer can
-                  correct it.
-                </>
-              ) : (
-                <>
-                  Check that the student number above is the one printed on your student card. If it
-                  isn't, that's the mismatch.
-                </>
-              )}
-            </li>
-            <li>
-              Email your lecturer with your student number and the module code, and ask them to
-              re-run the class list match.
-            </li>
-            <li>
-              Come back to this page afterwards - once you're matched, your assessments appear here
-              automatically.
-            </li>
-          </ol>
-        </div>
+  return (
+    <Card className="divide-y overflow-hidden rounded-2xl border-0 shadow-card">
+      <div className="px-5 py-5 sm:px-6">
+        <h2 className="text-sm font-semibold text-foreground">What happened</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          None of the class lists in Peerly has your student number
+          {user?.studentNumber ? (
+            <>
+              {" "}
+              (<span className="tabular-nums">{user.studentNumber}</span>)
+            </>
+          ) : null}{" "}
+          yet. Your lecturer adds it when they import their class list, and your account links to it
+          by itself.
+        </p>
+      </div>
 
-        <div className="flex gap-2.5 bg-muted/40 px-5 py-3 text-xs text-muted-foreground sm:px-6">
-          <LifeBuoy className="size-4 shrink-0" aria-hidden="true" />
-          <p>
-            Nothing is lost while you wait. If your lecturer fixes the match before the assessment
-            closes, you'll still be able to submit.
+      <div className="px-5 py-5 sm:px-6">
+        <h2 className="text-sm font-semibold text-foreground">What to do next</h2>
+        <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm text-muted-foreground">
+          <li>
+            If a peer assessment has been announced for your module, email your lecturer with your
+            student number and the module code, and ask them to add you to the class list.
+          </li>
+          <li>
+            Come back to this page afterwards - once you're on the list, your assessments appear
+            here automatically.
+          </li>
+        </ol>
+      </div>
+    </Card>
+  );
+}
+
+/**
+ * One class list with a problem, explained in the student's own terms.
+ *
+ * Worded here from the status rather than from the lecturer's match note: that
+ * note says things like "No registered Peerly account uses this student
+ * number", which is false for the student signed in with that very number.
+ */
+function EnrolmentProblemCard({ enrolment }: { enrolment: StudentEnrolment }) {
+  const { user } = useSession();
+  const isConflict = enrolment.matchStatus === "conflict";
+  const listName = `${enrolment.importedName} ${enrolment.importedSurname}`;
+
+  const details = [
+    { label: "Module", value: `${enrolment.moduleCode} · ${enrolment.className}` },
+    { label: "Name on your account", value: `${user?.name ?? ""} ${user?.surname ?? ""}` },
+    { label: "Name on the class list", value: listName },
+    { label: "Student number", value: enrolment.studentNumber, numeric: true },
+  ];
+
+  return (
+    <Card className="divide-y overflow-hidden rounded-2xl border-0 shadow-card">
+      <div className="flex items-start gap-3 px-5 py-5 sm:px-6">
+        <span
+          className={cn(
+            "flex size-9 shrink-0 items-center justify-center rounded-lg",
+            isConflict ? "bg-danger-muted text-danger" : "bg-warning-muted text-warning",
+          )}
+        >
+          {isConflict ? (
+            <TriangleAlert className="size-4" aria-hidden="true" />
+          ) : (
+            <Link2Off className="size-4" aria-hidden="true" />
+          )}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold text-foreground">
+              {isConflict
+                ? `Your ${enrolment.moduleCode} class list entry needs checking`
+                : `You're not linked to the ${enrolment.moduleCode} class list yet`}
+            </h2>
+            <StatusBadge status={isConflict ? "conflict" : "unmatched"} />
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {isConflict
+              ? `The ${enrolment.moduleCode} class list has your student number under the name ${listName}. Peerly won't link the two until your lecturer confirms they're the same person, so you can't see ${enrolment.moduleCode} assessments yet.`
+              : `The ${enrolment.moduleCode} class list has your student number, but it hasn't been linked to your account yet, so you can't see ${enrolment.moduleCode} assessments yet.`}
           </p>
         </div>
-      </Card>
-    </>
+      </div>
+
+      <dl className="divide-y">
+        {details.map((detail) => (
+          <div
+            key={detail.label}
+            className="flex flex-col gap-1 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6"
+          >
+            <dt className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+              {detail.label}
+            </dt>
+            <dd
+              className={cn(
+                "text-sm break-words text-foreground sm:text-right",
+                detail.numeric && "tabular-nums",
+              )}
+            >
+              {detail.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      <div className="px-5 py-5 sm:px-6">
+        <h3 className="text-sm font-semibold text-foreground">What to do next</h3>
+        <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm text-muted-foreground">
+          {/* The two states need different advice. For a conflict the student
+              number matched - that is what created the conflict - so telling
+              them to check it sends them after the wrong thing. */}
+          <li>
+            {isConflict ? (
+              <>
+                Compare the two names above. If the class list has an old surname, a different
+                spelling or a second name you don't use, that's the mismatch - your lecturer can
+                correct it.
+              </>
+            ) : (
+              <>
+                Check the details above against your student card, so you can tell your lecturer if
+                anything is different.
+              </>
+            )}
+          </li>
+          <li>
+            Email your lecturer with your student number ({enrolment.studentNumber}) and the module
+            code ({enrolment.moduleCode}), and ask them to{" "}
+            {isConflict ? "confirm your class list entry" : "re-run the class list match"}.
+          </li>
+          <li>
+            Come back to this page afterwards - once you're matched, your assessments appear here
+            automatically.
+          </li>
+        </ol>
+      </div>
+
+      <div className="flex gap-2.5 bg-muted/40 px-5 py-3 text-xs text-muted-foreground sm:px-6">
+        <LifeBuoy className="size-4 shrink-0" aria-hidden="true" />
+        <p>
+          Nothing is lost while you wait. If your lecturer fixes the match before the assessment
+          closes, you'll still be able to submit.
+        </p>
+      </div>
+    </Card>
   );
 }

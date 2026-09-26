@@ -284,6 +284,8 @@ export function useDraftProgress(draft: EvaluationDraft, memberIds: string[]) {
 export interface DraftSummary {
   submittedAt?: string;
   ratedCount: number;
+  /** A submitted evaluation opened for changes on this device, not yet resubmitted. */
+  reopened?: boolean;
 }
 
 /** Peek at a stored draft without loading the whole editing hook. */
@@ -295,6 +297,7 @@ export function readDraftSummary(assessmentId: string, studentId: string): Draft
     return {
       submittedAt: draft.submittedAt,
       ratedCount: Object.values(draft.entries ?? {}).filter((entry) => entry.ratingOptionId).length,
+      reopened: Boolean(draft.reopenedAt) && !draft.submittedAt,
     };
   } catch {
     return null;

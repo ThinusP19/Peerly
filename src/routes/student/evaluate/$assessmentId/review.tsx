@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Pencil, TriangleAlert } from "lucide-react";
+import { Lock, Pencil, TriangleAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -13,9 +13,12 @@ import { RatingScale } from "@/components/shared/RatingScale";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useNow } from "@/hooks/use-now";
+import { ApiError } from "@/lib/api";
 import { useDraftProgress, useEvaluationDraft } from "@/lib/evaluation-draft";
 import { formatDateTimeLong } from "@/lib/format";
 import { useSession } from "@/lib/session";
+import { acceptsWork } from "@/lib/student-dashboard";
 import { cn } from "@/lib/utils";
 import { getStudentRatingOptions, getStudentAssessment, submitEvaluation } from "@/services/peerly";
 
@@ -50,6 +53,7 @@ function ReviewPage() {
 
   const [busy, setBusy] = useState(false);
   const [blocked, setBlocked] = useState(false);
+  const now = useNow(view.data?.assessment.closesAt);
 
   if (view.isPending || options.isPending || !hydrated) {
     return (
@@ -78,6 +82,35 @@ function ReviewPage() {
   }
 
   const { assessment, klass, group } = view.data;
+
+  // BR-05: past the closing time nothing can be submitted, whatever the status
+  // says. Offering the button anyway only leads to a refusal.
+  if (!acceptsWork(assessment, now)) {
+    return (
+      <div className={FLOW}>
+        <PageHeader title={assessment.name} backTo="/student" backLabel="Your assessments" />
+        <EmptyState
+          icon={Lock}
+          title={
+            assessment.status === "draft"
+              ? "This assessment isn't open yet"
+              : "This assessment has closed"
+          }
+          description={
+            assessment.status === "draft"
+              ? `It opens on ${formatDateTimeLong(assessment.opensAt)}. You'll be able to rate your group then.`
+              : `It closed on ${formatDateTimeLong(assessment.closesAt)}, so it can't be submitted any more. Speak to your lecturer if you think this is a mistake.`
+          }
+          action={
+            <Button asChild variant="outline">
+              <Link to="/student">Back to your assessments</Link>
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
   const missingMembers = members.filter((member) => progress.missing.includes(member.id));
 
   const handleSubmit = async () => {
@@ -95,8 +128,16 @@ function ReviewPage() {
       const { submittedAt } = await submitEvaluation(assessmentId, studentId, entries);
       markSubmitted(submittedAt);
       await queryClient.invalidateQueries();
-    } catch {
-      // Keep the draft so nothing is lost, and let the student try again.
+    } catch (error) {
+      // A refusal the server gave a reason for - the closing time passed, it
+      // was already submitted - is not fixed by trying again, so say what it
+      // was and refresh, which shows the closed state if that is what it is.
+      if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
+        toast.error(error.message);
+        await queryClient.invalidateQueries();
+        return;
+      }
+      // Anything else may well pass next time. The draft is kept, so nothing is lost.
       toast.error("We couldn't submit your evaluation. Your ratings are saved - please try again.");
       return;
     } finally {

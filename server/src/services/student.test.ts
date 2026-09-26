@@ -3,7 +3,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { closePool, query } from "../db/pool.ts";
 import { createUser, resetDatabase } from "../test/helpers.ts";
 import { getRatingOptions } from "./assessments.ts";
-import { getStudentAssessments, getStudentEnrolment } from "./student.ts";
+import { getStudentAssessments, getStudentEnrolments } from "./student.ts";
 
 /**
  * SR-08 is the point of this file: a student's browser must never receive a
@@ -175,12 +175,13 @@ describe("what a student may see of an assessment's lifecycle", () => {
   });
 });
 
-describe("getStudentEnrolment", () => {
+describe("getStudentEnrolments", () => {
   it("finds the row by student number", async () => {
     const { students } = await scenario();
 
-    const enrolment = await getStudentEnrolment(students[0]!.id);
-    expect(enrolment).toMatchObject({ matchStatus: "matched", moduleCode: "CMPG323" });
+    const enrolments = await getStudentEnrolments(students[0]!.id);
+    expect(enrolments).toHaveLength(1);
+    expect(enrolments[0]).toMatchObject({ matchStatus: "matched", moduleCode: "CMPG323" });
   });
 
   it("returns an unmatched row, which is what the explanation page needs", async () => {
@@ -192,15 +193,50 @@ describe("getStudentEnrolment", () => {
       [classId],
     );
 
-    const enrolment = await getStudentEnrolment(newcomer.id);
-    expect(enrolment).toMatchObject({ matchStatus: "unmatched", matchNote: "No account yet." });
+    const [enrolment] = await getStudentEnrolments(newcomer.id);
+    expect(enrolment).toMatchObject({ matchStatus: "unmatched", moduleCode: "CMPG323" });
   });
 
-  it("returns null for a student on no class list", async () => {
+  it("never passes on the lecturer's match note, which is false for the student reading it", async () => {
+    const { classId } = await scenario();
+    const newcomer = await createUser({ role: "student", studentNumber: "41209999" });
+    await query(
+      `INSERT INTO enrolments (class_id, student_number, imported_name, imported_surname, match_status, match_note)
+       VALUES ($1, '41209999', 'New', 'Comer', 'unmatched', 'No registered Peerly account uses this student number yet.')`,
+      [classId],
+    );
+
+    const [enrolment] = await getStudentEnrolments(newcomer.id);
+    expect(enrolment).not.toHaveProperty("matchNote");
+  });
+
+  it("returns every class list the number is on, not only the oldest (OR-23)", async () => {
+    const { lecturer, classId, students } = await scenario();
+    const { rows } = await query<{ id: string }>(
+      `INSERT INTO classes (module_code, name, academic_period, lecturer_id)
+       VALUES ('CMPG315', 'Computer Networks II', '2026 S2', $1) RETURNING id`,
+      [lecturer.id],
+    );
+    // The older list (CMPG323, from the scenario) is matched; a newer one has a
+    // conflict. Both must reach the student, in the order they were imported.
+    await query(
+      `INSERT INTO enrolments (class_id, student_number, imported_name, imported_surname, match_status, created_at)
+       VALUES ($1, $2, 'Someone', 'Else', 'conflict', now() + interval '1 minute')`,
+      [rows[0]!.id, "41200345"],
+    );
+
+    const enrolments = await getStudentEnrolments(students[0]!.id);
+    expect(enrolments.map((e) => [e.classId, e.matchStatus])).toEqual([
+      [classId, "matched"],
+      [rows[0]!.id, "conflict"],
+    ]);
+  });
+
+  it("returns nothing for a student on no class list", async () => {
     await scenario();
     const outsider = await createUser({ role: "student" });
 
-    expect(await getStudentEnrolment(outsider.id)).toBeNull();
+    expect(await getStudentEnrolments(outsider.id)).toEqual([]);
   });
 });
 

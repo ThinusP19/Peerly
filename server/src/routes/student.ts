@@ -9,7 +9,7 @@ import {
   saveDraft,
   submitEvaluation,
 } from "../services/evaluations.ts";
-import { getStudentAssessments, getStudentEnrolment } from "../services/student.ts";
+import { getStudentAssessments, getStudentEnrolments } from "../services/student.ts";
 
 /**
  * The student portal's own data.
@@ -22,8 +22,9 @@ export const studentRoutes = Router();
 
 studentRoutes.use(requireAuth, requireRole("student"));
 
-studentRoutes.get("/enrolment", async (req, res) => {
-  res.json({ enrolment: await getStudentEnrolment(currentUser(req).user.id) });
+/** Every class list the student's number is on, so each can be explained on its own. */
+studentRoutes.get("/enrolments", async (req, res) => {
+  res.json({ enrolments: await getStudentEnrolments(currentUser(req).user.id) });
 });
 
 studentRoutes.get("/assessments", async (req, res) => {
