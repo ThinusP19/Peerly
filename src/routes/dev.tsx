@@ -1,4 +1,4 @@
-import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
 import { ArrowRight, FlaskConical } from "lucide-react";
 
 import { BrandLockup } from "@/components/layout/BrandMark";
@@ -10,6 +10,12 @@ import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/dev")({
   head: () => titleHead("Prototype tools"),
+  // Same reasoning as the corner switcher: this page hands out any identity in
+  // the system, so outside development it is a real not-found - HTTP 404 and
+  // the app's own 404 page, not a 200 that only looks like one.
+  beforeLoad: () => {
+    if (!import.meta.env.DEV) throw notFound();
+  },
   component: DevPage,
 });
 
@@ -27,24 +33,17 @@ const screens = [
  * portals so they're linked directly.
  */
 function DevPage() {
+  // A production build compiles this to `return null`, so the personas and the
+  // sign-in shortcut below are dropped from the page's code there.
+  return import.meta.env.DEV ? <DevTools /> : null;
+}
+
+function DevTools() {
   const { user, signInAs } = useSession();
   const navigate = useNavigate();
 
-  // Same reasoning as the corner switcher: this page hands out any identity in
-  // the system, so it must not exist in a production build.
-  if (!import.meta.env.DEV) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-4">
-        <div className="max-w-md text-center">
-          <h1 className="text-7xl font-bold text-foreground">404</h1>
-          <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-background px-4 py-10">
+    <main className="min-h-screen bg-background px-4 py-10">
       <div className="mx-auto w-full max-w-3xl space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <BrandLockup subtitle="Assessment Hub" />
@@ -124,6 +123,6 @@ function DevPage() {
           any changes you make.
         </p>
       </div>
-    </div>
+    </main>
   );
 }

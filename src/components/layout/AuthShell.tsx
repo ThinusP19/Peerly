@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { BrandLockup, BrandMark } from "@/components/layout/BrandMark";
+import { MAIN_CONTENT_ID, SkipLink } from "@/components/layout/SkipLink";
 import { Card } from "@/components/ui/card";
 import { FloatingPathsBackground } from "@/components/ui/floating-paths";
 import { cn } from "@/lib/utils";
@@ -36,6 +37,9 @@ const authFieldStyles = [
  * From `lg` a brand panel joins on the left; it gets a larger share until 2xl
  * so the headline and stat tiles don't cramp, and it stays pinned to the
  * viewport while a long form (registration) scrolls.
+ *
+ * The form column is the page's `<main>`, and the skip link jumps past the
+ * brand panel to it, as in the portals.
  */
 export function AuthShell({
   title,
@@ -53,6 +57,7 @@ export function AuthShell({
 }) {
   return (
     <div className="auth-theme grid min-h-dvh bg-background lg:grid-cols-[2fr_3fr] 2xl:grid-cols-[5fr_9fr]">
+      <SkipLink />
       <aside className="relative hidden flex-col overflow-hidden bg-auth-panel p-10 text-auth-panel-foreground lg:sticky lg:top-0 lg:flex lg:h-dvh xl:p-12">
         {/* Two mirrored line fields drifting across the whole panel. `contain`
             keeps their repaints inside the panel instead of the whole page. */}
@@ -104,7 +109,11 @@ export function AuthShell({
         </dl>
       </aside>
 
-      <div className="flex min-w-0 flex-col items-center justify-center px-4 py-10 sm:px-6">
+      <main
+        id={MAIN_CONTENT_ID}
+        tabIndex={-1}
+        className="flex min-w-0 flex-col items-center justify-center px-4 py-10 outline-none sm:px-6"
+      >
         <div className="w-full max-w-lg">
           <BrandLockup subtitle="North-West University" className="mb-6 justify-center lg:hidden" />
 
@@ -124,7 +133,7 @@ export function AuthShell({
             © {new Date().getFullYear()} North-West University · Peerly
           </p>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
