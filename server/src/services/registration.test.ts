@@ -98,13 +98,33 @@ describe("registerStudent", () => {
   });
 
   it("updates the pending registration when someone goes back to fix a typo", async () => {
+    await registerStudent({ ...validRegistration, surname: "Nkos" });
     await registerStudent(validRegistration);
-    await registerStudent({ ...validRegistration, email: "41200345.fixed@mynwu.ac.za" });
 
     const all = await accounts();
     expect(all).toHaveLength(1);
-    expect(all[0]!.email).toBe("41200345.fixed@mynwu.ac.za");
-    expect(lastCodeFor("41200345.fixed@mynwu.ac.za")).toMatch(/^\d{6}$/);
+    const { rows } = await query<{ surname: string }>("SELECT surname FROM users");
+    expect(rows[0]!.surname).toBe("Nkosi");
+    expect(lastCodeFor(validRegistration.email)).toMatch(/^\d{6}$/);
+  });
+
+  it("refuses a student number that is not the one in the address (SR-01)", async () => {
+    // The code proves the address, so the address must prove the number.
+    // Otherwise anyone could register under a classmate's number and be
+    // matched into their place on the class list.
+    await expect(
+      registerStudent({ ...validRegistration, studentNumber: "41200999" }),
+    ).rejects.toMatchObject({
+      status: 400,
+      fields: { studentNumber: expect.stringContaining("don't match") },
+    });
+    expect(await accounts()).toHaveLength(0);
+    expect(queued()).toHaveLength(0);
+  });
+
+  it("accepts the address in any case", async () => {
+    await registerStudent({ ...validRegistration, email: "41200345@MYNWU.AC.ZA" });
+    expect(await accounts()).toHaveLength(1);
   });
 
   it("supersedes the old code when the registration is updated", async () => {
@@ -237,12 +257,16 @@ describe("verifyEmailCode", () => {
     expect(await verifyEmailCode("nobody@mynwu.ac.za", "123456")).toBeNull();
   });
 
-  it("refuses a code sent to an address that has since been corrected", async () => {
+  it("refuses a code sent for a mistyped student number on the corrected registration", async () => {
+    await registerStudent({
+      ...validRegistration,
+      studentNumber: "41200354",
+      email: "41200354@mynwu.ac.za",
+    });
+    const mistyped = lastCodeFor("41200354@mynwu.ac.za")!;
     await registerStudent(validRegistration);
-    const original = lastCodeFor(validRegistration.email)!;
-    await registerStudent({ ...validRegistration, email: "41200345.fixed@mynwu.ac.za" });
 
-    expect(await verifyEmailCode(validRegistration.email, original)).toBeNull();
+    expect(await verifyEmailCode(validRegistration.email, mistyped)).toBeNull();
   });
 
   it("is case-insensitive about the address", async () => {

@@ -93,6 +93,9 @@ function validateAccount(form: Form, noticeAccepted: boolean): Errors {
     errors.email = "This doesn't look like an email address. Check for a missing @ or full stop.";
   } else if (!email.endsWith(`@${STUDENT_DOMAIN}`)) {
     errors.email = `Use your student address ending in @${STUDENT_DOMAIN}, not a personal one.`;
+  } else if (email.split("@")[0] !== form.studentNumber.trim()) {
+    // The server refuses this too (SR-01): the address proves the number.
+    errors.email = `This isn't the address for student number ${form.studentNumber.trim()}. Yours is ${form.studentNumber.trim()}@${STUDENT_DOMAIN}.`;
   }
 
   if (!form.password) {
@@ -392,7 +395,7 @@ function RegisterPage() {
             <FormField
               label="Student email"
               error={errors.email}
-              hint={`Your student address, ending in @${STUDENT_DOMAIN}.`}
+              hint={`Your student address: your student number followed by @${STUDENT_DOMAIN}.`}
               required
             >
               {(props) => (

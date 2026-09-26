@@ -94,6 +94,16 @@ export async function registerStudent(input: RegisterStudentInput): Promise<void
   const name = input.name.trim();
   const surname = input.surname.trim();
 
+  // SR-01: the verification code proves the mailbox, so the mailbox has to be
+  // the one that belongs to the student number. An NWU student address is the
+  // student number itself; without this, anyone could register a classmate's
+  // number with their own address and be matched into the classmate's place on
+  // the class list.
+  if (email.split("@")[0] !== studentNumber) {
+    const message = `Your student number and student email don't match. Your student email is your student number followed by @${email.split("@")[1] ?? "mynwu.ac.za"} - for example ${studentNumber}@${email.split("@")[1] ?? "mynwu.ac.za"}.`;
+    throw badRequest(message, { studentNumber: message });
+  }
+
   // SR-02 on the server, where it cannot be skipped: the form checks the same
   // policy as the student types, but a request sent straight to the API does
   // not go through the form.
