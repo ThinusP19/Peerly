@@ -13,7 +13,11 @@ export interface HeroStat {
 /**
  * The plum banner that opens each portal's dashboard: an eyebrow, the page
  * title, a one-line subtitle and up to four stat tiles. Three stats sit in a
- * single row; four become a 2x2 grid on phones.
+ * single row (stacked below 360px, where three tiles leave no room for a
+ * word); four become a 2x2 grid on phones.
+ *
+ * Labels wrap rather than truncate: the detail line is hidden on phones, so
+ * a label cut to "AWAITING ACTIVATI..." would leave nothing to read.
  */
 export function Hero({
   eyebrow,
@@ -55,7 +59,7 @@ export function Hero({
               "grid gap-2 sm:gap-3",
               stats.length > 3
                 ? "grid-cols-2 sm:grid-cols-4 2xl:w-[42rem] 2xl:shrink-0"
-                : "grid-cols-3 xl:w-[30rem] xl:shrink-0",
+                : "grid-cols-1 min-[360px]:grid-cols-3 xl:w-[30rem] xl:shrink-0",
             )}
           >
             {stats.map((stat) => (
@@ -63,7 +67,7 @@ export function Hero({
                 key={stat.label}
                 className="min-w-0 rounded-xl border border-primary-foreground/15 bg-primary-foreground/10 px-3 py-3 sm:px-4"
               >
-                <dt className="truncate text-[11px] font-semibold tracking-wider uppercase opacity-80">
+                <dt className="text-[11px] leading-tight font-semibold tracking-wider break-words uppercase opacity-80">
                   {stat.label}
                 </dt>
                 {loading ? (
