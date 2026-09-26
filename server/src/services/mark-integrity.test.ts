@@ -224,7 +224,11 @@ describe("after re-opening (FR-13)", () => {
     await runCalculation(assessmentId, user);
     await overrideMark(assessmentId, students[0]!, 80, "Carried the demo.", user);
 
-    await changeAssessmentStatus(assessmentId, "reopen", user);
+    // Its closing time has passed, and re-opening then needs a later one -
+    // otherwise nobody could submit to the re-opened assessment.
+    await changeAssessmentStatus(assessmentId, "reopen", user, {
+      closesAt: new Date(Date.now() + 86_400_000).toISOString(),
+    });
 
     expect(await getResults(assessmentId, user)).toEqual([]);
     await expect(overrideMark(assessmentId, students[1]!, 60, "Reason.", user)).rejects.toThrow(
