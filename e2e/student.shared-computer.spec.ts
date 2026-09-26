@@ -70,3 +70,43 @@ test("signing out leaves no ratings in the browser, and the draft survives on th
     .click();
   await expect(page.getByRole("radiogroup").first().getByRole("radio").nth(2)).toBeChecked();
 });
+
+/**
+ * Work only this browser holds - changes to a submitted evaluation that were
+ * never resubmitted - is not thrown away without asking.
+ */
+test("signing out with unsent changes asks before removing them", async ({ browser }) => {
+  const context = await browser.newContext({ baseURL: "http://127.0.0.1:7331" });
+  const page = await context.newPage();
+  await page.request.post("/api/auth/login", {
+    data: { email: "41200419@mynwu.ac.za", password: DEV_PASSWORD },
+  });
+  await page.goto("/student");
+  await page.waitForLoadState("networkidle");
+
+  // A reopened, not yet resubmitted evaluation, as the evaluation form leaves it.
+  await page.evaluate(() =>
+    window.localStorage.setItem(
+      "peerly.draft.an-assessment.a-student",
+      JSON.stringify({ entries: {}, reopenedAt: new Date().toISOString() }),
+    ),
+  );
+
+  const signOut = page.getByRole("button", { name: "Sign out" }).first();
+  await signOut.click();
+  const dialog = page.getByRole("dialog", { name: /unsent changes/i });
+  await expect(dialog).toBeVisible();
+
+  await dialog.getByRole("button", { name: "Go back" }).click();
+  await expect(dialog).toBeHidden();
+  expect((await page.request.get("/api/auth/me")).status(), "still signed in").toBe(200);
+
+  await signOut.click();
+  await page.getByRole("dialog").getByRole("button", { name: "Sign out anyway" }).click();
+  await expect(page).toHaveURL(/\/$/);
+  expect(
+    await page.evaluate(() =>
+      Object.keys(window.localStorage).filter((key) => key.startsWith("peerly.draft.")),
+    ),
+  ).toHaveLength(0);
+});

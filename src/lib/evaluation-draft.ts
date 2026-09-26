@@ -42,17 +42,42 @@ const writeLocal = (assessmentId: string, studentId: string, draft: EvaluationDr
   }
 };
 
-/** Autosaves still waiting to be sent, so signing out can send them first. */
-const pendingSaves = new Map<string, () => Promise<unknown>>();
+/**
+ * Autosaves not yet confirmed by the server, so signing out can send them
+ * first. An entry leaves only when its save succeeds: one that failed must
+ * still count as unsaved work.
+ */
+const pendingSaves = new Map<string, () => Promise<boolean>>();
 
 /**
  * Sends every autosave that has not gone yet. Called before signing out, while
  * the session still exists - after that the server would refuse them.
  */
 export async function flushPendingDrafts(): Promise<void> {
-  const sends = [...pendingSaves.values()];
-  pendingSaves.clear();
-  await Promise.allSettled(sends.map((send) => send()));
+  await Promise.allSettled([...pendingSaves.values()].map((send) => send()));
+}
+
+/**
+ * Whether this browser holds work the server does not: an autosave that has
+ * still not gone through, or changes to a submitted evaluation that have not
+ * been resubmitted (those live only here until the student submits again).
+ * Removing the drafts would lose it, so signing out asks first.
+ */
+export function hasUnsavedDrafts(): boolean {
+  if (pendingSaves.size > 0) return true;
+  try {
+    return Array.from({ length: window.localStorage.length }, (_, i) =>
+      window.localStorage.key(i),
+    ).some((key) => {
+      if (!key?.startsWith(DRAFT_PREFIX)) return false;
+      const draft = JSON.parse(
+        window.localStorage.getItem(key) ?? "null",
+      ) as EvaluationDraft | null;
+      return Boolean(draft && (draft.unsynced || (draft.reopenedAt && !draft.submittedAt)));
+    });
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -169,7 +194,6 @@ export function useEvaluationDraft(assessmentId: string, studentId: string | und
       if (!syncs) return;
       const key = storageKey(assessmentId, studentId);
       const send = () => {
-        pendingSaves.delete(key);
         const entries = Object.entries(next.entries).flatMap(([evaluatedStudentId, entry]) =>
           entry.ratingOptionId
             ? [
@@ -184,12 +208,15 @@ export function useEvaluationDraft(assessmentId: string, studentId: string | und
         // Quiet on failure by design: the copy in this browser still holds it,
         // still marked unsynced, so it wins next time and is sent again.
         return saveEvaluationDraft(assessmentId, entries).then((reached) => {
-          if (!reached) return;
+          if (!reached) return false;
+          // Only this save's own entry: a newer change has its own send.
+          if (pendingSaves.get(key) === send) pendingSaves.delete(key);
           const stored = readLocal(assessmentId, studentId);
           // Only if nothing newer was typed while this was in flight.
           if (stored && stored.savedAt === next.savedAt) {
             writeLocal(assessmentId, studentId, { ...stored, unsynced: false });
           }
+          return true;
         });
       };
       pendingSaves.set(key, send);

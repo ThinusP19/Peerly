@@ -7,11 +7,12 @@ import {
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import { BrandLockup, BrandMark } from "@/components/layout/BrandMark";
 import { RoleGuard } from "@/components/layout/RoleGuard";
 import { MAIN_CONTENT_ID, SkipLink } from "@/components/layout/SkipLink";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { initials } from "@/lib/format";
@@ -56,10 +57,30 @@ export function StudentShell({ children }: { children: ReactNode }) {
 function StudentShellInner({ children }: { children: ReactNode }) {
   const { user, signOut } = useSession();
   const isActive = useActive();
+  // Set when signing out would remove evaluation work the server does not have.
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
+
+  const handleSignOut = async () => {
+    if ((await signOut()) === "unsaved") setConfirmSignOut(true);
+  };
 
   return (
     <div className="min-h-screen bg-background">
       <SkipLink />
+      <ConfirmDialog
+        open={confirmSignOut}
+        onOpenChange={setConfirmSignOut}
+        title="Sign out without your unsent changes?"
+        objectName="Your peer evaluation"
+        description="Some of your answers haven't reached Peerly yet - changes to an evaluation you haven't resubmitted, or answers saved while the connection was down. They are only on this computer."
+        consequence="Signing out removes them from this computer, so the next person can't see them. Cancel to go back, then submit or reconnect first."
+        confirmLabel="Sign out anyway"
+        cancelLabel="Go back"
+        destructive
+        onConfirm={async () => {
+          await signOut({ discardUnsaved: true });
+        }}
+      />
       {/* Floats: inset from the window edges with rounded corners. */}
       <aside className="sidebar-surface fixed inset-y-3 left-3 z-30 hidden w-64 flex-col overflow-hidden rounded-2xl bg-sidebar shadow-raised lg:flex">
         <Link to="/student" className="flex items-center border-b border-sidebar-border px-5 py-5">
@@ -106,7 +127,7 @@ function StudentShellInner({ children }: { children: ReactNode }) {
             <Button
               variant="ghost"
               size="icon"
-              onClick={signOut}
+              onClick={() => void handleSignOut()}
               aria-label="Sign out"
               className="size-8 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-primary"
             >
@@ -133,7 +154,12 @@ function StudentShellInner({ children }: { children: ReactNode }) {
                 </p>
                 <p className="text-xs text-muted-foreground">Student</p>
               </div>
-              <Button variant="outline" size="icon" onClick={signOut} aria-label="Sign out">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => void handleSignOut()}
+                aria-label="Sign out"
+              >
                 <LogOut aria-hidden="true" />
               </Button>
             </div>

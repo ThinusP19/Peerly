@@ -10,7 +10,7 @@ import {
 import { toast } from "sonner";
 
 import { isUnauthorized, onUnauthorized } from "@/lib/api";
-import { clearLocalDrafts, flushPendingDrafts } from "@/lib/evaluation-draft";
+import { clearLocalDrafts, flushPendingDrafts, hasUnsavedDrafts } from "@/lib/evaluation-draft";
 import type { Role } from "@/mocks/types";
 import * as auth from "@/services/auth";
 import type { AuthUser } from "@/services/auth";
@@ -71,7 +71,11 @@ interface SessionContextValue extends Preferences {
   signIn: (user: AuthUser) => void;
   /** Signs in by email and password, for the development role switcher. */
   signInAs: (email: string, password?: string) => Promise<void>;
-  signOut: () => Promise<void>;
+  /**
+   * Resolves "unsaved" without signing out when this browser holds evaluation
+   * work the server does not; call again with discardUnsaved to go anyway.
+   */
+  signOut: (options?: { discardUnsaved?: boolean }) => Promise<"signed-out" | "unsaved">;
   /** Re-asks the API, after something that may have changed the account. */
   refresh: () => Promise<void>;
   setActiveClassId: (id: string) => void;
@@ -162,12 +166,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setUser(await auth.login(email, password));
       },
 
-      signOut: async () => {
+      signOut: async ({ discardUnsaved = false } = {}) => {
+        // Anything typed in the last moment goes to the server while the
+        // session still exists; then nothing about the student's ratings is
+        // left in this browser for the next person on a shared computer. Work
+        // the server does not have is only removed once the student agrees.
+        await flushPendingDrafts();
+        if (!discardUnsaved && hasUnsavedDrafts()) return "unsaved" as const;
         try {
-          // Anything typed in the last moment goes to the server while the
-          // session still exists; then nothing about the student's ratings is
-          // left in this browser for the next person on a shared computer.
-          await flushPendingDrafts();
           clearLocalDrafts();
           await auth.logout();
         } finally {
@@ -175,6 +181,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           // the account on screen is worse than one that ends optimistically.
           setUser(null);
         }
+        return "signed-out" as const;
       },
 
       refresh: async () => {

@@ -125,7 +125,7 @@ function SidebarUser() {
       <Button
         variant="ghost"
         size="icon"
-        onClick={signOut}
+        onClick={() => void signOut()}
         aria-label="Sign out"
         className="size-8 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-primary"
       >
@@ -298,7 +298,7 @@ function UserMenu() {
           <p className="mt-1 text-xs text-muted-foreground">{roleLabel(user.role)}</p>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={signOut}>
+        <DropdownMenuItem onSelect={() => void signOut()}>
           <LogOut aria-hidden="true" />
           Sign out
         </DropdownMenuItem>
