@@ -19,12 +19,60 @@ export interface EvaluationDraft {
    * submitted version, which is the one that counts, in the meantime.
    */
   reopenedAt?: string;
+  /**
+   * True while this browser holds changes the server has not confirmed. Only
+   * then does this copy outrank the server's: otherwise the server holds the
+   * newest answers, perhaps typed on another device (CI-10).
+   */
+  unsynced?: boolean;
 }
 
 export const COMMENT_LIMIT = 500;
 
+const DRAFT_PREFIX = "peerly.draft.";
+
 const storageKey = (assessmentId: string, studentId: string) =>
-  `peerly.draft.${assessmentId}.${studentId}`;
+  `${DRAFT_PREFIX}${assessmentId}.${studentId}`;
+
+const writeLocal = (assessmentId: string, studentId: string, draft: EvaluationDraft) => {
+  try {
+    window.localStorage.setItem(storageKey(assessmentId, studentId), JSON.stringify(draft));
+  } catch {
+    // A browser with storage blocked still works; the server copy is the record.
+  }
+};
+
+/** Autosaves still waiting to be sent, so signing out can send them first. */
+const pendingSaves = new Map<string, () => Promise<unknown>>();
+
+/**
+ * Sends every autosave that has not gone yet. Called before signing out, while
+ * the session still exists - after that the server would refuse them.
+ */
+export async function flushPendingDrafts(): Promise<void> {
+  const sends = [...pendingSaves.values()];
+  pendingSaves.clear();
+  await Promise.allSettled(sends.map((send) => send()));
+}
+
+/**
+ * Removes every evaluation kept in this browser. Signing out on a shared
+ * computer must not leave a student's ratings of named classmates behind for
+ * the next person; the server keeps the draft, and submitted work is on the
+ * server anyway.
+ */
+export function clearLocalDrafts(): void {
+  try {
+    const keys = Array.from({ length: window.localStorage.length }, (_, i) =>
+      window.localStorage.key(i),
+    );
+    for (const key of keys) {
+      if (key?.startsWith(DRAFT_PREFIX)) window.localStorage.removeItem(key);
+    }
+  } catch {
+    // Storage blocked: there is nothing stored to remove.
+  }
+}
 
 const readLocal = (assessmentId: string, studentId: string): EvaluationDraft | null => {
   try {
@@ -66,9 +114,12 @@ function reconcile(
     if (local?.reopenedAt && local.reopenedAt > submittedAt) return local;
     return { entries, submittedAt };
   }
-  // Not submitted. This device's copy is at least as fresh as the server's
-  // when it has one - every change is written here first, then sent.
-  if (local && !local.submittedAt && Object.keys(local.entries).length > 0) return local;
+  // Not submitted. This device's copy wins only while it holds changes the
+  // server never confirmed. Once they were sent, the server's copy is at least
+  // as new - and newer, if the student carried on from another device.
+  if (local?.unsynced && !local.submittedAt && Object.keys(local.entries).length > 0) {
+    return local;
+  }
   return { entries };
 }
 
@@ -107,20 +158,18 @@ export function useEvaluationDraft(assessmentId: string, studentId: string | und
     (next: EvaluationDraft) => {
       setDraft(next);
       if (!studentId) return;
-      try {
-        window.localStorage.setItem(storageKey(assessmentId, studentId), JSON.stringify(next));
-      } catch {
-        /* prototype only - ignore unwritable storage */
-      }
+      const syncs = !next.submittedAt && !next.reopenedAt;
+      writeLocal(assessmentId, studentId, { ...next, unsynced: syncs });
       setJustSaved(true);
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => setJustSaved(false), 2200);
 
       // A submitted evaluation is not a draft - the server refuses to turn it
       // back into one, and a reopened one is sent whole on resubmission.
-      if (next.submittedAt || next.reopenedAt) return;
-      if (syncTimer.current) clearTimeout(syncTimer.current);
-      syncTimer.current = setTimeout(() => {
+      if (!syncs) return;
+      const key = storageKey(assessmentId, studentId);
+      const send = () => {
+        pendingSaves.delete(key);
         const entries = Object.entries(next.entries).flatMap(([evaluatedStudentId, entry]) =>
           entry.ratingOptionId
             ? [
@@ -132,9 +181,20 @@ export function useEvaluationDraft(assessmentId: string, studentId: string | und
               ]
             : [],
         );
-        // Quiet on failure by design: the copy in this browser still holds it.
-        void saveEvaluationDraft(assessmentId, entries);
-      }, 600);
+        // Quiet on failure by design: the copy in this browser still holds it,
+        // still marked unsynced, so it wins next time and is sent again.
+        return saveEvaluationDraft(assessmentId, entries).then((reached) => {
+          if (!reached) return;
+          const stored = readLocal(assessmentId, studentId);
+          // Only if nothing newer was typed while this was in flight.
+          if (stored && stored.savedAt === next.savedAt) {
+            writeLocal(assessmentId, studentId, { ...stored, unsynced: false });
+          }
+        });
+      };
+      pendingSaves.set(key, send);
+      if (syncTimer.current) clearTimeout(syncTimer.current);
+      syncTimer.current = setTimeout(() => void send().catch(() => undefined), 600);
     },
     [assessmentId, studentId],
   );
@@ -143,8 +203,14 @@ export function useEvaluationDraft(assessmentId: string, studentId: string | und
     () => () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
       if (syncTimer.current) clearTimeout(syncTimer.current);
+      // Leaving the page with a change not yet sent: send it now rather than
+      // drop it. The session is still alive here; sign-out flushes first.
+      if (studentId) {
+        const send = pendingSaves.get(storageKey(assessmentId, studentId));
+        if (send) void send().catch(() => undefined);
+      }
     },
-    [],
+    [assessmentId, studentId],
   );
 
   const setRating = useCallback(

@@ -10,6 +10,7 @@ import {
 import { toast } from "sonner";
 
 import { isUnauthorized, onUnauthorized } from "@/lib/api";
+import { clearLocalDrafts, flushPendingDrafts } from "@/lib/evaluation-draft";
 import type { Role } from "@/mocks/types";
 import * as auth from "@/services/auth";
 import type { AuthUser } from "@/services/auth";
@@ -163,6 +164,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
       signOut: async () => {
         try {
+          // Anything typed in the last moment goes to the server while the
+          // session still exists; then nothing about the student's ratings is
+          // left in this browser for the next person on a shared computer.
+          await flushPendingDrafts();
+          clearLocalDrafts();
           await auth.logout();
         } finally {
           // Clear locally whatever the API said. A failed sign-out that leaves
