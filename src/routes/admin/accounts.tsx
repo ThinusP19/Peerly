@@ -60,6 +60,19 @@ export const Route = createFileRoute("/admin/accounts")({
   component: AccountsPage,
 });
 
+/** An e-mail address that wraps after the "@" when it must, never mid-word. */
+function EmailAddress({ email }: { email: string }) {
+  const at = email.indexOf("@");
+  if (at < 0) return <>{email}</>;
+  return (
+    <>
+      {email.slice(0, at + 1)}
+      <wbr />
+      {email.slice(at + 1)}
+    </>
+  );
+}
+
 type RoleFilter = Role | "all";
 type StatusFilter = User["status"] | "all";
 
@@ -141,7 +154,9 @@ function AccountsPage() {
           <p className="font-semibold text-foreground">
             {row.name} {row.surname}
           </p>
-          <p className="mt-0.5 text-xs break-all text-muted-foreground sm:hidden">{row.email}</p>
+          <p className="mt-0.5 text-xs break-words text-muted-foreground lg:hidden">
+            <EmailAddress email={row.email} />
+          </p>
         </div>
       ),
     },
@@ -149,8 +164,9 @@ function AccountsPage() {
       key: "email",
       header: "Email",
       sortValue: (row) => row.email,
-      className: "hidden sm:table-cell text-muted-foreground",
-      headerClassName: "hidden sm:table-cell",
+      // Below lg the address sits under the name, so status and actions fit.
+      className: "hidden lg:table-cell text-muted-foreground",
+      headerClassName: "hidden lg:table-cell",
       cell: (row) => row.email,
     },
     {
@@ -170,8 +186,8 @@ function AccountsPage() {
       key: "created",
       header: "Date created",
       sortValue: (row) => row.createdAt,
-      className: "hidden md:table-cell whitespace-nowrap text-muted-foreground tabular-nums",
-      headerClassName: "hidden md:table-cell",
+      className: "hidden lg:table-cell whitespace-nowrap text-muted-foreground tabular-nums",
+      headerClassName: "hidden lg:table-cell",
       cell: (row) => formatDate(row.createdAt),
     },
     {

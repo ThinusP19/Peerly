@@ -259,8 +259,12 @@ function MarkEntryPage() {
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               <TableHead>Group</TableHead>
-              <TableHead>Members</TableHead>
-              <TableHead className="w-56">Base mark (out of {maxMark})</TableHead>
+              {/* On a phone the mark input must stay in view, so the member
+                  count steps aside and the mark heading wraps. */}
+              <TableHead className="hidden sm:table-cell">Members</TableHead>
+              <TableHead className="whitespace-normal sm:w-56 sm:whitespace-nowrap">
+                Base mark (out of {maxMark})
+              </TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
@@ -282,7 +286,7 @@ function MarkEntryPage() {
                   <TableCell className="font-semibold whitespace-nowrap text-foreground">
                     Group {group.groupNumber}
                   </TableCell>
-                  <TableCell className="text-muted-foreground tabular-nums">
+                  <TableCell className="hidden text-muted-foreground tabular-nums sm:table-cell">
                     {group.memberStudentIds.length}
                   </TableCell>
                   <TableCell>
@@ -301,7 +305,7 @@ function MarkEntryPage() {
                         setErrors((current) => ({ ...current, [group.id]: validate(next) }));
                       }}
                       onBlur={(event) => save(group.id, event.target.value)}
-                      className="w-32 rounded-lg tabular-nums"
+                      className="w-24 rounded-lg tabular-nums sm:w-32"
                       placeholder="-"
                     />
                     {error ? (

@@ -91,6 +91,15 @@ export function AuditLogView({
       className: "whitespace-nowrap tabular-nums text-muted-foreground",
       cell: (row) => formatDateTimeSast(row.timestamp),
     },
+    // The event is what a reader scans for, so it comes straight after the
+    // time and stays in view on a phone.
+    {
+      key: "event",
+      header: "Event",
+      sortValue: (row) => auditEventMeta[row.eventType],
+      className: "whitespace-nowrap",
+      cell: (row) => auditEventMeta[row.eventType],
+    },
     {
       key: "actor",
       header: "Who",
@@ -103,15 +112,12 @@ export function AuditLogView({
       ),
     },
     {
-      key: "event",
-      header: "Event",
-      sortValue: (row) => auditEventMeta[row.eventType],
-      className: "whitespace-nowrap",
-      cell: (row) => auditEventMeta[row.eventType],
-    },
-    {
       key: "object",
       header: "What it affected",
+      // Details can hold long unbroken text (ids, e-mail addresses, lists
+      // without spaces). Let it break anywhere, or one entry can stretch the
+      // table to thousands of pixels.
+      className: "min-w-56 [overflow-wrap:anywhere]",
       cell: (row) => (
         <div className="min-w-0">
           <p className="wrap-anywhere text-foreground">{row.objectDescription}</p>

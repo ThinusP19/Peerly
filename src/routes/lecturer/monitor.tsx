@@ -79,7 +79,9 @@ function SubmissionMonitorPage() {
       header: "Members",
       sortValue: (row) => row.members.length,
       align: "right",
-      className: "tabular-nums",
+      // Secondary counts step aside on phones so progress and status fit.
+      className: "hidden md:table-cell tabular-nums",
+      headerClassName: "hidden md:table-cell",
       cell: (row) => row.members.length,
     },
     {
@@ -95,7 +97,8 @@ function SubmissionMonitorPage() {
       header: "Started, not submitted",
       sortValue: (row) => row.draftIds.length,
       align: "right",
-      className: "tabular-nums",
+      className: "hidden md:table-cell tabular-nums",
+      headerClassName: "hidden md:table-cell",
       cell: (row) =>
         row.draftIds.length ? (
           <span className="text-warning">{row.draftIds.length}</span>

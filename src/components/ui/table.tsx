@@ -1,13 +1,84 @@
+import { ArrowRight } from "lucide-react";
 import * as React from "react";
 
+import { type ScrollEdges, scrollEdges } from "@/lib/scroll-edges";
 import { cn } from "@/lib/utils";
 
+/**
+ * A table that scrolls sideways inside its own box when it is wider than the
+ * screen, and says so. On a phone the columns people act on (a mark, a match
+ * status, an account's actions) often start off-screen, so a fade marks each
+ * edge with more beyond it and a line under the table points the way. The box
+ * also takes keyboard focus while it scrolls, so arrow keys can move it.
+ */
 const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
-  ({ className, ...props }, ref) => (
-    <div className="relative w-full overflow-x-auto">
-      <table ref={ref} className={cn("w-full caption-bottom text-sm", className)} {...props} />
-    </div>
-  ),
+  ({ className, ...props }, ref) => {
+    const boxRef = React.useRef<HTMLDivElement>(null);
+    const [edges, setEdges] = React.useState<ScrollEdges>({ left: false, right: false });
+
+    React.useEffect(() => {
+      const box = boxRef.current;
+      if (!box) return;
+      const update = () =>
+        setEdges((current) => {
+          const next = scrollEdges(box);
+          return next.left === current.left && next.right === current.right ? current : next;
+        });
+      update();
+      box.addEventListener("scroll", update, { passive: true });
+      // Rows load, columns hide at breakpoints and the window turns, so the
+      // table's width changes long after the first render.
+      const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(update);
+      observer?.observe(box);
+      if (box.firstElementChild) observer?.observe(box.firstElementChild);
+      return () => {
+        box.removeEventListener("scroll", update);
+        observer?.disconnect();
+      };
+    }, []);
+
+    const scrolls = edges.left || edges.right;
+
+    return (
+      <div className="w-full">
+        <div className="relative">
+          <div
+            ref={boxRef}
+            className="w-full overflow-x-auto focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
+            tabIndex={scrolls ? 0 : undefined}
+            role={scrolls ? "region" : undefined}
+            aria-label={scrolls ? "Table, scrolls sideways" : undefined}
+          >
+            <table
+              ref={ref}
+              className={cn("w-full caption-bottom text-sm", className)}
+              {...props}
+            />
+          </div>
+          <div
+            aria-hidden="true"
+            className={cn(
+              "pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-card to-transparent transition-opacity",
+              edges.left ? "opacity-100" : "opacity-0",
+            )}
+          />
+          <div
+            aria-hidden="true"
+            className={cn(
+              "pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-card to-transparent transition-opacity",
+              edges.right ? "opacity-100" : "opacity-0",
+            )}
+          />
+        </div>
+        {edges.right ? (
+          <p className="flex items-center justify-end gap-1.5 border-t px-5 py-2 text-xs text-muted-foreground sm:px-6">
+            Scroll sideways for more columns
+            <ArrowRight className="size-3.5" aria-hidden="true" />
+          </p>
+        ) : null}
+      </div>
+    );
+  },
 );
 Table.displayName = "Table";
 

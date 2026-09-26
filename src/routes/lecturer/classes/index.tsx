@@ -130,7 +130,10 @@ function ClassListPage() {
     {
       key: "note",
       header: "Why",
-      className: "min-w-56 text-muted-foreground",
+      // The badge already says what is wrong; the reason is the long column,
+      // so it waits for a wide screen and the status and actions stay in view.
+      className: "hidden lg:table-cell min-w-56 text-muted-foreground",
+      headerClassName: "hidden lg:table-cell",
       cell: (row) => row.matchNote ?? "Matched to a registered Peerly account.",
     },
     {
