@@ -451,7 +451,8 @@ Creates an assessment. It always starts as a `draft` (FR-12).
 
 - **Body:** any subset of the create fields except `classId`. Every field is optional.
 - **200:** `{ "assessment": AssessmentRecord }`. A change to `closesAt`, for example an extension, is written to the audit log with the old and new times.
-- **Errors:** `409 conflict` when `groupIds` is sent for an assessment that is no longer a draft. `400 bad_request` with `fields.closesAt`.
+- **Errors:** `409 conflict` when `groupIds` is sent for an assessment that is no longer a draft. `400 bad_request` with `fields.closesAt`, or with `fields.maxMark` when the new maximum is below a base mark, calculated mark or override already recorded (BR-07).
+- **Note:** changing `maxMark` on a calculated assessment clears `calculatedAt` and `calculationRunId`, because the marks were capped at the old maximum.
 
 ### `POST /api/assessments/:assessmentId/status`
 
@@ -467,8 +468,8 @@ Sets or clears a group's base mark (FR-21).
 
 - **Params:** `assessmentId`, `groupId` (uuids)
 - **Body:** `{ "baseMark": number|null }`. `null` clears the mark.
-- **200:** `{ "ok": true }`
-- **Errors:** `400 bad_request` with `fields.baseMark` when the mark is outside `0..maxMark`. `404` when the group does not take part in this assessment.
+- **200:** `{ "ok": true, "invalidatedCalculation": boolean }`. A mark that changes on a calculated assessment clears `calculatedAt` and `calculationRunId` (as re-opening does) and returns `true`: results and export then wait for a recalculation. Sending the value already stored changes nothing and writes no audit entry.
+- **Errors:** `400 bad_request` with `fields.baseMark` when the mark is outside `0..maxMark` or has more than one decimal place (IS-06). `404` when the group does not take part in this assessment.
 
 ### `POST /api/assessments/:assessmentId/calculate`
 
@@ -483,7 +484,7 @@ Runs the Felder calculation (FR-22) with the current `DEFAULT_CONFIG` in `server
 
 The results table and its drill-down (FR-26). Only lecturers can call this, and no student-facing equivalent exists.
 
-- **200:** `{ "results": ResultRow[] }`, sorted by group number, then surname, then name. The array is empty before a calculation has run.
+- **200:** `{ "results": ResultRow[] }`, sorted by group number, then surname, then name. The array is empty before a calculation has run, and whenever `calculatedAt` has been cleared since (re-opened, a base mark or the maximum changed).
 
   ```ts
   ResultRow = { studentId, groupId, groupNumber,
@@ -499,6 +500,7 @@ The results table and its drill-down (FR-26). Only lecturers can call this, and 
   ResultFlag = "uniform-rating" | "reciprocal-extreme" | "isolated-outlier" | "incomplete-group"
              | "low-contribution" | "no-submission" | "group-of-two" | "group-of-one"
              | "unmatched" | "not-peer-assessed" | "zero-base-mark" | "zero-group-mean"
+             | "capped-at-maximum"
   ```
 
   `received` lists every rating stored against the student, **including ratings in drafts that were never submitted**, even though the calculation ignores those ratings.
@@ -509,7 +511,21 @@ Overrides one student's calculated mark (FR-24, BR-08). The calculated mark is k
 
 - **Body:** `{ "studentId": uuid, "mark": number, "reason": string }`. `reason` must be non-empty after trimming.
 - **200:** `{ "ok": true }`
-- **Errors:** `400 bad_request` with `fields.mark` (outside `0..maxMark`) or `fields.reason`. `404` when the student has no calculated result. `409 conflict` when the calculated mark is `null` because the group had no base mark.
+- **Errors:** `400 bad_request` with `fields.mark` (outside `0..maxMark`, or more than one decimal place) or `fields.reason`. `404` when the student has no calculated result. `409 conflict` when the calculated mark is `null` because the group had no base mark, or when the marks are out of date and need calculating again.
+
+### `DELETE /api/assessments/:assessmentId/override/:studentId`
+
+Removes one student's override so their calculated mark stands again (FR-24). Other overrides are untouched. Audited as `mark.overridden` with the reason.
+
+- **Body:** `{ "reason": string }`, non-empty after trimming.
+- **200:** `{ "ok": true }`
+- **Errors:** `400` without a reason. `409 conflict` when the student has no override.
+
+### `GET /api/assessments/:assessmentId/overrides`
+
+Every override on the assessment, whether or not its results are current: the ones a recalculation will ask to keep or withdraw.
+
+- **200:** `{ "overrides": { studentId, name, surname, mark: number, reason }[] }`
 
 ### `GET /api/assessments/:assessmentId/export`
 

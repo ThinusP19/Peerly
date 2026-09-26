@@ -1,4 +1,5 @@
 import { query, withTransaction } from "../db/pool.ts";
+import { ONE_DECIMAL_MESSAGE, hasAtMostOneDecimal } from "../lib/marks.ts";
 import { badRequest, conflict, notFoundOrForbidden } from "../middleware/errors.ts";
 import type { SessionUser } from "../domain/types.ts";
 import { getAssessment, type AssessmentRecord } from "./assessments.ts";
@@ -138,10 +139,39 @@ export async function updateAssessment(
     );
   }
 
+  // BR-07: a mark is never above the assessment's maximum, so the maximum can't
+  // be lowered underneath marks already entered, calculated or overridden. The
+  // database refuses it too (0005); asking here first names the highest mark.
+  const newMaxMark = changes.maxMark ?? before.maxMark;
+  if (newMaxMark < before.maxMark) {
+    const { rows } = await query<{ highest: string | null }>(
+      `SELECT max(mark) AS highest FROM (
+         SELECT base_mark AS mark FROM group_marks WHERE assessment_id = $1
+         UNION ALL
+         SELECT final_mark FROM calculated_results WHERE assessment_id = $1
+         UNION ALL
+         SELECT override_mark FROM mark_overrides WHERE assessment_id = $1
+       ) marks`,
+      [assessmentId],
+    );
+    const highest = rows[0]?.highest == null ? null : Number(rows[0].highest);
+    if (highest !== null && highest > newMaxMark) {
+      const message =
+        `A mark of ${highest} has already been entered or calculated, so the maximum ` +
+        `can't be lower than that. Change those marks first, or keep the maximum at ${highest} or more.`;
+      throw badRequest(message, { maxMark: message });
+    }
+  }
+  // Every mark was capped at the old maximum, so a different one makes the
+  // calculated marks out of date, as re-opening does (FR-13).
+  const invalidatesCalculation = newMaxMark !== before.maxMark && Boolean(before.calculatedAt);
+
   await withTransaction(async (sql) => {
     await sql.query(
       `UPDATE assessments
-          SET name = $2, description = $3, opens_at = $4, closes_at = $5, max_mark = $6
+          SET name = $2, description = $3, opens_at = $4, closes_at = $5, max_mark = $6,
+              calculated_at = CASE WHEN $7 THEN NULL ELSE calculated_at END,
+              calculation_run_id = CASE WHEN $7 THEN NULL ELSE calculation_run_id END
         WHERE id = $1`,
       [
         assessmentId,
@@ -149,7 +179,8 @@ export async function updateAssessment(
         changes.description?.trim() ?? before.description,
         opensAt,
         closesAt,
-        changes.maxMark ?? before.maxMark,
+        newMaxMark,
+        invalidatesCalculation,
       ],
     );
 
@@ -213,7 +244,8 @@ export async function updateAssessment(
         "maxMark",
         before.maxMark,
         maxMark,
-        `Maximum mark changed from ${before.maxMark} to ${maxMark}.`,
+        `Maximum mark changed from ${before.maxMark} to ${maxMark}.` +
+          (invalidatesCalculation ? " The calculated marks need calculating again." : ""),
       );
     }
 
@@ -339,19 +371,30 @@ export async function changeAssessmentStatus(
  * Null clears it, which is not the same as zero: zero is a mark the group
  * earned, and null is one the lecturer has not entered. The results screen
  * shows those differently, and the calculation must refuse to run on the second.
+ *
+ * A mark that actually changes after the marks were calculated makes those
+ * marks out of date, exactly as re-opening does (FR-13): the results and the
+ * export stop treating the last run as current until it is calculated again,
+ * rather than carrying a base mark that is no longer the one on record.
  */
 export async function setGroupBaseMark(
   assessmentId: string,
   groupId: string,
   baseMark: number | null,
   user: SessionUser,
-): Promise<void> {
+): Promise<{ invalidatedCalculation: boolean }> {
   const assessment = await getAssessment(assessmentId, user);
 
   if (baseMark !== null && (baseMark < 0 || baseMark > assessment.maxMark)) {
     throw badRequest(`Enter a mark between 0 and ${assessment.maxMark}.`, {
       baseMark: `Enter a mark between 0 and ${assessment.maxMark}.`,
     });
+  }
+  // IS-06: one decimal place, as the marks screen asks. Enforced here because
+  // the API can be called directly, and numeric(6, 2) would otherwise round a
+  // third decimal away silently while the audit log recorded the original.
+  if (baseMark !== null && !hasAtMostOneDecimal(baseMark)) {
+    throw badRequest(ONE_DECIMAL_MESSAGE, { baseMark: ONE_DECIMAL_MESSAGE });
   }
 
   const { rows: participates } = await query(
@@ -367,7 +410,14 @@ export async function setGroupBaseMark(
       WHERE g.id = $2`,
     [assessmentId, groupId],
   );
-  const before = previous[0]?.base_mark ?? null;
+  const before = previous[0]?.base_mark == null ? null : Number(previous[0].base_mark);
+
+  // Leaving a mark box without changing it is not a write. Recording it anyway
+  // filled the append-only log with "set to 82" entries that moved nothing,
+  // and "cleared" entries for boxes that had never held a mark.
+  if (before === baseMark) return { invalidatedCalculation: false };
+
+  const invalidatedCalculation = Boolean(assessment.calculatedAt);
 
   await withTransaction(async (sql) => {
     await sql.query(
@@ -380,6 +430,13 @@ export async function setGroupBaseMark(
       [assessmentId, groupId, baseMark, user.id],
     );
 
+    if (invalidatedCalculation) {
+      await sql.query(
+        "UPDATE assessments SET calculated_at = NULL, calculation_run_id = NULL WHERE id = $1",
+        [assessmentId],
+      );
+    }
+
     // OR-09: a mark that ends up on an academic record has to be explainable,
     // which means knowing what it was before somebody changed it.
     await record(
@@ -388,15 +445,20 @@ export async function setGroupBaseMark(
         eventType: "marks.entered",
         objectDescription: `${assessment.name} · Group ${previous[0]?.group_number ?? "?"}`,
         detail:
-          baseMark === null
+          (baseMark === null
             ? "Group mark cleared."
-            : `Group mark set to ${baseMark} out of ${assessment.maxMark}.`,
+            : `Group mark set to ${baseMark} out of ${assessment.maxMark}.`) +
+          (invalidatedCalculation
+            ? " The calculated marks are out of date until they are calculated again."
+            : ""),
         classId: assessment.classId,
         assessmentId,
-        before: { baseMark: before === null ? null : Number(before) },
+        before: { baseMark: before },
         after: { baseMark },
       },
       sql,
     );
   });
+
+  return { invalidatedCalculation };
 }

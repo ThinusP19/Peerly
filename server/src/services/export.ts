@@ -2,6 +2,7 @@ import ExcelJS from "exceljs";
 
 import { query } from "../db/pool.ts";
 import type { SessionUser } from "../domain/types.ts";
+import { exportFilename, flagLabels } from "../lib/export-format.ts";
 import { conflict } from "../middleware/errors.ts";
 import { getAssessment } from "./assessments.ts";
 import { getClass } from "./classes.ts";
@@ -30,16 +31,6 @@ export interface Workbook {
 }
 
 const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-
-/** A filename that sorts sensibly and survives every filesystem. */
-function filenameFor(moduleCode: string, assessmentName: string, when: Date): string {
-  const slug = assessmentName
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 48);
-  return `peerly-${moduleCode.toLowerCase()}-${slug}-${when.toISOString().slice(0, 10)}.xlsx`;
-}
 
 /**
  * Builds the workbook.
@@ -155,7 +146,8 @@ export async function buildResultsWorkbook(
       result.override?.mark ?? "",
       result.override?.reason ?? "",
       result.override?.by ?? "",
-      result.flags.join(", "),
+      // The labels the results screen shows, not the internal codes.
+      flagLabels(result.flags),
     ]);
   }
 
@@ -198,7 +190,7 @@ export async function buildResultsWorkbook(
   });
 
   return {
-    filename: filenameFor(klass.moduleCode, assessment.name, generatedAt),
+    filename: exportFilename(klass.moduleCode, assessment.name, generatedAt),
     buffer: Buffer.from(await workbook.xlsx.writeBuffer()),
     contentType: XLSX_TYPE,
   };

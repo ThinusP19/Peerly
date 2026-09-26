@@ -4,7 +4,13 @@ import { z } from "zod";
 import { currentUser, requireAuth, requireRole } from "../middleware/auth.ts";
 import { getAssessment, getRatingOptions } from "../services/assessments.ts";
 import { assessmentImpact, deleteAssessment, markResultsExported } from "../services/deletion.ts";
-import { getResults, overrideMark, runCalculation } from "../services/results.ts";
+import {
+  getResults,
+  listOverrides,
+  overrideMark,
+  removeOverride,
+  runCalculation,
+} from "../services/results.ts";
 import { buildResultsWorkbook } from "../services/export.ts";
 import {
   changeAssessmentStatus,
@@ -129,8 +135,15 @@ assessmentRoutes.put("/:assessmentId/marks/:groupId", requireRole("lecturer"), a
   // Null clears the mark, which is not the same as zero.
   const { baseMark } = z.object({ baseMark: z.number().nullable() }).parse(req.body);
 
-  await setGroupBaseMark(params.assessmentId, params.groupId, baseMark, currentUser(req).user);
-  res.json({ ok: true });
+  // invalidatedCalculation: the change made the calculated marks out of date,
+  // so the screen can say so rather than leaving them looking current (FR-13).
+  const outcome = await setGroupBaseMark(
+    params.assessmentId,
+    params.groupId,
+    baseMark,
+    currentUser(req).user,
+  );
+  res.json({ ok: true, ...outcome });
 });
 
 /* ------------------------------------------------------------------ *
@@ -192,6 +205,27 @@ assessmentRoutes.post("/:assessmentId/override", requireRole("lecturer"), async 
   await overrideMark(id, body.studentId, body.mark, body.reason, currentUser(req).user);
   res.json({ ok: true });
 });
+
+/** Every override, current results or not - what a recalculation will ask about (FR-24). */
+assessmentRoutes.get("/:assessmentId/overrides", requireRole("lecturer"), async (req, res) => {
+  const { assessmentId: id } = assessmentId.parse(req.params);
+  res.json({ overrides: await listOverrides(id, currentUser(req).user) });
+});
+
+/** Withdraws one student's override, with a reason, so their calculated mark stands. */
+assessmentRoutes.delete(
+  "/:assessmentId/override/:studentId",
+  requireRole("lecturer"),
+  async (req, res) => {
+    const params = z.object({ assessmentId: z.uuid(), studentId: z.uuid() }).parse(req.params);
+    const { reason } = z
+      .object({ reason: z.string().trim().min(1, "Give a reason for removing the override.") })
+      .parse(req.body ?? {});
+
+    await removeOverride(params.assessmentId, params.studentId, reason, currentUser(req).user);
+    res.json({ ok: true });
+  },
+);
 
 /**
  * The results workbook (FR-25, CI-04).

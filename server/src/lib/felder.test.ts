@@ -616,3 +616,175 @@ describe("calculateAssessment", () => {
     expect(calculateAssessment(input)).toEqual(calculateAssessment(input));
   });
 });
+
+/**
+ * The final mark against exact arithmetic.
+ *
+ * Every figure here is a fraction of integers - ratings are whole numbers and
+ * a base mark has at most one decimal - so the true mark is an exact rational
+ * that can be rounded without any floating point at all. Binary floating point
+ * put some true midpoints (35.55) a hair below themselves, and they rounded
+ * down: a tenth of a mark off an academic record.
+ */
+describe("the final mark, against exact arithmetic", () => {
+  type Fraction = { n: bigint; d: bigint };
+  const gcd = (a: bigint, b: bigint): bigint => (b === 0n ? (a < 0n ? -a : a) : gcd(b, a % b));
+  const frac = (n: bigint, d: bigint = 1n): Fraction => {
+    const g = gcd(n, d) || 1n;
+    return d < 0n ? { n: -n / g, d: -d / g } : { n: n / g, d: d / g };
+  };
+  const add = (a: Fraction, b: Fraction) => frac(a.n * b.d + b.n * a.d, a.d * b.d);
+  const mul = (a: Fraction, b: Fraction) => frac(a.n * b.n, a.d * b.d);
+  const div = (a: Fraction, b: Fraction) => frac(a.n * b.d, a.d * b.n);
+  const less = (a: Fraction, b: Fraction) => a.n * b.d < b.n * a.d;
+  /** Rounds a non-negative fraction to one decimal, half up, exactly. */
+  const toTenths = (a: Fraction) => {
+    const tenths = a.n * 10n;
+    const whole = tenths / a.d;
+    const twiceRemainder = 2n * (tenths % a.d);
+    return Number(twiceRemainder >= a.d ? whole + 1n : whole) / 10;
+  };
+
+  const exactMarks = (g: GroupInput) => {
+    const means = new Map<string, Fraction | null>();
+    for (const id of g.memberIds) {
+      const values = g.ratings.filter((r) => r.evaluatedId === id).map((r) => r.value);
+      means.set(
+        id,
+        values.length === 0
+          ? null
+          : frac(BigInt(values.reduce((t, v) => t + v, 0)), BigInt(values.length)),
+      );
+    }
+    const rated = [...means.values()].filter((m): m is Fraction => m !== null);
+    const groupMean =
+      rated.length === 0 ? null : div(rated.reduce(add, frac(0n)), frac(BigInt(rated.length)));
+    const base = frac(BigInt(Math.round(g.baseMark! * 10)), 10n);
+    return new Map(
+      g.memberIds.map((id) => {
+        const m = means.get(id)!;
+        let factor = frac(1n);
+        if (m !== null && groupMean !== null && groupMean.n !== 0n) {
+          factor = div(m, groupMean);
+          if (less(factor, frac(3n, 5n))) factor = frac(3n, 5n);
+          if (less(frac(11n, 10n), factor)) factor = frac(11n, 10n);
+        }
+        return [id, toTenths(mul(base, factor))];
+      }),
+    );
+  };
+
+  it("rounds the reported midpoint 35.55 up to 35.6", () => {
+    // From the 26 September QA pass: base mark 34.8, and C and D came out 35.5.
+    const r = (evaluatorId: string, evaluatedId: string, value: number) => ({
+      evaluatorId,
+      evaluatedId,
+      value,
+    });
+    const results = calculateGroup(
+      group({
+        memberIds: ["A", "B", "C", "D"],
+        baseMark: 34.8,
+        ratings: [
+          r("A", "B", 64),
+          r("A", "C", 69),
+          r("A", "D", 69),
+          r("B", "A", 84),
+          r("B", "C", 89),
+          r("B", "D", 79),
+          r("C", "A", 69),
+          r("C", "B", 64),
+          r("C", "D", 89),
+          r("D", "A", 89),
+          r("D", "B", 84),
+          r("D", "C", 79),
+        ],
+      }),
+    );
+    expect(byId(results, "C").finalMark).toBe(35.6);
+    expect(byId(results, "D").finalMark).toBe(35.6);
+  });
+
+  it("agrees with the exact mark for every student in thousands of generated groups", () => {
+    // The banded scale's values (0004), and base marks with one decimal.
+    const scale = [100, 94, 89, 84, 79, 74, 69, 64, 0];
+    let seed = 20260926;
+    const next = () => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed / 2147483648;
+    };
+    let checked = 0;
+    for (let trial = 0; trial < 20000; trial += 1) {
+      const size = 2 + Math.floor(next() * 5);
+      const memberIds = Array.from({ length: size }, (_, i) => `m${i}`);
+      const ratings = memberIds.flatMap((evaluatorId) =>
+        memberIds
+          .filter((evaluatedId) => evaluatedId !== evaluatorId && next() > 0.1)
+          .map((evaluatedId) => ({
+            evaluatorId,
+            evaluatedId,
+            value: scale[Math.floor(next() * scale.length)]!,
+          })),
+      );
+      const baseMark = Math.round(next() * 1000) / 10;
+      const input = group({ memberIds, baseMark, ratings });
+      const exact = exactMarks(input);
+      for (const result of calculateGroup(input)) {
+        expect(result.finalMark, `${JSON.stringify(input)} ${result.studentId}`).toBe(
+          exact.get(result.studentId),
+        );
+        checked += 1;
+      }
+    }
+    expect(checked).toBeGreaterThan(50000);
+  });
+});
+
+describe("the final mark never exceeds the assessment's maximum (BR-07)", () => {
+  // A top-rated member of a strong group has a factor up to 1.1, and 1.1 times
+  // any base mark above 90.9 out of 100 is more than 100.
+  const topRated = () => {
+    const memberIds = ["star", "b", "c"];
+    const r = (evaluatorId: string, evaluatedId: string, value: number) => ({
+      evaluatorId,
+      evaluatedId,
+      value,
+    });
+    return group({
+      memberIds,
+      baseMark: 95,
+      ratings: [
+        r("b", "star", 100),
+        r("c", "star", 100),
+        r("star", "b", 64),
+        r("c", "b", 64),
+        r("star", "c", 64),
+        r("b", "c", 64),
+      ],
+    });
+  };
+
+  it("caps the mark at the maximum and says so", () => {
+    const [star] = calculateAssessment([topRated()], DEFAULT_CONFIG, { maxMark: 100 }).filter(
+      (r) => r.studentId === "star",
+    );
+    expect(star!.adjustmentFactor).toBe(1.1);
+    expect(star!.finalMark).toBe(100);
+    expect(star!.flags).toContain("capped-at-maximum");
+  });
+
+  it("does not touch a mark that is within the maximum", () => {
+    const results = calculateAssessment([topRated()], DEFAULT_CONFIG, { maxMark: 200 });
+    const star = results.find((r) => r.studentId === "star")!;
+    expect(star.finalMark).toBe(104.5);
+    expect(star.flags).not.toContain("capped-at-maximum");
+  });
+
+  it("caps against a maximum other than 100", () => {
+    const input = { ...topRated(), baseMark: 48 };
+    const star = calculateAssessment([input], DEFAULT_CONFIG, { maxMark: 50 }).find(
+      (r) => r.studentId === "star",
+    )!;
+    expect(star.finalMark).toBe(50);
+  });
+});

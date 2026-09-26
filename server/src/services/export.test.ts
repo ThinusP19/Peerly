@@ -97,6 +97,17 @@ describe("buildResultsWorkbook", () => {
     expect(row?.[13]).toContain("Anneke");
   });
 
+  it("writes the flags as the results screen labels them, not as codes", async () => {
+    const { user, assessmentId } = await scenario();
+    // Everyone gave both group members the same option: a uniform rating each.
+    await runCalculation(assessmentId, user);
+
+    const workbook = await read((await buildResultsWorkbook(assessmentId, user)).buffer);
+    const first = workbook.getWorksheet("Results")!.getRow(11).values as unknown[];
+
+    expect(first[14]).toBe("Uniform rating");
+  });
+
   it("writes every rating to the raw sheet - the evidence behind each mark", async () => {
     const { user, assessmentId } = await scenario();
     await runCalculation(assessmentId, user);

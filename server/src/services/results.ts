@@ -7,6 +7,7 @@ import {
   type ResultFlag,
   type StudentResult,
 } from "../lib/felder.ts";
+import { ONE_DECIMAL_MESSAGE, hasAtMostOneDecimal } from "../lib/marks.ts";
 import { badRequest, conflict, notFoundOrForbidden } from "../middleware/errors.ts";
 import { getAssessment } from "./assessments.ts";
 import { record } from "./audit.ts";
@@ -135,11 +136,21 @@ export async function runCalculation(
       `${missing} group(s) still have no mark. Enter a mark for every group before calculating.`,
     );
   }
+  // IS-06: a base mark stored before one decimal place was enforced (0005) is
+  // re-entered rather than calculated from, so no mark is built on a figure
+  // the marks screen would refuse.
+  const imprecise = groups.filter((g) => !hasAtMostOneDecimal(g.baseMark!)).length;
+  if (imprecise > 0) {
+    throw conflict(
+      `${imprecise} group mark(s) have more than one decimal place. ` +
+        "Re-enter them as whole numbers or with one decimal place before calculating.",
+    );
+  }
 
   // FR-24: "Recalculation shall not silently discard an override: present
   // every affected override and require the Lecturer to confirm retention or
-  // withdrawal." The screen lists them from the results it already shows; the
-  // server refuses to guess which the lecturer meant.
+  // withdrawal." The screen lists them from listOverrides below; the server
+  // refuses to guess which the lecturer meant.
   const { rows: existingOverrides } = await query<{
     student_id: string;
     override_mark: string;
@@ -160,7 +171,8 @@ export async function runCalculation(
     );
   }
 
-  const results = calculateAssessment(groups, DEFAULT_CONFIG);
+  // BR-07: the assessment's maximum caps every mark the factor would lift above it.
+  const results = calculateAssessment(groups, DEFAULT_CONFIG, { maxMark: assessment.maxMark });
 
   // The scale is frozen with the run alongside the config (OR-09): ratings
   // point at options by id, so without this a later change to the scale would
@@ -179,6 +191,8 @@ export async function runCalculation(
         DEFAULT_CONFIG.ruleVersion,
         JSON.stringify({
           ...DEFAULT_CONFIG,
+          // The ceiling the marks were capped at (BR-07), which can change later.
+          maxMark: assessment.maxMark,
           scale: scale.map((option) => ({
             label: option.label,
             value: Number(option.hidden_value),
@@ -216,8 +230,12 @@ export async function runCalculation(
       );
     }
 
+    // A new run means new marks, and no workbook has carried them yet: an
+    // earlier export no longer counts as a copy of these results (FR-28).
     await sql.query(
-      "UPDATE assessments SET calculated_at = now(), calculation_run_id = $2 WHERE id = $1",
+      `UPDATE assessments
+          SET calculated_at = now(), calculation_run_id = $2, exported_at = NULL
+        WHERE id = $1`,
       [assessmentId, runId],
     );
 
@@ -323,7 +341,13 @@ export interface ResultRow extends Omit<StudentResult, "flags"> {
 
 /** The results table and its drill-down (FR-26). Lecturer-only (SR-08, OR-16). */
 export async function getResults(assessmentId: string, asker: Asker): Promise<ResultRow[]> {
-  await getAssessment(assessmentId, asker);
+  const assessment = await getAssessment(assessmentId, asker);
+
+  // FR-13: re-opening, or changing a base mark or the maximum after
+  // calculating, invalidates the run. Its rows stay in the table - they still
+  // lock the groups they were calculated over - but they are no longer anybody's
+  // mark, so nothing is served as current until the marks are calculated again.
+  if (!assessment.calculatedAt) return [];
 
   const { rows } = await query<{
     student_id: string;
@@ -436,6 +460,16 @@ export async function overrideMark(
       mark: `Enter a mark between 0 and ${assessment.maxMark}.`,
     });
   }
+  if (!hasAtMostOneDecimal(mark)) {
+    throw badRequest(ONE_DECIMAL_MESSAGE, { mark: ONE_DECIMAL_MESSAGE });
+  }
+  // An override stands beside a calculated mark (BR-08). After re-opening or a
+  // changed base mark there is no current one to stand beside.
+  if (!assessment.calculatedAt) {
+    throw conflict(
+      "These marks are out of date. Calculate them again before overriding one, so the override sits beside the current mark.",
+    );
+  }
 
   const { rows } = await query<{ final_mark: string | null; name: string; surname: string }>(
     `SELECT r.final_mark, u.name, u.surname
@@ -466,6 +500,8 @@ export async function overrideMark(
               created_at = now()`,
       [assessmentId, studentId, Number(calculated.final_mark), mark, reason.trim(), user.id],
     );
+    // The last workbook no longer carries this student's mark (FR-28).
+    await sql.query("UPDATE assessments SET exported_at = NULL WHERE id = $1", [assessmentId]);
 
     await record(
       {
@@ -484,4 +520,113 @@ export async function overrideMark(
       sql,
     );
   });
+}
+
+/**
+ * Withdraws one student's override, so their calculated mark stands again
+ * (FR-24, BR-08).
+ *
+ * The only other way back was recalculating with every override withdrawn,
+ * which took every justified override in the assessment with the mistaken one.
+ * A reason is required here too: removing an adjustment changes a mark on the
+ * record just as much as making one, and the audit log has to say why.
+ */
+export async function removeOverride(
+  assessmentId: string,
+  studentId: string,
+  reason: string,
+  user: SessionUser,
+): Promise<void> {
+  const assessment = await getAssessment(assessmentId, user);
+  const klass = await getClass(assessment.classId, user);
+
+  if (!reason.trim()) {
+    throw badRequest("Give a reason for removing the override.", {
+      reason: "Give a reason for removing the override.",
+    });
+  }
+
+  const { rows } = await query<{
+    override_mark: string;
+    calculated_mark: string;
+    name: string;
+    surname: string;
+  }>(
+    `SELECT o.override_mark, o.calculated_mark, u.name, u.surname
+       FROM mark_overrides o JOIN users u ON u.id = o.student_id
+      WHERE o.assessment_id = $1 AND o.student_id = $2`,
+    [assessmentId, studentId],
+  );
+  const existing = rows[0];
+  if (!existing) throw conflict("This student's mark isn't overridden.");
+
+  await withTransaction(async (sql) => {
+    await sql.query("DELETE FROM mark_overrides WHERE assessment_id = $1 AND student_id = $2", [
+      assessmentId,
+      studentId,
+    ]);
+    await sql.query("UPDATE assessments SET exported_at = NULL WHERE id = $1", [assessmentId]);
+
+    await record(
+      {
+        actor: { id: user.id, name: user.name, surname: user.surname, role: user.role },
+        eventType: "mark.overridden",
+        objectDescription: `${klass.moduleCode} · ${existing.name} ${existing.surname}`,
+        detail:
+          `Override of ${existing.override_mark} removed; the calculated mark of ` +
+          `${existing.calculated_mark} stands. Reason: ${reason.trim()}`,
+        classId: assessment.classId,
+        assessmentId,
+        before: {
+          overrideMark: Number(existing.override_mark),
+          calculatedMark: Number(existing.calculated_mark),
+        },
+        after: { overrideMark: null, reason: reason.trim() },
+      },
+      sql,
+    );
+  });
+}
+
+export interface OverrideSummary {
+  studentId: string;
+  name: string;
+  surname: string;
+  mark: number;
+  reason: string;
+}
+
+/**
+ * Every override on the assessment, whether or not its results are current.
+ *
+ * A recalculation asks what to do with each of these (FR-24), including after
+ * a re-open or a changed base mark, when the results themselves are no longer
+ * served - so the marks screen lists them from here, the same rows the
+ * calculation checks, rather than from the results.
+ */
+export async function listOverrides(
+  assessmentId: string,
+  asker: Asker,
+): Promise<OverrideSummary[]> {
+  await getAssessment(assessmentId, asker);
+  const { rows } = await query<{
+    student_id: string;
+    name: string;
+    surname: string;
+    override_mark: string;
+    reason: string;
+  }>(
+    `SELECT o.student_id, u.name, u.surname, o.override_mark, o.reason
+       FROM mark_overrides o JOIN users u ON u.id = o.student_id
+      WHERE o.assessment_id = $1
+      ORDER BY u.surname, u.name`,
+    [assessmentId],
+  );
+  return rows.map((row) => ({
+    studentId: row.student_id,
+    name: row.name,
+    surname: row.surname,
+    mark: Number(row.override_mark),
+    reason: row.reason,
+  }));
 }

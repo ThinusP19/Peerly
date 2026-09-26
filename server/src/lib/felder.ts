@@ -118,7 +118,8 @@ export type ResultFlag =
   | "unmatched"
   | "not-peer-assessed"
   | "zero-base-mark"
-  | "zero-group-mean";
+  | "zero-group-mean"
+  | "capped-at-maximum";
 
 /** One rating, reduced to what the calculation needs. */
 export interface Rating {
@@ -166,20 +167,37 @@ const mean = (values: number[]): number | null =>
  * and `toFixed` inherits binary floating point's surprises (1.005 rounds down).
  * Marks go on an academic record, so the rule is stated explicitly here rather
  * than inherited from whichever primitive happened to be reached for.
+ *
+ * The value is cleaned to twelve significant digits before it is rounded. A
+ * mark is a base mark times a ratio of rating sums, so its true value is a
+ * fraction; by the time binary floating point has divided and multiplied its
+ * way there, a true midpoint such as 35.55 can arrive as 35.549999999999997 -
+ * a few units in the last place low, more than an epsilon nudge covers - and
+ * round the wrong way. Twelve digits keep every real digit of a mark (the
+ * nearest true value that is NOT a midpoint is far further away than that)
+ * and discard only the noise. The property test in felder.test.ts checks this
+ * against exact fractions.
  */
 export function round(value: number, places: number): number {
   const factor = 10 ** places;
-  // The epsilon nudge corrects values that binary floating point represents
-  // just below the midpoint, which would otherwise round the wrong way.
-  const scaled = value * factor;
-  const corrected =
-    scaled >= 0
-      ? scaled + Number.EPSILON * Math.abs(scaled)
-      : scaled - Number.EPSILON * Math.abs(scaled);
-  return Math.round(corrected) / factor;
+  const scaled = Number((value * factor).toPrecision(12));
+  const rounded = Math.round(Math.abs(scaled)) / factor;
+  // `|| 0` so a small negative that rounds away to nothing is 0, not -0.
+  return scaled < 0 ? -rounded || 0 : rounded;
 }
 
 const clamp = (value: number, low: number, high: number) => Math.min(high, Math.max(low, value));
+
+/** What the calculation needs to know about the assessment itself. */
+export interface AssessmentLimits {
+  /**
+   * The assessment's maximum mark (BR-07). The factor ceiling of 1.1 lets a
+   * well-rated student earn more than the group's base mark, and 1.1 times any
+   * base mark above 90.9 out of 100 is more than 100 - so the mark is capped
+   * here as well, after rounding. Left out, nothing is capped.
+   */
+  maxMark?: number;
+}
 
 /**
  * Calculates every member of one group (FR-22, FR-23).
@@ -191,6 +209,7 @@ const clamp = (value: number, low: number, high: number) => Math.min(high, Math.
 export function calculateGroup(
   group: GroupInput,
   config: CalculationConfig = DEFAULT_CONFIG,
+  limits: AssessmentLimits = {},
 ): StudentResult[] {
   const { memberIds, baseMark, ratings } = group;
   const submitted = new Set(group.submittedIds);
@@ -305,7 +324,15 @@ export function calculateGroup(
     // where every rating is identical, each mean equals the group mean and every
     // factor is exactly 1; where the base mark is zero, the final mark is zero
     // whatever the factor. Step 6: the one and only rounding.
-    const finalMark = baseMark === null ? null : round(baseMark * adjustmentFactor, config.roundTo);
+    let finalMark = baseMark === null ? null : round(baseMark * adjustmentFactor, config.roundTo);
+
+    // BR-07: a mark never exceeds the maximum. Flagged, because the student's
+    // ratings earned more than the assessment can award and the lecturer should
+    // see that the ceiling, not the factor, decided this mark.
+    if (finalMark !== null && limits.maxMark !== undefined && finalMark > limits.maxMark) {
+      finalMark = limits.maxMark;
+      flags.add("capped-at-maximum");
+    }
 
     return {
       studentId,
@@ -333,6 +360,7 @@ export function calculateGroup(
 export function calculateAssessment(
   groups: GroupInput[],
   config: CalculationConfig = DEFAULT_CONFIG,
+  limits: AssessmentLimits = {},
 ): StudentResult[] {
-  return groups.flatMap((group) => calculateGroup(group, config));
+  return groups.flatMap((group) => calculateGroup(group, config, limits));
 }
