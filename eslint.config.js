@@ -6,7 +6,9 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", ".output", ".vinxi"] },
+  // .playwright-mcp holds throwaway browser-test scripts and .claude holds
+  // agent worktrees - both git-ignored, neither part of the app.
+  { ignores: ["dist", ".output", ".vinxi", ".playwright-mcp", ".claude"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
