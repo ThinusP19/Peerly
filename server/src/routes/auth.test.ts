@@ -226,6 +226,89 @@ describe("POST /api/auth/login", () => {
     const reply = await signIn({ email: user.email, password: "a decent passphrase" });
     expect(reply.status).toBe(401);
   });
+
+  describe("each sign-in form admits only its own role", () => {
+    it("signs in through the form that matches the account", async () => {
+      for (const role of ["student", "lecturer", "admin"] as const) {
+        const user = await createUser({ role, password: "a decent passphrase" });
+        const reply = await signIn({
+          email: user.email,
+          password: "a decent passphrase",
+          as: role,
+        });
+        expect(reply.status).toBe(200);
+        expect(reply.cookie).toContain(SESSION_COOKIE);
+      }
+    });
+
+    it("refuses an administrator on the lecturer form, without a session", async () => {
+      const admin = await createUser({ role: "admin", password: "a decent passphrase" });
+      const reply = await signIn({
+        email: admin.email,
+        password: "a decent passphrase",
+        as: "lecturer",
+      });
+
+      expect(reply.status).toBe(403);
+      expect(reply.body.error.code).toBe("wrong_sign_in");
+      expect(reply.body.error.message).toBe(
+        "This is an administrator account. Use the administrator sign-in.",
+      );
+      expect(reply.body.error.fields).toEqual({ as: "admin" });
+      expect(reply.cookie).toBeNull();
+    });
+
+    it("refuses a lecturer on the administrator form, and a student on the lecturer form", async () => {
+      const lecturer = await createUser({ role: "lecturer", password: "a decent passphrase" });
+      const student = await createUser({ role: "student", password: "a decent passphrase" });
+
+      const lecturerAsAdmin = await signIn({
+        email: lecturer.email,
+        password: "a decent passphrase",
+        as: "admin",
+      });
+      const studentAsLecturer = await signIn({
+        email: student.email,
+        password: "a decent passphrase",
+        as: "lecturer",
+      });
+
+      expect(lecturerAsAdmin.status).toBe(403);
+      expect(lecturerAsAdmin.body.error.fields).toEqual({ as: "lecturer" });
+      expect(lecturerAsAdmin.cookie).toBeNull();
+      expect(studentAsLecturer.status).toBe(403);
+      expect(studentAsLecturer.body.error.fields).toEqual({ as: "student" });
+      expect(studentAsLecturer.cookie).toBeNull();
+    });
+
+    it("says nothing about the role without the right password (SR-06)", async () => {
+      const admin = await createUser({ role: "admin", password: "a decent passphrase" });
+      const wrongDoorWrongPassword = await signIn({
+        email: admin.email,
+        password: "nope",
+        as: "lecturer",
+      });
+      const noSuchAccount = await signIn({
+        email: "nobody@nwu.ac.za",
+        password: "nope",
+        as: "lecturer",
+      });
+
+      expect(wrongDoorWrongPassword.status).toBe(401);
+      expect(wrongDoorWrongPassword.body).toEqual(noSuchAccount.body);
+    });
+
+    it("refuses an unknown form rather than ignoring it", async () => {
+      const user = await createUser({ role: "lecturer", password: "a decent passphrase" });
+      const reply = await signIn({
+        email: user.email,
+        password: "a decent passphrase",
+        as: "superuser",
+      });
+      expect(reply.status).toBe(400);
+      expect(reply.cookie).toBeNull();
+    });
+  });
 });
 
 describe("GET /api/auth/me", () => {

@@ -74,11 +74,14 @@ function SignInForm({ audience }: { audience: SignInAudience }) {
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Errors>({});
   const [formError, setFormError] = useState<string | null>(null);
+  /** Set when the account is right but belongs on another sign-in form. */
+  const [rightForm, setRightForm] = useState<SignInAudience | null>(null);
   const [busy, setBusy] = useState(false);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setFormError(null);
+    setRightForm(null);
 
     const next: Errors = {};
     if (!email.trim()) next.email = "Enter the email address you registered with.";
@@ -88,16 +91,22 @@ function SignInForm({ audience }: { audience: SignInAudience }) {
 
     setBusy(true);
     try {
-      const account = await login(email.trim(), password);
+      const account = await login(email.trim(), password, audience);
 
       // The API has already set the session cookie; this records who it belongs
       // to so the shell can render without asking again.
       signIn(account);
       toast.success(`Signed in as ${account.name} ${account.surname}`);
-      // The account's own role decides the portal - a student who signs in on
-      // the lecturer form still lands in the Student Portal.
+      // The server has already checked that this form is the account's own.
       navigate({ to: homePathForRole(account.role) });
     } catch (error) {
+      // The right password on the wrong form. Only sent once the password has
+      // been checked, so pointing at the right form gives nothing away.
+      if (error instanceof ApiError && error.code === "wrong_sign_in") {
+        setFormError(error.message);
+        setRightForm(parseSignInAudience(error.fields["as"]) ?? null);
+        return;
+      }
       // FR-05 and SR-06: one message, whatever went wrong. An unknown address,
       // a wrong password, an unverified account, a deactivated one and a
       // locked-out one are all the same answer - the server does not
@@ -154,11 +163,21 @@ function SignInForm({ audience }: { audience: SignInAudience }) {
             <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             <div className="space-y-1">
               <p>{formError}</p>
-              {/* Shown on every failure, so it reveals nothing about whether a
-                  particular account exists (SR-06). */}
-              <p className="text-danger/80">
-                Just registered? Verify your email with the code we sent you first.
-              </p>
+              {rightForm ? (
+                <Link
+                  to="/login"
+                  search={{ as: rightForm }}
+                  className="inline-flex items-center gap-1 font-semibold underline underline-offset-2"
+                >
+                  Go to {audiences[rightForm].title.toLowerCase()}
+                </Link>
+              ) : (
+                // Shown on every other failure, so it reveals nothing about
+                // whether a particular account exists (SR-06).
+                <p className="text-danger/80">
+                  Just registered? Verify your email with the code we sent you first.
+                </p>
+              )}
             </div>
           </div>
         ) : null}

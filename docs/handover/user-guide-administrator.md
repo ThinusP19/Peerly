@@ -83,14 +83,17 @@ account"** email:
 
 ## 3. Signing in and out
 
-1. Open Peerly. The **Welcome to Peerly** page offers **I'm a student** and **I'm a lecturer**.
-   **Administrators use I'm a lecturer**, which is the staff sign-in. Select **Continue**.
-2. Enter your `@nwu.ac.za` **Email address** and **Password**, then select **Sign in**.
-3. Peerly opens the Administrator portal because of your account's role, not the button you
-   chose.
+1. Open Peerly. Under the **I'm a student** and **I'm a lecturer** cards on **Welcome to
+   Peerly** is a slimmer block, **I'm an administrator**. Select it.
+2. Enter your `@nwu.ac.za` **Email address** and **Password** on **Administrator sign in**,
+   then select **Sign in**.
+3. Peerly opens the Administrator portal.
 
-- A failed sign-in always says *"Those details don't match an active Peerly account. Please
-  check and try again."*, whatever the reason.
+- Each sign-in form accepts only its own kind of account. An administrator who signs in on the
+  lecturer form is told *"This is an administrator account. Use the administrator sign-in."*,
+  with a link to it, and is not signed in.
+- Any other failed sign-in always says *"Those details don't match an active Peerly account.
+  Please check and try again."*, whatever the reason.
 - **5 wrong passwords in a row** lock the account for **15 minutes**.
 - Sessions end after **30 minutes without activity** and after **12 hours** in any case.
 - To sign out, use the icon beside your name at the bottom of the left-hand menu, or the menu

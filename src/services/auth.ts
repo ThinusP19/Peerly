@@ -5,6 +5,7 @@
  * for everything else, and will be replaced the same way, endpoint by endpoint.
  */
 import { get, post } from "@/lib/api";
+import type { SignInAudience } from "@/lib/sign-in-audience";
 import type { Role, User } from "@/mocks/types";
 
 /**
@@ -41,8 +42,12 @@ export const resendCode = (email: string) =>
 export const verifyCode = (email: string, code: string) =>
   post<UserReply>("/api/auth/verify", { email, code }).then((reply) => reply.user);
 
-export const login = (email: string, password: string) =>
-  post<UserReply>("/api/auth/login", { email, password }).then((reply) => reply.user);
+/**
+ * `as` names the sign-in form. The server admits only the matching role there,
+ * and refuses anyone else with `wrong_sign_in` and no session.
+ */
+export const login = (email: string, password: string, as?: SignInAudience) =>
+  post<UserReply>("/api/auth/login", { email, password, as }).then((reply) => reply.user);
 
 export const logout = () => post<{ ok: true }>("/api/auth/logout");
 

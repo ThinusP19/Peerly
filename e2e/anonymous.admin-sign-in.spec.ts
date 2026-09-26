@@ -30,3 +30,22 @@ test("an administrator signs in through their own link and lands in the Admin Po
 
   await expect(page).toHaveURL(/\/admin$/);
 });
+
+test("an administrator on the lecturer form is refused and pointed to their own", async ({
+  page,
+}) => {
+  await page.goto("/login?as=lecturer");
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel("Email address").fill(ACCOUNTS.admin);
+  await page.getByRole("textbox", { name: /^Password/ }).fill(DEV_PASSWORD);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+
+  await expect(
+    page.getByText("This is an administrator account. Use the administrator sign-in."),
+  ).toBeVisible();
+  // Refused means refused: no session was created.
+  expect((await page.request.get("/api/auth/me")).status()).toBe(401);
+
+  await page.getByRole("link", { name: "Go to administrator sign in" }).click();
+  await expect(page).toHaveURL(/\/login\?as=admin/);
+});

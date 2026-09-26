@@ -12,7 +12,7 @@ import {
   sessionOrigin,
   setSessionCookie,
 } from "../middleware/auth.ts";
-import { badRequest, unauthorized } from "../middleware/errors.ts";
+import { AppError, badRequest, unauthorized } from "../middleware/errors.ts";
 import { attemptSignIn } from "../services/authentication.ts";
 import {
   STUDENT_NUMBER_PATTERN,
@@ -170,11 +170,21 @@ authRoutes.post("/verify", signInLimit, async (req, res) => {
 
 /* -------------------------------- sign-in -------------------------------- */
 
+/** What an account that came through the wrong sign-in form is told. */
+const wrongSignIn: Record<SessionUser["role"], string> = {
+  student: "This is a student account. Use the student sign-in.",
+  lecturer: "This is a lecturer account. Use the lecturer sign-in.",
+  admin: "This is an administrator account. Use the administrator sign-in.",
+};
+
 authRoutes.post("/login", signInLimit, async (req, res) => {
   const body = z
     .object({
       email: z.string().trim().min(1, "Enter the email address you registered with."),
       password,
+      // The sign-in form the person used. Each form admits only its own role.
+      // Optional so a direct API client that names no form still signs in.
+      as: z.enum(["student", "lecturer", "admin"]).optional(),
     })
     .parse(req.body);
 
@@ -184,6 +194,12 @@ authRoutes.post("/login", signInLimit, async (req, res) => {
     // the account exists, whether it is active and whether it is locked are all
     // the same answer here.
     throw unauthorized("We couldn't sign you in. Check your email address and password.");
+  }
+
+  // Only reached with the right password, so naming the role tells nobody
+  // anything they could not already sign in and see. No session is created.
+  if (body.as && body.as !== user.role) {
+    throw new AppError(403, wrongSignIn[user.role], "wrong_sign_in", { as: user.role });
   }
 
   const { token } = await createSession(user.id, sessionOrigin(req));

@@ -172,9 +172,9 @@ Checks the 6-digit code, activates the account and signs the student in.
 ### `POST /api/auth/login`
 
 - **Auth:** none. Rate limit: `signInLimit`, plus the account and source lock-outs.
-- **Body:** `{ "email": string, "password": string }`. Both are non-empty. The e-mail format is not checked.
+- **Body:** `{ "email": string, "password": string, "as"?: "student" | "lecturer" | "admin" }`. Email and password are non-empty. The e-mail format is not checked. `as` names the sign-in form; the web app always sends it. Without it, any role signs in.
 - **200:** `{ "user": PublicUser }` and `Set-Cookie`.
-- **Errors:** `401 unauthorized` with one message ("We couldn't sign you in...") for every cause: unknown address, wrong password, an account that is not `active`, or a locked account. `400 validation_failed`, `429`.
+- **Errors:** `401 unauthorized` with one message ("We couldn't sign you in...") for every cause: unknown address, wrong password, an account that is not `active`, or a locked account. `403 wrong_sign_in` when the password is right but `as` is not the account's role - `fields.as` names the right form and no session is created. It is only sent after the password has been checked, so it reveals nothing to someone without it. `400 validation_failed`, `429`.
 
 Every attempt is written to `login_attempts`.
 
