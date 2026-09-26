@@ -129,6 +129,10 @@ export const auditEventMeta: Record<AuditEventType, string> = {
   "password.changed": "Password changed",
   "reminders.sent": "Reminders sent",
   "account.activation_resent": "Activation link resent",
+  "evaluation.submitted": "Evaluation submitted",
+  "evaluation.amended": "Evaluation amended",
+  "enrolment.matched": "Student matched to class list",
+  "enrolment.conflict": "Match conflict flagged",
 };
 
 /* ------------------------------------------------------------------ *

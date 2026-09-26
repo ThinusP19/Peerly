@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
 import { ScrollText } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -16,10 +16,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { auditEventMeta } from "@/lib/domain";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTimeSast } from "@/lib/sast";
 import { roleLabel } from "@/lib/session";
 import type { AuditEntry, AuditEventType } from "@/mocks/types";
-import { getAuditEntries } from "@/services/peerly";
+import { getAuditPage, type AuditQuery } from "@/services/peerly";
+
+/** Entries fetched at a time; "Show more" asks for the next page. */
+const PAGE_SIZE = 100;
 
 /**
  * The audit log is append-only: entries are never edited or deleted, so this
@@ -35,37 +38,42 @@ export function AuditLogView({
   classId?: string;
   eventPrefix?: string;
 }) {
-  const audit = useQuery({ queryKey: ["audit"], queryFn: getAuditEntries });
-
   const [eventType, setEventType] = useState<AuditEventType | "all">("all");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
 
-  const scoped = useMemo(
-    () =>
-      (audit.data ?? []).filter((entry) => {
-        if (classId && entry.classId !== classId) return false;
-        if (eventPrefix && !entry.eventType.startsWith(eventPrefix)) return false;
-        return true;
-      }),
-    [audit.data, classId, eventPrefix],
-  );
+  // Every filter is sent to the server, which applies it to the whole trail and
+  // reads the dates as South African days. Filtering here, over one page, used
+  // to hide everything older than the newest 500 entries and file anything
+  // between midnight and 02:00 under the day before.
+  const filters: AuditQuery = {
+    ...(classId ? { classId } : {}),
+    ...(eventPrefix ? { eventPrefix } : {}),
+    ...(eventType !== "all" ? { eventType } : {}),
+    ...(from ? { fromDate: from } : {}),
+    ...(to ? { toDate: to } : {}),
+  };
+  const audit = useInfiniteQuery({
+    queryKey: ["audit", filters],
+    queryFn: ({ pageParam }) =>
+      getAuditPage({ ...filters, limit: PAGE_SIZE, ...(pageParam ? { cursor: pageParam } : {}) }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextCursor,
+    placeholderData: keepPreviousData,
+  });
 
-  const rows = useMemo(
-    () =>
-      scoped.filter((entry) => {
-        if (eventType !== "all" && entry.eventType !== eventType) return false;
-        const day = entry.timestamp.slice(0, 10);
-        if (from && day < from) return false;
-        if (to && day > to) return false;
-        return true;
-      }),
-    [scoped, eventType, from, to],
-  );
+  const rows = useMemo(() => audit.data?.pages.flatMap((page) => page.entries) ?? [], [audit.data]);
+  const total = audit.data?.pages[0]?.total ?? 0;
 
+  // Offered whether or not any entry of that type exists yet. A class-scoped
+  // view never holds account or password events, so it is not offered them.
   const availableEventTypes = useMemo(
-    () => Array.from(new Set(scoped.map((entry) => entry.eventType))).sort(),
-    [scoped],
+    () =>
+      (Object.keys(auditEventMeta) as AuditEventType[])
+        .filter((type) => !eventPrefix || type.startsWith(eventPrefix))
+        .filter((type) => !classId || !/^(account|password)\./.test(type))
+        .sort((a, b) => auditEventMeta[a].localeCompare(auditEventMeta[b])),
+    [classId, eventPrefix],
   );
 
   const filtersApplied = eventType !== "all" || Boolean(from) || Boolean(to);
@@ -81,7 +89,7 @@ export function AuditLogView({
       header: "When",
       sortValue: (row) => row.timestamp,
       className: "whitespace-nowrap tabular-nums text-muted-foreground",
-      cell: (row) => formatDateTime(row.timestamp),
+      cell: (row) => formatDateTimeSast(row.timestamp),
     },
     {
       key: "actor",
@@ -173,7 +181,11 @@ export function AuditLogView({
         <p className="col-span-full text-sm text-muted-foreground" aria-live="polite">
           {audit.isPending
             ? "Loading the audit log…"
-            : `Showing ${rows.length} of ${scoped.length} entries`}
+            : audit.isError
+              ? "We couldn't load the audit log. Please refresh the page to try again."
+              : `Showing ${rows.length.toLocaleString("en-ZA")} of ${total.toLocaleString("en-ZA")} ${
+                  total === 1 ? "entry" : "entries"
+                }${filtersApplied ? " that match" : ""}. Times are South African (SAST).`}
         </p>
       </div>
 
@@ -204,6 +216,25 @@ export function AuditLogView({
           />
         }
       />
+
+      {audit.hasNextPage ? (
+        <div className="flex flex-col items-center gap-2 border-t px-5 py-4 sm:flex-row sm:justify-between sm:px-6">
+          <p className="text-sm text-muted-foreground">
+            {(total - rows.length).toLocaleString("en-ZA")} older{" "}
+            {total - rows.length === 1 ? "entry isn't" : "entries aren't"} shown yet.
+          </p>
+          <Button
+            variant="outline"
+            className="h-10"
+            disabled={audit.isFetchingNextPage}
+            onClick={() => void audit.fetchNextPage()}
+          >
+            {audit.isFetchingNextPage
+              ? "Loading…"
+              : `Show ${Math.min(PAGE_SIZE, total - rows.length)} more`}
+          </Button>
+        </div>
+      ) : null}
     </Card>
   );
 }

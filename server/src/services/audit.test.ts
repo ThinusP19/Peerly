@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { closePool, query, withTransaction } from "../db/pool.ts";
 import { createUser, resetDatabase } from "../test/helpers.ts";
-import { getAuditEntries, record } from "./audit.ts";
+import { decodeCursor, getAuditEntries, getAuditPage, record } from "./audit.ts";
 import { registerStudent, verifyEmailCode } from "./registration.ts";
 import { changePassword } from "./recovery.ts";
 
@@ -216,5 +216,81 @@ describe("getAuditEntries", () => {
 
     expect(await getAuditEntries({ classIds: [rows[0]!.id] })).toHaveLength(0);
     expect(await getAuditEntries()).toHaveLength(1);
+  });
+});
+
+describe("getAuditPage", () => {
+  const insertAt = (occurredAt: string, eventType = "class.created", description = "X") =>
+    query(
+      `INSERT INTO audit_entries (occurred_at, actor_name, event_type, object_description)
+       VALUES ($1, 'A', $2, $3)`,
+      [occurredAt, eventType, description],
+    );
+
+  it("files an entry under its South African day, not its UTC day (OR-11)", async () => {
+    // 23:30 UTC on the 25th is 01:30 SAST on the 26th, which is what the log shows.
+    await insertAt("2026-09-25T23:30:00Z");
+
+    expect((await getAuditPage({ fromDay: "2026-09-26", toDay: "2026-09-26" })).total).toBe(1);
+    expect((await getAuditPage({ fromDay: "2026-09-25", toDay: "2026-09-25" })).total).toBe(0);
+  });
+
+  it("includes the whole of the last day, up to midnight SAST", async () => {
+    await insertAt("2026-09-26T21:59:59.999Z"); // 23:59:59 SAST on the 26th
+    await insertAt("2026-09-26T22:00:00Z"); // 00:00 SAST on the 27th
+
+    const page = await getAuditPage({ toDay: "2026-09-26" });
+    expect(page.entries.map((e) => e.timestamp)).toEqual(["2026-09-26T21:59:59.999Z"]);
+  });
+
+  it("counts every matching entry, not only the ones on the page", async () => {
+    await query(
+      `INSERT INTO audit_entries (occurred_at, actor_name, event_type, object_description)
+       SELECT timestamptz '2026-01-01T00:00:00Z' + n * interval '1 minute', 'A', 'class.created', 'X'
+         FROM generate_series(1, 520) AS n`,
+    );
+
+    const page = await getAuditPage();
+    expect(page.entries).toHaveLength(500);
+    expect(page.total).toBe(520);
+    expect(page.nextCursor).toBeDefined();
+  });
+
+  it("pages through everything with no gaps or repeats, even within one instant", async () => {
+    // One transaction, so all five share now() - only the id tells them apart.
+    await withTransaction(async (sql) => {
+      for (let i = 1; i <= 5; i += 1) {
+        await record(
+          { actor: { name: "A" }, eventType: "class.created", objectDescription: `C${i}` },
+          sql,
+        );
+      }
+    });
+    await insertAt("2020-01-01T00:00:00Z", "class.created", "Oldest");
+
+    const seen: string[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await getAuditPage({ limit: 2, ...(cursor ? { cursor } : {}) });
+      expect(page.total).toBe(6);
+      seen.push(...page.entries.map((e) => e.objectDescription));
+      cursor = page.nextCursor;
+    } while (cursor);
+
+    expect(seen).toEqual(["C5", "C4", "C3", "C2", "C1", "Oldest"]);
+  });
+
+  it("filters by an event-type prefix", async () => {
+    await insertAt("2026-09-01T10:00:00Z", "account.created");
+    await insertAt("2026-09-01T11:00:00Z", "class.created");
+
+    const page = await getAuditPage({ eventPrefix: "account." });
+    expect(page.entries.map((e) => e.eventType)).toEqual(["account.created"]);
+  });
+
+  it("refuses a cursor it did not issue", () => {
+    expect(decodeCursor("not a cursor")).toBeNull();
+    const forged = Buffer.from("2026-01-01T00:00:00Z|1; DROP TABLE users").toString("base64url");
+    expect(decodeCursor(forged)).toBeNull();
   });
 });

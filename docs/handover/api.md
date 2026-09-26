@@ -255,18 +255,18 @@ Source: `server/src/routes/accounts.ts` and `services/accounts.ts`. **Every rout
 
 Creates an `unverified` staff account with no password and e-mails its activation link (`APP_URL/activate?token=...&email=...`, valid for `ACTIVATION_TOKEN_MINUTES`).
 
-- **Body:** `{ "role": "admin"|"lecturer", "name": string, "surname": string, "email": string }`. The e-mail domain must be in `STAFF_EMAIL_DOMAINS`.
+- **Body:** `{ "role": "admin"|"lecturer", "name": string, "surname": string, "email": string }`. `name` and `surname` are 1 to 100 characters after trimming. The e-mail domain must be in `STAFF_EMAIL_DOMAINS`.
 - **201:** `{ "account": StaffAccount }`
-- **Errors:** `400 validation_failed`. `400 bad_request` with `fields.email` for a domain that is not a staff domain. `409 conflict` when the e-mail address is already in use.
+- **Errors:** `400 validation_failed`. `400 bad_request` with `fields.email` for a domain that is not a staff domain. `409 conflict` with `fields.email` ("An account already uses that email address.") when the e-mail address is already in use.
 
 There is no endpoint that re-sends an activation link. If the link expires before the new staff member uses it, see [technical-handover.md → Maintenance](./technical-handover.md#re-sending-an-expired-staff-activation-link).
 
 ### `PATCH /api/accounts/:userId`
 
 - **Params:** `userId` (uuid)
-- **Body:** any of `{ "name", "surname", "email", "role": "admin"|"lecturer" }`, each optional. `email` must be a staff-domain address.
+- **Body:** any of `{ "name", "surname", "email", "role": "admin"|"lecturer" }`, each optional. `name` and `surname` are 1 to 100 characters. `email` must be a staff-domain address.
 - **200:** `{ "account": StaffAccount }`. Only a change of role is written to the audit log.
-- **Errors:** `404` for an unknown id or a student id. `409 conflict` when the change would demote the last active administrator. `409 rule_violation` when the e-mail address is already in use. `400`.
+- **Errors:** `404` for an unknown id or a student id. `409 conflict` when the change would demote the last active administrator. `409 conflict` with `fields.email` when the e-mail address is already in use. `400`.
 
 ### `POST /api/accounts/:userId/status`
 
@@ -288,17 +288,24 @@ Source: `server/src/routes/audit.ts` and `services/audit.ts`. **`requireAuth` an
   | Param | Type |
   | --- | --- |
   | `eventType` | one of the event types below. The value is not checked, so an unknown type returns an empty list. |
+  | `eventPrefix` | every event type starting with this, e.g. `account.`. |
   | `from`, `to` | ISO-8601 datetime **in UTC with a `Z` suffix** (`2026-09-01T00:00:00Z`). An offset such as `+02:00` is rejected with 400. |
+  | `fromDate`, `toDate` | `YYYY-MM-DD`, inclusive, read as a **South African (Africa/Johannesburg) calendar day**, the day the web app shows beside each entry. An entry at 01:30 SAST on the 26th is under the 26th, although its UTC date is the 25th. |
+  | `classId` | uuid. Narrows to one class. For a lecturer it is intersected with their own classes, so another lecturer's class returns nothing. |
+  | `limit` | 1 to 500, default 500. |
+  | `cursor` | the `nextCursor` of the previous page. Anything else is rejected with 400. |
 
 - **Scope:** an `admin` sees every entry. A `lecturer` sees only entries whose `class_id` belongs to a class they own. Account and password events carry no class, so lecturers never see them.
-- **200:** `{ "entries": AuditEntry[] }`, newest first, at most 500.
+- **200:** `{ "entries": AuditEntry[], "total": number, "nextCursor"?: string }`, newest first. `total` counts every entry that matches the filters, not only this page. `nextCursor` is present when there are more; pass it back as `cursor` to get them. Paging is by (time, id), so entries written between two requests never shift or repeat a page.
 
   ```ts
   AuditEntry = { id: string, timestamp, actorName, actorRole: Role|null, eventType,
                  objectDescription, detail, classId? }
   ```
 
-- **Event types:** `account.created`, `account.updated`, `account.activated`, `account.deactivated`, `password.changed`, `class.created`, `class.imported`, `class.deleted`, `enrolment.resolved`, `groups.confirmed`, `assessment.created`, `assessment.updated`, `assessment.opened`, `assessment.closed`, `assessment.reopened`, `assessment.deleted`, `marks.entered`, `marks.calculated`, `mark.overridden`, `results.exported`.
+- **Event types:** `account.created`, `account.updated`, `account.activated`, `account.deactivated`, `account.activation_resent`, `password.changed`, `class.created`, `class.imported`, `class.deleted`, `enrolment.matched`, `enrolment.conflict`, `enrolment.resolved`, `groups.confirmed`, `assessment.created`, `assessment.updated`, `assessment.opened`, `assessment.closed`, `assessment.reopened`, `assessment.deleted`, `evaluation.submitted`, `evaluation.amended`, `reminders.sent`, `marks.entered`, `marks.calculated`, `mark.overridden`, `results.exported`.
+- `evaluation.submitted` and `evaluation.amended` record who submitted, for which assessment and class, and how many ratings. They never record a rating, its value or a comment. Saving a draft is not audited: it changes nothing a mark is calculated from.
+- `enrolment.matched` and `enrolment.conflict` are written by automatic class-list matching (FR-04), one per enrolment, with the student who activated or the lecturer who imported as the actor.
 
 The `before_state` and `after_state` columns are stored but not returned by the API. Read them in SQL when you investigate an incident.
 

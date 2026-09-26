@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { auditEventMeta } from "@/lib/domain";
-import { formatDateTime } from "@/lib/format";
-import { getAuditEntries, getStaffAccounts } from "@/services/peerly";
+import { formatDateTimeSast } from "@/lib/sast";
+import { getAuditPage, getStaffAccounts } from "@/services/peerly";
 
 export const Route = createFileRoute("/admin/")({
   component: AdminDashboard,
@@ -17,7 +17,12 @@ export const Route = createFileRoute("/admin/")({
 
 function AdminDashboard() {
   const accounts = useQuery({ queryKey: ["staff-accounts"], queryFn: getStaffAccounts });
-  const audit = useQuery({ queryKey: ["audit"], queryFn: getAuditEntries });
+  // Asked of the server by type, so the newest account events are found however
+  // much else has been logged since - not picked out of a capped page of everything.
+  const audit = useQuery({
+    queryKey: ["audit", { eventPrefix: "account.", limit: 6 }],
+    queryFn: () => getAuditPage({ eventPrefix: "account.", limit: 6 }),
+  });
 
   const staff = accounts.data ?? [];
   const lecturers = staff.filter((u) => u.role === "lecturer");
@@ -26,9 +31,7 @@ function AdminDashboard() {
   const deactivated = staff.filter((u) => u.status === "inactive");
   const unverified = staff.filter((u) => u.status === "unverified");
 
-  const accountEvents = (audit.data ?? []).filter((entry) =>
-    entry.eventType.startsWith("account."),
-  );
+  const accountEvents = audit.data?.entries ?? [];
 
   return (
     <>
@@ -87,14 +90,14 @@ function AdminDashboard() {
                     <Skeleton className="mt-2 h-3 w-1/3" />
                   </li>
                 ))
-              : accountEvents.slice(0, 6).map((entry) => (
+              : accountEvents.map((entry) => (
                   <li key={entry.id} className="px-5 py-3.5 sm:px-6">
                     <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
                       <p className="text-sm font-semibold text-foreground">
                         {auditEventMeta[entry.eventType]}
                       </p>
                       <p className="text-xs whitespace-nowrap text-muted-foreground tabular-nums">
-                        {formatDateTime(entry.timestamp)}
+                        {formatDateTimeSast(entry.timestamp)}
                       </p>
                     </div>
                     <p className="mt-0.5 text-sm break-words text-foreground">

@@ -141,11 +141,38 @@ export const getResults = async (assessmentId: string): Promise<CalculatedResult
  * The audit log (FR-27).
  *
  * Scoping is the server's: a lecturer is given their own classes' entries, an
- * administrator the whole trail. Nothing is filtered here, because a filter
- * applied in the browser is a filter that was already sent to the browser.
+ * administrator the whole trail. The filters run there too, over every entry:
+ * filtering in the browser only ever saw the newest page, so older entries
+ * could not be found at all.
  */
-export const getAuditEntries = async (): Promise<AuditEntry[]> =>
-  (await get<{ entries: AuditEntry[] }>("/api/audit")).entries;
+export interface AuditQuery {
+  eventType?: AuditEventType;
+  /** e.g. "account." for every account event. */
+  eventPrefix?: string;
+  /** `YYYY-MM-DD`, inclusive, a South African calendar day. */
+  fromDate?: string;
+  toDate?: string;
+  classId?: string;
+  /** `nextCursor` from the previous page. */
+  cursor?: string;
+  limit?: number;
+}
+
+export interface AuditPage {
+  entries: AuditEntry[];
+  /** Every entry that matches the filters, not only those on this page. */
+  total: number;
+  nextCursor?: string;
+}
+
+export const getAuditPage = async (filters: AuditQuery = {}): Promise<AuditPage> => {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== "") params.set(key, String(value));
+  }
+  const search = params.toString();
+  return get<AuditPage>(`/api/audit${search ? `?${search}` : ""}`);
+};
 
 export const getStaffAccounts = async (): Promise<User[]> =>
   (await get<{ accounts: User[] }>("/api/accounts")).accounts;

@@ -155,7 +155,11 @@ export type AuditEventType =
   | "enrolment.resolved"
   | "password.changed"
   | "reminders.sent"
-  | "account.activation_resent";
+  | "account.activation_resent"
+  | "evaluation.submitted"
+  | "evaluation.amended"
+  | "enrolment.matched"
+  | "enrolment.conflict";
 
 export interface AuditEntry {
   id: string;

@@ -44,7 +44,11 @@ export type AuditEventType =
   | "enrolment.resolved"
   | "password.changed"
   | "reminders.sent"
-  | "account.activation_resent";
+  | "account.activation_resent"
+  | "evaluation.submitted"
+  | "evaluation.amended"
+  | "enrolment.matched"
+  | "enrolment.conflict";
 
 export interface Actor {
   id?: string | undefined;
@@ -113,59 +117,139 @@ export interface AuditEntry {
   classId?: string;
 }
 
+/** The university's time zone. A "day" in the log is a day on a South African calendar. */
+export const AUDIT_TIME_ZONE = "Africa/Johannesburg";
+
 export interface AuditFilter {
   /** A lecturer sees their own classes; an administrator sees everything. */
   classIds?: string[] | undefined;
   eventType?: AuditEventType | undefined;
+  /** Every event type starting with this, e.g. "account." for the dashboard. */
+  eventPrefix?: string | undefined;
+  /** Exact instants, inclusive. */
   from?: string | undefined;
   to?: string | undefined;
+  /**
+   * Calendar days, `YYYY-MM-DD`, inclusive, read in South African time (OR-11).
+   * The log shows its times in SAST, so an entry at 01:30 on 26 September is
+   * filed under the 26th - not under the 25th, which is its date in UTC.
+   */
+  fromDay?: string | undefined;
+  toDay?: string | undefined;
+  /** Continue after the last entry of a previous page (its `nextCursor`). */
+  cursor?: string | undefined;
   limit?: number | undefined;
 }
 
+export interface AuditPage {
+  entries: AuditEntry[];
+  /** How many entries match the filters in all, not only on this page. */
+  total: number;
+  /** Pass back as `cursor` for the next page; absent when there is none. */
+  nextCursor?: string;
+}
+
 /**
- * Reads the log, newest first.
+ * A page boundary: the exact time and id of the last entry shown.
+ *
+ * Keyset rather than an offset. The log grows at the newest end, so an offset
+ * would shift by however many entries were written between two pages and
+ * repeat rows; a cursor never does. The time is kept to the microsecond, which
+ * a JavaScript Date cannot hold, so it travels as text.
+ */
+const encodeCursor = (at: string, id: string) =>
+  Buffer.from(`${at}|${id}`, "utf8").toString("base64url");
+
+export function decodeCursor(cursor: string): { at: string; id: string } | null {
+  const [at, id, ...rest] = Buffer.from(cursor, "base64url").toString("utf8").split("|");
+  if (rest.length || !at || !id || !/^\d+$/.test(id) || Number.isNaN(Date.parse(at))) return null;
+  return { at, id };
+}
+
+/**
+ * Reads the log, newest first, one page at a time, with the total that matches.
  *
  * A lecturer's view is scoped to the classes they own. Entries with no class -
  * an account activation, a password change - belong to the administrator's
  * view only, since they are not about anybody's teaching.
+ *
+ * Every filter runs here, over the whole trail. Filtering in the browser over
+ * whatever had been sent used to hide everything older than the newest 500
+ * entries while claiming to show all of them.
  */
-export async function getAuditEntries(filter: AuditFilter = {}): Promise<AuditEntry[]> {
-  const { rows } = await query<{
-    id: string;
-    occurred_at: Date;
-    actor_name: string;
-    actor_role: Role | null;
-    event_type: AuditEventType;
-    object_description: string;
-    detail: string;
-    class_id: string | null;
-  }>(
-    `SELECT id, occurred_at, actor_name, actor_role, event_type,
-            object_description, detail, class_id
-       FROM audit_entries
-      WHERE ($1::uuid[] IS NULL OR class_id = ANY($1::uuid[]))
-        AND ($2::text IS NULL OR event_type = $2)
-        AND ($3::timestamptz IS NULL OR occurred_at >= $3)
-        AND ($4::timestamptz IS NULL OR occurred_at <= $4)
-      ORDER BY occurred_at DESC, id DESC
-      LIMIT $5`,
-    [
-      filter.classIds ?? null,
-      filter.eventType ?? null,
-      filter.from ?? null,
-      filter.to ?? null,
-      Math.min(filter.limit ?? 500, 1000),
-    ],
-  );
+export async function getAuditPage(filter: AuditFilter = {}): Promise<AuditPage> {
+  const cursor = filter.cursor ? decodeCursor(filter.cursor) : null;
+  const limit = Math.max(1, Math.min(filter.limit ?? 500, 1000));
 
-  return rows.map((row) => ({
-    id: String(row.id),
-    timestamp: row.occurred_at.toISOString(),
-    actorName: row.actor_name,
-    actorRole: row.actor_role,
-    eventType: row.event_type,
-    objectDescription: row.object_description,
-    detail: row.detail,
-    ...(row.class_id ? { classId: row.class_id } : {}),
-  }));
+  const conditions = `
+        ($1::uuid[] IS NULL OR class_id = ANY($1::uuid[]))
+    AND ($2::text IS NULL OR event_type = $2)
+    AND ($3::text IS NULL OR starts_with(event_type, $3))
+    AND ($4::timestamptz IS NULL OR occurred_at >= $4)
+    AND ($5::timestamptz IS NULL OR occurred_at <= $5)
+    AND ($6::date IS NULL OR occurred_at >= ($6::date)::timestamp AT TIME ZONE '${AUDIT_TIME_ZONE}')
+    AND ($7::date IS NULL OR occurred_at < ($7::date + 1)::timestamp AT TIME ZONE '${AUDIT_TIME_ZONE}')`;
+  const params = [
+    filter.classIds ?? null,
+    filter.eventType ?? null,
+    filter.eventPrefix ?? null,
+    filter.from ?? null,
+    filter.to ?? null,
+    filter.fromDay ?? null,
+    filter.toDay ?? null,
+  ];
+
+  const [{ rows }, counted] = await Promise.all([
+    query<{
+      id: string;
+      occurred_at: Date;
+      cursor_at: string;
+      actor_name: string;
+      actor_role: Role | null;
+      event_type: AuditEventType;
+      object_description: string;
+      detail: string;
+      class_id: string | null;
+    }>(
+      `SELECT id, occurred_at,
+              to_char(occurred_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_at,
+              actor_name, actor_role, event_type, object_description, detail, class_id
+         FROM audit_entries
+        WHERE ${conditions}
+          AND ($8::timestamptz IS NULL OR (occurred_at, id) < ($8::timestamptz, $9::bigint))
+        ORDER BY occurred_at DESC, id DESC
+        LIMIT $10`,
+      [...params, cursor?.at ?? null, cursor?.id ?? null, limit + 1],
+    ),
+    query<{ total: string }>(
+      `SELECT count(*) AS total FROM audit_entries WHERE ${conditions}`,
+      params,
+    ),
+  ]);
+
+  // One row more than the page was asked for is how we know another page exists.
+  const page = rows.slice(0, limit);
+  const last = page.at(-1);
+
+  return {
+    entries: page.map((row) => ({
+      id: String(row.id),
+      timestamp: row.occurred_at.toISOString(),
+      actorName: row.actor_name,
+      actorRole: row.actor_role,
+      eventType: row.event_type,
+      objectDescription: row.object_description,
+      detail: row.detail,
+      ...(row.class_id ? { classId: row.class_id } : {}),
+    })),
+    total: Number(counted.rows[0]!.total),
+    ...(rows.length > limit && last
+      ? { nextCursor: encodeCursor(last.cursor_at, String(last.id)) }
+      : {}),
+  };
+}
+
+/** The first page only - what most callers, and most tests, want. */
+export async function getAuditEntries(filter: AuditFilter = {}): Promise<AuditEntry[]> {
+  return (await getAuditPage(filter)).entries;
 }
