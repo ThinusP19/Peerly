@@ -95,6 +95,12 @@ export const resultFlagMeta: Record<
       "Every rating in this group was the lowest option, so no factor can be calculated. Every member receives the group mark unchanged.",
     tone: "danger",
   },
+  "capped-at-maximum": {
+    label: "Capped at the maximum",
+    description:
+      "The adjusted mark came out above the assessment's maximum, so it was recorded as the maximum. A mark is never higher than what the assessment is out of.",
+    tone: "neutral",
+  },
 };
 
 /* ------------------------------------------------------------------ *

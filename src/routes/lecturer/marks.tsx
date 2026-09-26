@@ -28,12 +28,13 @@ import { useLecturerClasses } from "@/hooks/use-lecturer-context";
 import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
+import { ApiError } from "@/lib/api";
 import {
   calculateMarks,
   getAssessment,
   getGroupMarks,
   getGroups,
-  getResultRows,
+  getOverrides,
   setGroupBaseMark,
   updateAssessment,
 } from "@/services/peerly";
@@ -67,13 +68,14 @@ function MarkEntryPage() {
   const assessment = assessmentQuery.data;
 
   // FR-24: a recalculation lists every override it affects and asks what to do
-  // with them. Only fetched once there is a previous run to have overridden.
-  const previousResults = useQuery({
-    queryKey: ["result-rows", activeAssessmentId],
-    queryFn: () => getResultRows(activeAssessmentId),
-    enabled: Boolean(assessmentQuery.data?.calculatedAt),
+  // with them. Read from the overrides themselves, not the results: after a
+  // re-open or a changed base mark the results are no longer served, but the
+  // overrides are still there and the server still asks about them.
+  const overridesQuery = useQuery({
+    queryKey: ["overrides", activeAssessmentId],
+    queryFn: () => getOverrides(activeAssessmentId),
   });
-  const overridden = (previousResults.data ?? []).filter((row) => row.result.override);
+  const overridden = overridesQuery.data ?? [];
   const maxMark = assessment?.maxMark ?? 100;
   const groups = (groupsQuery.data ?? []).filter((g) => assessment?.groupIds.includes(g.id));
 
@@ -137,9 +139,37 @@ function MarkEntryPage() {
       return;
     }
 
+    // Leaving a box without changing it saves nothing: there is nothing to
+    // write, and every write is a permanent audit entry.
+    const next = raw.trim() ? Number(raw) : null;
+    const stored = marksQuery.data?.find((mark) => mark.groupId === groupId)?.baseMark ?? null;
+    if (next === stored) return;
+
     setStates((current) => ({ ...current, [groupId]: "saving" }));
-    await setGroupBaseMark(activeAssessmentId, groupId, raw.trim() ? Number(raw) : null);
-    await queryClient.invalidateQueries({ queryKey: ["group-marks", activeAssessmentId] });
+    try {
+      const { invalidatedCalculation } = await setGroupBaseMark(activeAssessmentId, groupId, next);
+      if (invalidatedCalculation) {
+        // FR-13: the results no longer match the marks on record.
+        await queryClient.invalidateQueries();
+        toast.warning(
+          "The marks calculated earlier are now out of date. Calculate again before you look at results or export.",
+        );
+      } else {
+        await queryClient.invalidateQueries({ queryKey: ["group-marks", activeAssessmentId] });
+      }
+    } catch (error) {
+      // Refused or unreachable: say so on the row rather than leaving it at
+      // "Saving…" with a value on screen that was never stored.
+      setErrors((current) => ({
+        ...current,
+        [groupId]:
+          (error instanceof ApiError && error.field("baseMark")) ||
+          (error instanceof Error && error.message) ||
+          "That mark wasn't saved. Please try again.",
+      }));
+      setStates((current) => ({ ...current, [groupId]: "error" }));
+      return;
+    }
     setStates((current) => ({ ...current, [groupId]: "saved" }));
     setTimeout(() => setStates((current) => ({ ...current, [groupId]: "idle" })), 2000);
   };
@@ -235,7 +265,11 @@ function MarkEntryPage() {
           <TableBody>
             {groups.map((group) => {
               const raw = values[group.id] ?? "";
-              const error = errors[group.id];
+              // Also checked against the stored value itself, so a mark saved
+              // before a rule applied - two decimals, or above a maximum that
+              // was lowered since - says what is wrong with it, rather than
+              // showing "Entered" while the counts above call it missing.
+              const error = errors[group.id] || validate(raw);
               const state = states[group.id] ?? "idle";
               const inputId = `base-mark-${group.id}`;
               const errorId = `${inputId}-error`;
@@ -391,10 +425,10 @@ function MarkEntryPage() {
                 : `${overridden.length} students have overrides`}
             </legend>
             <ul className="space-y-1 text-muted-foreground">
-              {overridden.map((row) => (
-                <li key={row.result.studentId}>
-                  {row.student.name} {row.student.surname}: overridden to{" "}
-                  {formatMark(row.result.override!.mark)} - {row.result.override!.reason}
+              {overridden.map((override) => (
+                <li key={override.studentId}>
+                  {override.name} {override.surname}: overridden to {formatMark(override.mark)} -{" "}
+                  {override.reason}
                 </li>
               ))}
             </ul>

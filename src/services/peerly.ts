@@ -345,10 +345,12 @@ export const createStaffAccount = async (input: Omit<User, "id" | "createdAt" | 
  * null is one the lecturer has not entered yet.
  */
 export const setGroupBaseMark = (assessmentId: string, groupId: string, baseMark: number | null) =>
-  request<{ ok: true }>(`/api/assessments/${assessmentId}/marks/${groupId}`, {
-    method: "PUT",
-    body: { baseMark },
-  });
+  // invalidatedCalculation: the change made the calculated marks out of date,
+  // and they have to be calculated again before results or an export (FR-13).
+  request<{ ok: true; invalidatedCalculation: boolean }>(
+    `/api/assessments/${assessmentId}/marks/${groupId}`,
+    { method: "PUT", body: { baseMark } },
+  );
 
 /**
  * Activates, closes or re-opens an assessment (FR-13).
@@ -389,6 +391,39 @@ export const overrideMark = async (
 ): Promise<void> => {
   await post(`/api/assessments/${assessmentId}/override`, { studentId, mark, reason });
 };
+
+/**
+ * Withdraws one student's override so their calculated mark stands again
+ * (FR-24). The reason is required and kept in the audit log.
+ */
+export const removeOverride = async (
+  assessmentId: string,
+  studentId: string,
+  reason: string,
+): Promise<void> => {
+  await request(`/api/assessments/${assessmentId}/override/${studentId}`, {
+    method: "DELETE",
+    body: { reason },
+  });
+};
+
+export interface OverrideSummary {
+  studentId: string;
+  name: string;
+  surname: string;
+  mark: number;
+  reason: string;
+}
+
+/**
+ * Every override on an assessment, whether or not its results are current -
+ * the ones a recalculation will ask to keep or withdraw (FR-24).
+ */
+export const getOverrides = async (assessmentId: string): Promise<OverrideSummary[]> =>
+  unset(assessmentId)
+    ? []
+    : (await get<{ overrides: OverrideSummary[] }>(`/api/assessments/${assessmentId}/overrides`))
+        .overrides;
 
 /**
  * Runs the Felder calculation (FR-22).
@@ -722,7 +757,9 @@ export const getResultRows = async (assessmentId: string): Promise<ResultRow[]> 
     result: {
       studentId: row.studentId,
       assessmentId,
-      meanReceived: row.meanReceived ?? 0,
+      // Null where nobody rated them, which the screen shows as a dash: a mean
+      // of 0.0 would read as the lowest rating somebody gave.
+      meanReceived: row.meanReceived,
       adjustmentFactor: row.adjustmentFactor,
       finalMark: row.finalMark ?? 0,
       flags: row.flags,
@@ -885,9 +922,18 @@ export const markResultsExported = async (assessmentId: string, _lecturer: User)
  * letting an assessment be deleted without asking twice.
  */
 export const downloadResults = async (assessmentId: string): Promise<string> => {
-  const response = await fetch(`/api/assessments/${assessmentId}/export`, {
-    credentials: "include",
-  });
+  let response: Response;
+  try {
+    response = await fetch(`/api/assessments/${assessmentId}/export`, {
+      credentials: "include",
+    });
+  } catch {
+    // Offline or the server is down: the same plain sentence as every other call.
+    throw new ApiError(0, {
+      code: "network_error",
+      message: "We couldn't reach Peerly. Check your connection and try again.",
+    });
+  }
 
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as { error?: ApiErrorBody } | null;

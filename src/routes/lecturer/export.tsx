@@ -11,7 +11,7 @@ import { PanelHeader } from "@/components/shared/PanelHeader";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDateTimeLong } from "@/lib/format";
+import { exportFileName, formatDateTimeLong } from "@/lib/format";
 import { useLecturerClasses } from "@/hooks/use-lecturer-context";
 import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -41,6 +41,8 @@ function ExportPage() {
   });
 
   const [busy, setBusy] = useState(false);
+  /** The name the last download was actually saved under, from the server. */
+  const [downloaded, setDownloaded] = useState<string | null>(null);
 
   const assessment = assessmentQuery.data;
   const rows = rowsQuery.data ?? [];
@@ -56,14 +58,17 @@ function ExportPage() {
     );
   }
 
-  if (!assessment || rows.length === 0) {
+  // The server exports only a current calculation, so the screen asks the same
+  // question: after a re-open, a changed base mark or a changed maximum there
+  // are no results to export until the marks are calculated again.
+  if (!assessment || !assessment.calculatedAt || rows.length === 0) {
     return (
       <>
         <PageHeader title="Export results" />
         <EmptyState
           icon={FileSpreadsheet}
           title="Nothing to export yet"
-          description="Calculate marks for this assessment first - the export always reflects the latest calculation run."
+          description="Calculate marks for this assessment first - the export always reflects the latest calculation run. If you re-opened the assessment or changed a group mark or the maximum since calculating, calculate again."
           action={
             <Button asChild>
               <Link to="/lecturer/marks">Go to marks & calculation</Link>
@@ -74,8 +79,12 @@ function ExportPage() {
     );
   }
 
-  const fileName = `peerly_${klass?.moduleCode ?? "class"}_export.xlsx`;
   const generatedAt = new Date().toISOString();
+  // The same name the server gives the file, so the lecturer can find it in
+  // their downloads; replaced by the name it was actually saved under.
+  const fileName =
+    downloaded ??
+    exportFileName(klass?.moduleCode ?? "class", assessment.name, new Date(generatedAt));
   const overridden = rows.filter((row) => row.result.override).length;
   const flagged = rows.filter((row) => row.result.flags.length > 0).length;
 
@@ -101,6 +110,11 @@ function ExportPage() {
       label: "Calculation run id",
       value: assessment.calculationRunId ?? "not calculated yet",
       className: "font-mono text-xs break-all",
+    },
+    {
+      label: "Calculated at",
+      value: formatDateTimeLong(assessment.calculatedAt),
+      className: "tabular-nums",
     },
     { label: "Overrides included", value: overridden, className: "tabular-nums" },
     { label: "Flagged students", value: flagged, className: "tabular-nums" },
@@ -182,12 +196,23 @@ function ExportPage() {
           className="h-10 shrink-0 px-4"
           onClick={async () => {
             setBusy(true);
-            await new Promise((resolve) => setTimeout(resolve, 1200));
-            // Downloading records the export server-side, so there is no
-            // separate call to keep in step with it.
-            await downloadResults(assessment.id);
-            setBusy(false);
-            toast.success(`${fileName} downloaded`);
+            try {
+              // Downloading records the export server-side, so there is no
+              // separate call to keep in step with it.
+              const saved = await downloadResults(assessment.id);
+              setDownloaded(saved);
+              toast.success(`${saved} downloaded`);
+            } catch (error) {
+              // Refused (the marks need calculating again), signed out or
+              // offline: say so, and give the button back.
+              toast.error(
+                error instanceof Error && error.message
+                  ? error.message
+                  : "We couldn't build the export. Please try again.",
+              );
+            } finally {
+              setBusy(false);
+            }
           }}
         >
           <Download aria-hidden="true" />

@@ -28,7 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDateTimeLong, formatDeadline } from "@/lib/format";
+import { formatDateTime, formatDateTimeLong, formatDeadline } from "@/lib/format";
 import { useLecturerClasses } from "@/hooks/use-lecturer-context";
 import { useSession } from "@/lib/session";
 
@@ -245,7 +245,7 @@ function AssessmentDetailPage() {
           value={calculated ? "Yes" : "No"}
           hint={
             calculated
-              ? `Run ${assessment.calculationRunId}`
+              ? `Calculated ${formatDateTime(assessment.calculatedAt!)}`
               : "Enter every group's base mark first"
           }
           tone={calculated ? "success" : "default"}

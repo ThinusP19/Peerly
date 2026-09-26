@@ -110,7 +110,8 @@ export type ResultFlag =
   | "unmatched"
   | "not-peer-assessed"
   | "zero-base-mark"
-  | "zero-group-mean";
+  | "zero-group-mean"
+  | "capped-at-maximum";
 
 export interface MarkOverride {
   mark: number;
@@ -122,7 +123,8 @@ export interface MarkOverride {
 export interface CalculatedResult {
   studentId: string;
   assessmentId: string;
-  meanReceived: number;
+  /** Null where nobody rated the student - not the same as a mean of zero. */
+  meanReceived: number | null;
   adjustmentFactor: number;
   finalMark: number;
   flags: ResultFlag[];

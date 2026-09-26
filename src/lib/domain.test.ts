@@ -5,9 +5,11 @@ import {
   deviationFrom,
   enrolmentForUser,
   groupForStudent,
+  resultFlagMeta,
   studentAssessmentState,
   submissionProgress,
 } from "./domain";
+import { FLAG_LABELS } from "../../server/src/lib/export-format";
 import type {
   Assessment,
   Enrolment,
@@ -293,5 +295,23 @@ describe("groupForStudent (BR-10)", () => {
 
   it("returns undefined for an unallocated student (FR-23)", () => {
     expect(groupForStudent(groups, "s99")).toBeUndefined();
+  });
+});
+
+/**
+ * The workbook's Flags column is read by lecturers and moderators, so it says
+ * what the results table says. The server keeps its own copy of the labels
+ * (it cannot import the frontend); this holds the two together.
+ */
+describe("result flag labels", () => {
+  it("are the same on screen and in the export, for every flag", () => {
+    expect(Object.keys(FLAG_LABELS).sort()).toEqual(Object.keys(resultFlagMeta).sort());
+    for (const [flag, meta] of Object.entries(resultFlagMeta)) {
+      expect(FLAG_LABELS[flag as keyof typeof FLAG_LABELS]).toBe(meta.label);
+    }
+  });
+
+  it("explain a mark capped at the maximum (BR-07)", () => {
+    expect(resultFlagMeta["capped-at-maximum"].label).toBe("Capped at the maximum");
   });
 });

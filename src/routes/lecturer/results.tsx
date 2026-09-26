@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { BusyButton } from "@/components/shared/BusyButton";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { FlagList } from "@/components/shared/FlagBadge";
@@ -38,7 +39,7 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { formatDateTimeLong, formatFactor, formatMark } from "@/lib/format";
+import { formatDateTimeLong, formatFactor, formatMark, hasAtMostOneDecimal } from "@/lib/format";
 import { useLecturerClasses } from "@/hooks/use-lecturer-context";
 import { useSession } from "@/lib/session";
 
@@ -47,6 +48,7 @@ import {
   getRatingOptions,
   getResultRows,
   overrideMark,
+  removeOverride,
   type ResultRow,
 } from "@/services/peerly";
 
@@ -76,6 +78,8 @@ function ResultsPage() {
   const [groupFilter, setGroupFilter] = useState<string>("all");
   const [drillDown, setDrillDown] = useState<ResultRow | null>(null);
   const [overriding, setOverriding] = useState<ResultRow | null>(null);
+  const [removing, setRemoving] = useState<ResultRow | null>(null);
+  const [removeReason, setRemoveReason] = useState("");
 
   const all = useMemo(() => rowsQuery.data ?? [], [rowsQuery.data]);
   const assessment = assessmentQuery.data;
@@ -132,7 +136,8 @@ function ResultsPage() {
     {
       key: "mean",
       header: "Mean received",
-      sortValue: (row) => row.result.meanReceived,
+      // Nobody rated them: sorts below every real mean, and shows as a dash.
+      sortValue: (row) => row.result.meanReceived ?? -1,
       align: "right",
       className: "tabular-nums",
       cell: (row) => formatMark(row.result.meanReceived),
@@ -214,14 +219,16 @@ function ResultsPage() {
     );
   }
 
+  // The server serves results only while the last calculation is current: it
+  // sends none after a re-open, a changed base mark or a changed maximum.
   if (!assessment || all.length === 0) {
     return (
       <>
         <PageHeader title="Results" />
         <EmptyState
           icon={ScrollText}
-          title="No results yet"
-          description="Enter a base mark for every group and calculate marks - the individual results will appear here."
+          title="No current results"
+          description="Enter a base mark for every group and calculate marks - the individual results will appear here. If you re-opened the assessment or changed a group mark or the maximum since the last calculation, calculate again: the earlier results no longer count."
           action={
             <Button asChild>
               <Link to="/lecturer/marks">Go to marks & calculation</Link>
@@ -458,8 +465,21 @@ function ResultsPage() {
                   }}
                 >
                   <PencilLine aria-hidden="true" />
-                  Override mark
+                  {drillDown.result.override ? "Change override" : "Override mark"}
                 </Button>
+                {drillDown.result.override ? (
+                  <Button
+                    variant="outline"
+                    className="h-10 w-full"
+                    onClick={() => {
+                      setRemoveReason("");
+                      setRemoving(drillDown);
+                      setDrillDown(null);
+                    }}
+                  >
+                    Remove override
+                  </Button>
+                ) : null}
               </div>
             </>
           ) : null}
@@ -474,6 +494,47 @@ function ResultsPage() {
         onClose={() => setOverriding(null)}
         onSaved={() => queryClient.invalidateQueries()}
       />
+
+      {/* FR-24: undo one override without withdrawing every other one. */}
+      <ConfirmDialog
+        open={Boolean(removing)}
+        onOpenChange={(open) => !open && setRemoving(null)}
+        title="Remove this override?"
+        objectName={
+          removing
+            ? `${removing.student.name} ${removing.student.surname} · overridden to ${formatMark(removing.result.override?.mark)}`
+            : ""
+        }
+        description={
+          <p>
+            The calculated mark of {formatMark(removing?.result.finalMark)} stands again for this
+            student. Other overrides are not affected. The removal and your reason are kept in the
+            audit log.
+          </p>
+        }
+        confirmLabel="Remove override"
+        confirmDisabled={!removeReason.trim()}
+        onConfirm={async () => {
+          if (!removing) return;
+          await removeOverride(activeAssessmentId, removing.student.id, removeReason.trim());
+          await queryClient.invalidateQueries();
+          toast.success(
+            `${removing.student.name} ${removing.student.surname}'s override has been removed.`,
+          );
+        }}
+      >
+        <FormField label="Reason for removing it" required>
+          {(props) => (
+            <Textarea
+              {...props}
+              rows={3}
+              value={removeReason}
+              onChange={(event) => setRemoveReason(event.target.value)}
+              placeholder="e.g. Overrode the wrong student."
+            />
+          )}
+        </FormField>
+      </ConfirmDialog>
     </>
   );
 }
@@ -510,6 +571,10 @@ function OverrideDialog({
     setReason(row.result.override?.reason ?? "");
     setErrors({});
   }
+  // Closed, whether saved or cancelled: forget whom it was loaded for, so
+  // opening it again starts from the stored override rather than from whatever
+  // was typed and abandoned last time.
+  if (!row && loadedFor !== null) setLoadedFor(null);
 
   const calculated = row?.result.finalMark ?? 0;
   const reasonGiven = reason.trim().length > 0;
@@ -525,6 +590,9 @@ function OverrideDialog({
       next.mark = "Enter the mark as a number, for example 52 or 52.5.";
     } else if (value < 0 || value > maxMark) {
       next.mark = `A final mark has to be between 0 and ${maxMark}.`;
+    } else if (!hasAtMostOneDecimal(value)) {
+      // IS-06, as the server and the marks screen require.
+      next.mark = "Use whole numbers or one decimal place, e.g. 52.5.";
     }
     if (!reasonGiven) {
       next.reason = "Explain why you're changing this mark - it's kept in the audit log.";

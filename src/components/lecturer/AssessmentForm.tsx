@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 import type { Assessment } from "@/mocks/types";
@@ -111,8 +112,22 @@ export function AssessmentForm({
         closesAt: fromLocalInput(closesAt),
         maxMark: max,
       });
-    } catch {
-      toast.error("We couldn't save this assessment. Please try again.");
+    } catch (error) {
+      // A rule the server holds - such as a maximum below a mark already
+      // entered (BR-07) - is said beside the field it is about.
+      const fields = error instanceof ApiError ? error.fields : {};
+      const known = (["name", "groupIds", "opensAt", "closesAt", "maxMark"] as const).filter(
+        (field) => fields[field],
+      );
+      if (known.length) {
+        setErrors(Object.fromEntries(known.map((field) => [field, fields[field]])));
+      } else {
+        toast.error(
+          error instanceof ApiError && error.message
+            ? error.message
+            : "We couldn't save this assessment. Please try again.",
+        );
+      }
     } finally {
       setBusy(false);
     }
