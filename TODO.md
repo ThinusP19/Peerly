@@ -95,7 +95,15 @@ Still open from that deployment:
       test it from the server
 - [ ] **Create the first administrator** (deployment guide section 8). Needs a
       name and an e-mail on a `STAFF_EMAIL_DOMAINS` domain - add the domain
-      first if it is not `nwu.ac.za`
+      first if it is not `nwu.ac.za`. The deploying party holds this account
+      until handover
+- [ ] **Hand administration to NWU at handover** (AS-06). In the Admin Portal:
+      the deploying party's administrator creates NWU's administrator
+      (Accounts, role Administrator); that person activates from the e-mailed
+      link; then **they** deactivate the deploying party's account. The system
+      refuses to deactivate the last administrator, so the order matters.
+      Deactivation keeps the record and its audit history (BR-14). Remove any
+      extra domain added to `STAFF_EMAIL_DOMAINS` for the setup
 - [ ] **Add an e-mail to the Let's Encrypt account** so expiry warnings reach
       someone: `certbot update_account -m <address>`. Renewal itself is automatic
 - [ ] **Add `Strict-Transport-Security` to the nginx site.** The API sends it;
