@@ -84,8 +84,11 @@ apps. How it is set up there, so nobody has to rediscover it:
 | E-mail | Mailgun HTTP API (`MAIL_TRANSPORT=mailgun`), EU region, domain `mg.peerlylearning.co.za`. DNS records are in |
 | Web build | built on the server with `nice -n 19`. It peaks near 900 MB and the server is short of memory, so build outside busy hours |
 
-To update: `cd /var/www/peerly && git pull && npm ci && nice -n 19 npm run build && (cd server && npm ci --omit=dev) && pm2 reload ecosystem.config.cjs`.
-Run migrations first if the release has any (section 3 of the deployment guide).
+To update: `bash /var/www/peerly/deploy/deploy.sh`. It pulls, installs, migrates,
+builds, restarts and then checks that the API is healthy and every page asset
+loads. Never run `npm run build` on its own there: the running web process keeps
+serving pages that point at the files the build just replaced, and the site goes
+blank until it is restarted (this happened on 26 September).
 
 Still open from that deployment:
 
@@ -93,10 +96,10 @@ Still open from that deployment:
       registered on the live site and received the verification code. The key
       is refused from other machines because of the Mailgun IP allowlist, so
       test it from the server
-- [ ] **Create the first administrator** (deployment guide section 8). Needs a
-      name and an e-mail on a `STAFF_EMAIL_DOMAINS` domain - add the domain
-      first if it is not `nwu.ac.za`. The deploying party holds this account
-      until handover
+- [x] **Create the first administrator** (deployment guide section 8). Done 26
+      September: `testadmin@nwu.ac.za`, held by the deploying party until
+      handover. Its password is a placeholder - change it to a strong one in
+      Admin Portal, Settings before real users arrive
 - [ ] **Hand administration to NWU at handover** (AS-06). In the Admin Portal:
       the deploying party's administrator creates NWU's administrator
       (Accounts, role Administrator); that person activates from the e-mailed
@@ -106,8 +109,9 @@ Still open from that deployment:
       extra domain added to `STAFF_EMAIL_DOMAINS` for the setup
 - [ ] **Add an e-mail to the Let's Encrypt account** so expiry warnings reach
       someone: `certbot update_account -m <address>`. Renewal itself is automatic
-- [ ] **Add `Strict-Transport-Security` to the nginx site.** The API sends it;
-      the web app does not
+- [ ] **Security headers on the web pages.** The API sends them; the web app does
+      not. Install `deploy/nginx-peerly-headers.conf` as described at the top of
+      that file
 
 - [ ] Linux host: 2 vCPU, 4 GB RAM, 20 GB disk *(HI-03)*
 - [ ] DNS name and TLS certificate for it
