@@ -5,6 +5,7 @@ import type { SessionUser } from "../domain/types.ts";
 import { getAssessment, type AssessmentRecord } from "./assessments.ts";
 import { record } from "./audit.ts";
 import { getClass, type Asker } from "./classes.ts";
+import { inSouthAfrica } from "../lib/mail.ts";
 
 /**
  * Setting up and running an assessment (FR-12, FR-13, FR-21).
@@ -247,7 +248,7 @@ export async function updateAssessment(
         "closesAt",
         before.closesAt,
         closesAt,
-        `Closing time changed from ${before.closesAt} to ${closesAt}.`,
+        `Closing time changed from ${inSouthAfrica(before.closesAt)} to ${inSouthAfrica(closesAt)}.`,
       );
     }
 
@@ -391,7 +392,11 @@ export async function changeAssessmentStatus(
       invalidatedCalculation
         ? "Re-opened after calculation; the previous results are no longer valid."
         : `Status changed from ${before.status} to ${rule.to}.`,
-      ...(closesAtMoved ? [`Closing time changed from ${before.closesAt} to ${closesAt}.`] : []),
+      ...(closesAtMoved
+        ? [
+            `Closing time changed from ${inSouthAfrica(before.closesAt)} to ${inSouthAfrica(closesAt)}.`,
+          ]
+        : []),
     ];
 
     await record(

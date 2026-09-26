@@ -275,7 +275,7 @@ export async function runCalculation(
                 ? " - the student has no mark in the new run."
                 : `; the calculated mark of ${recalculated} now stands.`)
             : `Override of ${existing.override_mark} kept on recalculation; ` +
-              `calculated mark ${existing.calculated_mark} -> ${recalculated}.`,
+              `calculated mark ${Number(existing.calculated_mark)} -> ${recalculated}.`,
           classId: assessment.classId,
           assessmentId,
           before: {
@@ -508,7 +508,7 @@ export async function overrideMark(
         actor: { id: user.id, name: user.name, surname: user.surname, role: user.role },
         eventType: "mark.overridden",
         objectDescription: `${klass.moduleCode} · ${calculated.name} ${calculated.surname}`,
-        detail: `Mark overridden from ${calculated.final_mark} to ${mark}. Reason: ${reason.trim()}`,
+        detail: `Mark overridden from ${Number(calculated.final_mark)} to ${mark}. Reason: ${reason.trim()}`,
         classId: assessment.classId,
         assessmentId,
         before: {

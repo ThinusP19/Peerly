@@ -3,6 +3,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { closePool, query } from "../db/pool.ts";
 import type { SessionUser } from "../domain/types.ts";
 import { createUser, resetDatabase } from "../test/helpers.ts";
+import { inSouthAfrica } from "../lib/mail.ts";
 import { getAuditEntries } from "./audit.ts";
 import {
   changeAssessmentStatus,
@@ -258,6 +259,9 @@ describe("changeAssessmentStatus (FR-13)", () => {
 
       const [entry] = await getAuditEntries({ eventType: "assessment.opened" });
       expect(entry!.detail).toContain("Closing time changed");
+      // Read by people: South African time, not a raw ISO timestamp.
+      expect(entry!.detail).toContain("(South African time)");
+      expect(entry!.detail).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
     });
 
     it("refuses a new closing time that is itself in the past", async () => {
@@ -357,8 +361,9 @@ describe("updateAssessment", () => {
     expect(updated.closesAt).toBe(later);
 
     const [entry] = await getAuditEntries({ eventType: "assessment.updated" });
-    expect(entry!.detail).toContain(times.closesAt);
-    expect(entry!.detail).toContain(later);
+    // Both times, as a person reads them.
+    expect(entry!.detail).toContain(inSouthAfrica(times.closesAt));
+    expect(entry!.detail).toContain(inSouthAfrica(later));
   });
 
   it("refuses to change the groups once it has opened", async () => {

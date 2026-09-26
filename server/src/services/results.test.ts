@@ -173,3 +173,14 @@ describe("each run records what it used (OR-09)", () => {
     expect(rows[0]!.config.scale.at(-1)).toEqual({ label: "No contribution", value: 59 });
   });
 });
+
+describe("the audit trail reads like a person wrote it", () => {
+  it("writes marks as they are shown, not as the column stores them", async () => {
+    const scene = await withOverride();
+
+    const [entry] = await getAuditEntries({ eventType: "mark.overridden" });
+    expect(entry!.detail).toMatch(/Mark overridden from \d+(\.\d)? to 85\./);
+    expect(entry!.detail, "no stored-column padding such as 77.10").not.toMatch(/\.\d0\b/);
+    expect(scene.assessmentId).toBeDefined();
+  });
+});
