@@ -13,3 +13,10 @@ const audiences: readonly SignInAudience[] = ["student", "lecturer", "admin"];
 export function parseSignInAudience(value: unknown): SignInAudience | undefined {
   return audiences.find((audience) => audience === value);
 }
+
+/** The sign-in form an account of this role belongs on. */
+export function signInAudienceFor(role: string | undefined): SignInAudience {
+  if (role === "admin") return "admin";
+  if (role === "lecturer") return "lecturer";
+  return "student";
+}

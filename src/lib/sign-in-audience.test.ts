@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseSignInAudience } from "./sign-in-audience";
+import { parseSignInAudience, signInAudienceFor } from "./sign-in-audience";
 
 describe("parseSignInAudience", () => {
   it("accepts each sign-in form, including the administrators' own", () => {
@@ -14,5 +14,17 @@ describe("parseSignInAudience", () => {
     expect(parseSignInAudience("superuser")).toBeUndefined();
     expect(parseSignInAudience(undefined)).toBeUndefined();
     expect(parseSignInAudience(["admin"])).toBeUndefined();
+  });
+});
+
+describe("signInAudienceFor", () => {
+  it("sends each role to its own sign-in form after activation", () => {
+    expect(signInAudienceFor("admin")).toBe("admin");
+    expect(signInAudienceFor("lecturer")).toBe("lecturer");
+    expect(signInAudienceFor("student")).toBe("student");
+  });
+
+  it("falls back to the student form when the role is unknown", () => {
+    expect(signInAudienceFor(undefined)).toBe("student");
   });
 });

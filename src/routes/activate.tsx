@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { passwordChecks } from "@/lib/password";
 import { ApiError } from "@/lib/api";
 import { useSession } from "@/lib/session";
+import { signInAudienceFor } from "@/lib/sign-in-audience";
 import { activate, getActivation, type ActivationAccount } from "@/services/auth";
 
 export const Route = createFileRoute("/activate")({
@@ -117,20 +118,10 @@ function ActivatePage() {
             </p>
           </div>
           <Button asChild className="h-11 w-full rounded-lg text-base font-semibold">
-            <Link to="/login" search={{ as: staff ? "lecturer" : "student" }}>
+            <Link to="/login" search={{ as: signInAudienceFor(account?.role) }}>
               Go to sign in
             </Link>
           </Button>
-          <p className="text-center text-xs text-muted-foreground">
-            Want to see the expired state?{" "}
-            <Link
-              to="/activate"
-              search={{ token: "expired" }}
-              className="font-semibold text-primary hover:underline"
-            >
-              Open an expired link
-            </Link>
-          </p>
         </div>
       </AuthShell>
     );

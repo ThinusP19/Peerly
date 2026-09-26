@@ -77,18 +77,11 @@ function ForgotPasswordPage() {
             </p>
           </div>
 
-          <div className="flex flex-col gap-3">
-            <Button asChild className="h-11 w-full rounded-lg text-base font-semibold">
-              <Link to="/reset-password" search={{ token: "demo-token", as }}>
-                Open the reset link
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="h-11 w-full rounded-lg">
-              <Link to="/login" search={{ as }}>
-                Back to sign in
-              </Link>
-            </Button>
-          </div>
+          <Button asChild variant="outline" className="h-11 w-full rounded-lg">
+            <Link to="/login" search={{ as }}>
+              Back to sign in
+            </Link>
+          </Button>
         </div>
       </AuthShell>
     );
