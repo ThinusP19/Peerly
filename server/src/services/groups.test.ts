@@ -198,6 +198,60 @@ describe("confirmGroups (FR-11, BR-10)", () => {
     await expect(confirmGroups(classId, [], user)).rejects.toThrow(/no groups to confirm/);
   });
 
+  // The generate screen refuses these too, but the API can be called without it.
+  it("refuses a group of one, in which nobody can rate anybody", async () => {
+    const { user, classId, studentIds } = await scenario(3);
+
+    await expect(
+      confirmGroups(
+        classId,
+        [
+          { groupNumber: 1, memberStudentIds: [studentIds[0]!, studentIds[1]!] },
+          { groupNumber: 2, memberStudentIds: [studentIds[2]!] },
+        ],
+        user,
+      ),
+    ).rejects.toThrow(/at least 2 members/);
+  });
+
+  it("refuses an empty group", async () => {
+    const { user, classId, studentIds } = await scenario(2);
+
+    await expect(
+      confirmGroups(
+        classId,
+        [
+          { groupNumber: 1, memberStudentIds: [studentIds[0]!, studentIds[1]!] },
+          { groupNumber: 2, memberStudentIds: [] },
+        ],
+        user,
+      ),
+    ).rejects.toThrow(/at least 2 members/);
+  });
+
+  it("refuses to leave a matched student out of every group (BR-10)", async () => {
+    const { user, classId, studentIds } = await scenario(5);
+
+    await expect(
+      confirmGroups(classId, [{ groupNumber: 1, memberStudentIds: studentIds.slice(0, 4) }], user),
+    ).rejects.toThrow(/1 matched student isn't in any group/);
+  });
+
+  it("refuses two groups with the same number", async () => {
+    const { user, classId, studentIds } = await scenario(4);
+
+    await expect(
+      confirmGroups(
+        classId,
+        [
+          { groupNumber: 1, memberStudentIds: studentIds.slice(0, 2) },
+          { groupNumber: 1, memberStudentIds: studentIds.slice(2, 4) },
+        ],
+        user,
+      ),
+    ).rejects.toThrow(/numbered once/);
+  });
+
   it("records the confirmation with the sizes it produced (FR-27)", async () => {
     const { user, classId } = await scenario(8);
     await confirmGroups(classId, (await proposeGroups(classId, "count", 2, user)).groups, user);

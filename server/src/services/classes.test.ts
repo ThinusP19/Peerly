@@ -3,7 +3,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { closePool, query } from "../db/pool.ts";
 import type { Role } from "../domain/types.ts";
 import { createUser, resetDatabase } from "../test/helpers.ts";
-import { getClass, getClassSummaries, getEnrolments, getGroups } from "./classes.ts";
+import { createClass, getClass, getClassSummaries, getEnrolments, getGroups } from "./classes.ts";
 
 /**
  * SR-07 above all: a class the caller does not own is refused exactly as one
@@ -248,5 +248,64 @@ describe("getGroups", () => {
     const id = await aClass(owner.id);
 
     await expect(getGroups(id, asker(other.id))).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe("createClass (FR-08)", () => {
+  // The New class dialog enforces these, but a request can skip the dialog.
+  async function lecturer() {
+    const account = await createUser({ role: "lecturer" });
+    return {
+      id: account.id,
+      role: "lecturer" as const,
+      name: "Anneke",
+      surname: "vd Merwe",
+      email: account.email,
+      studentNumber: null,
+      status: "active" as const,
+      createdAt: new Date().toISOString(),
+    };
+  }
+  const valid = {
+    moduleCode: "cmpg315",
+    name: "Software Engineering",
+    academicPeriod: "2026 Semester 2",
+  };
+
+  it("creates a class, normalising the module code and period", async () => {
+    const klass = await createClass(
+      { ...valid, academicPeriod: " 2026   Semester 2 " },
+      await lecturer(),
+    );
+    expect(klass).toMatchObject({ moduleCode: "CMPG315", academicPeriod: "2026 Semester 2" });
+  });
+
+  it("refuses a module code that is not 4 letters and 3 digits", async () => {
+    await expect(
+      createClass({ ...valid, moduleCode: "CMPG3155" }, await lecturer()),
+    ).rejects.toMatchObject({
+      status: 400,
+      fields: { moduleCode: expect.stringContaining("4 letters and 3 digits") },
+    });
+  });
+
+  it("refuses a period that is not a semester", async () => {
+    await expect(
+      createClass({ ...valid, academicPeriod: "whenever" }, await lecturer()),
+    ).rejects.toMatchObject({ status: 400, fields: { academicPeriod: expect.any(String) } });
+  });
+
+  it("refuses a name longer than a table row can show", async () => {
+    await expect(
+      createClass({ ...valid, name: "x".repeat(121) }, await lecturer()),
+    ).rejects.toMatchObject({ status: 400, fields: { name: expect.stringContaining("120") } });
+  });
+
+  it("treats extra spaces in the period as the same period", async () => {
+    const user = await lecturer();
+    await createClass(valid, user);
+    await expect(
+      createClass({ ...valid, academicPeriod: "2026  Semester 2" }, user),
+    ).rejects.toMatchObject({ status: 409 });
   });
 });

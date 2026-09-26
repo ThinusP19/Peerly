@@ -157,6 +157,9 @@ export function CreateClassDialog({
                   <Input
                     {...props}
                     value={form.name}
+                    // The server's limit (MAX_CLASS_NAME): long enough for any
+                    // real module name, short enough to fit a table row.
+                    maxLength={120}
                     onChange={(event) => set("name")(event.target.value)}
                   />
                 )}

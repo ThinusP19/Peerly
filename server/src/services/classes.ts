@@ -1,7 +1,7 @@
 import { query, withTransaction } from "../db/pool.ts";
 import type { SessionUser } from "../domain/types.ts";
 import type { Role } from "../domain/types.ts";
-import { conflict, notFoundOrForbidden } from "../middleware/errors.ts";
+import { badRequest, conflict, notFoundOrForbidden } from "../middleware/errors.ts";
 import { record } from "./audit.ts";
 
 /**
@@ -269,12 +269,33 @@ export interface CreateClassInput {
  * The owner is taken from the session, never from the request. A lecturer
  * cannot create a class on somebody else's behalf, so there is no field for it.
  */
+/** Long enough for any real module name, short enough to fit a table row. */
+export const MAX_CLASS_NAME = 120;
+
 export async function createClass(
   input: CreateClassInput,
   user: SessionUser,
 ): Promise<ClassRecord> {
   const moduleCode = input.moduleCode.trim().toUpperCase();
-  const academicPeriod = input.academicPeriod.trim();
+  // Collapsed, so "2026  Semester 2" cannot slip past UNIQUE (module_code,
+  // academic_period) as a period of its own.
+  const academicPeriod = input.academicPeriod.trim().replace(/\s+/g, " ");
+  const name = input.name.trim();
+
+  // The same rules as the New class dialog, which a request sent straight to
+  // the API does not go through.
+  if (!/^[A-Z]{4}\d{3}$/.test(moduleCode)) {
+    const message = "A module code is 4 letters and 3 digits, for example CMPG323.";
+    throw badRequest(message, { moduleCode: message });
+  }
+  if (!/^\d{4} Semester [12]$/.test(academicPeriod)) {
+    const message = "Choose an academic period such as 2026 Semester 2.";
+    throw badRequest(message, { academicPeriod: message });
+  }
+  if (!name || name.length > MAX_CLASS_NAME) {
+    const message = `Enter a class name of up to ${MAX_CLASS_NAME} characters.`;
+    throw badRequest(message, { name: message });
+  }
 
   return withTransaction(async (sql) => {
     let created;
@@ -283,7 +304,7 @@ export async function createClass(
         `INSERT INTO classes (module_code, name, academic_period, lecturer_id)
          VALUES ($1, $2, $3, $4)
          RETURNING id, module_code, name, lecturer_id, academic_period`,
-        [moduleCode, input.name.trim(), academicPeriod, user.id],
+        [moduleCode, name, academicPeriod, user.id],
       );
     } catch {
       // UNIQUE (module_code, academic_period). Naming the clash is more useful

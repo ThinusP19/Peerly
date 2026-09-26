@@ -198,6 +198,30 @@ export async function confirmGroups(
     }
   }
 
+  // The generate screen enforces these, but the API is reachable without it.
+  // A group of one has nobody to rate and nobody to be rated by.
+  if (groups.some((group) => group.memberStudentIds.length < 2)) {
+    throw badRequest(
+      "Every group needs at least 2 members - nobody can rate anyone in a group of one.",
+    );
+  }
+
+  const numbers = new Set(groups.map((group) => group.groupNumber));
+  if (numbers.size !== groups.length) {
+    throw badRequest(
+      "Each group number can only be used once - every group must be numbered once.",
+    );
+  }
+
+  // BR-10: every eligible student is assigned. A matched student left out would
+  // simply never be asked to evaluate, with nothing on screen to say why.
+  const missing = [...allowed].filter((studentId) => !seen.has(studentId)).length;
+  if (missing) {
+    throw badRequest(
+      `${missing} matched ${missing === 1 ? "student isn't" : "students aren't"} in any group. Every matched student on the class list needs a group.`,
+    );
+  }
+
   return withTransaction(async (sql) => {
     const { rowCount } = await sql.query("DELETE FROM groups WHERE class_id = $1", [classId]);
 

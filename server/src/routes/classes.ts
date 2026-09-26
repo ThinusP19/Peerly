@@ -105,6 +105,9 @@ const mapping = z.object({
 /** Reads the file and reports what the columns look like, before any mapping. */
 classRoutes.post("/:classId/import/inspect", receiveFile, async (req, res) => {
   const { classId: id } = classId.parse(req.params);
+  // Refused like every other route on a class the caller does not own (SR-07),
+  // before any upload is parsed on its behalf.
+  await getClass(id, currentUser(req).user);
   if (!req.file) throw badRequest("Choose a file to upload.");
 
   const sheet = await parseClassList(req.file);
@@ -171,7 +174,7 @@ classRoutes.put("/:classId/groups", async (req, res) => {
       groups: z
         .array(
           z.object({
-            groupNumber: z.number().int().positive(),
+            groupNumber: z.number().int().positive().max(999),
             memberStudentIds: z.array(z.uuid()),
           }),
         )
