@@ -25,7 +25,10 @@ export function PageHeader({
   className?: string;
 }) {
   return (
-    <Card className={cn("rounded-2xl border-0 px-5 py-5 shadow-card sm:px-6", className)}>
+    // min-w-0 and overflow-wrap:anywhere: a title is often something a lecturer
+    // typed, and one long unbroken name must wrap rather than push the whole
+    // page sideways.
+    <Card className={cn("min-w-0 rounded-2xl border-0 px-5 py-5 shadow-card sm:px-6", className)}>
       {backTo ? (
         <Link
           to={backTo}
@@ -37,9 +40,13 @@ export function PageHeader({
       ) : null}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight [overflow-wrap:anywhere] text-foreground">
+            {title}
+          </h1>
           {description ? (
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>
+            <p className="mt-1 max-w-2xl text-sm [overflow-wrap:anywhere] text-muted-foreground">
+              {description}
+            </p>
           ) : null}
         </div>
         {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}

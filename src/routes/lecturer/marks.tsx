@@ -176,9 +176,11 @@ function MarkEntryPage() {
     setTimeout(() => setStates((current) => ({ ...current, [groupId]: "idle" })), 2000);
   };
 
+  // A mark the server refused is on screen but not stored: it is not entered,
+  // and counting it would offer a calculation the server would then refuse.
   const entered = groups.filter((group) => {
     const raw = values[group.id];
-    return raw != null && raw.trim() !== "" && !validate(raw);
+    return raw != null && raw.trim() !== "" && !validate(raw) && states[group.id] !== "error";
   });
   const outstanding = groups.length - entered.length;
   /**

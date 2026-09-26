@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 
 import type { Assessment, Class } from "@/mocks/types";
 import { getAssessmentRows, getClassSummaries, type ClassSummary } from "@/services/peerly";
+import { closedAtOf } from "@/lib/assessment-form";
 import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/lecturer/")({
@@ -291,7 +292,9 @@ function AssessmentList({ rows }: { rows: Row[] }) {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <SubmissionMeter submitted={row.progress.submitted} total={row.progress.total} />
               <span className="text-sm text-muted-foreground">
-                Due {formatDate(row.assessment.closesAt)}
+                {row.assessment.status === "closed"
+                  ? `Closed ${formatDate(closedAtOf(row.assessment))}`
+                  : `Due ${formatDate(row.assessment.closesAt)}`}
               </span>
               <ViewLink assessment={row.assessment} />
             </div>
@@ -343,7 +346,10 @@ function AssessmentList({ rows }: { rows: Row[] }) {
                   <ModuleChip klass={row.klass} />
                 </td>
                 <td className="px-4 py-3.5 whitespace-nowrap text-foreground">
-                  {formatDate(row.assessment.closesAt)}
+                  {/* Closed early, the scheduled date never happened: say when it did. */}
+                  {row.assessment.status === "closed"
+                    ? `Closed ${formatDate(closedAtOf(row.assessment))}`
+                    : formatDate(row.assessment.closesAt)}
                 </td>
                 <td className="px-4 py-3.5">
                   <SubmissionMeter submitted={row.progress.submitted} total={row.progress.total} />

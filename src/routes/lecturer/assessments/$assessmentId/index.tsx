@@ -289,7 +289,9 @@ function AssessmentDetailPage() {
           hint={
             calculated
               ? `Calculated ${formatDateTime(assessment.calculatedAt!)}`
-              : "Enter every group's base mark first"
+              : assessment.status === "closed"
+                ? "Enter the group marks, then calculate on the Marks page"
+                : "Close the assessment first, then calculate on the Marks page"
           }
           tone={calculated ? "success" : "default"}
         />
@@ -430,9 +432,10 @@ function AssessmentDetailPage() {
         consequence={
           calculated ? (
             <p>
-              Marks have already been calculated for this assessment (run{" "}
-              {assessment.calculationRunId}). Re-opening invalidates those results - you'll need to
-              calculate again, and any exports you've already shared will be out of date.
+              Marks have already been calculated for this assessment
+              {assessment.calculatedAt ? ` (${formatDateTime(assessment.calculatedAt)})` : ""}.
+              Re-opening invalidates those results - you'll need to calculate again, and any exports
+              you've already shared will be out of date.
             </p>
           ) : (
             <p>Re-opening is recorded in the audit log with your name against it.</p>

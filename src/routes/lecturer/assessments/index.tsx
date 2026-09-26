@@ -15,6 +15,7 @@ import { useLecturerClasses } from "@/hooks/use-lecturer-context";
 import { useSession } from "@/lib/session";
 
 import { getAssessmentRows, type AssessmentRow } from "@/services/peerly";
+import { closedAtOf } from "@/lib/assessment-form";
 import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/lecturer/assessments/")({
@@ -53,7 +54,12 @@ function AssessmentListPage() {
       className: "whitespace-nowrap text-muted-foreground tabular-nums",
       cell: (row) => (
         <>
-          {formatDate(row.assessment.opensAt)} - {formatDate(row.assessment.closesAt)}
+          {formatDate(row.assessment.opensAt)} -{" "}
+          {formatDate(
+            row.assessment.status === "closed"
+              ? closedAtOf(row.assessment)
+              : row.assessment.closesAt,
+          )}
         </>
       ),
     },
