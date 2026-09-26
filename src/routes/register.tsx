@@ -42,6 +42,8 @@ export const Route = createFileRoute("/register")({
 const STUDENT_DOMAIN = "mynwu.ac.za";
 const CODE_LENGTH = 6;
 const RESEND_SECONDS = 30;
+/** The same cap the API applies to a name and a surname. */
+const NAME_MAX_LENGTH = 100;
 
 type Step = "details" | "account" | "verify" | "done";
 
@@ -79,7 +81,11 @@ function validateDetails(form: Form): Errors {
     errors.studentNumber = "A student number is 8 digits, for example 41200345.";
   }
   if (!form.name.trim()) errors.name = "Enter your first name.";
+  else if (form.name.trim().length > NAME_MAX_LENGTH)
+    errors.name = `Keep your first name to ${NAME_MAX_LENGTH} characters or fewer.`;
   if (!form.surname.trim()) errors.surname = "Enter your surname.";
+  else if (form.surname.trim().length > NAME_MAX_LENGTH)
+    errors.surname = `Keep your surname to ${NAME_MAX_LENGTH} characters or fewer.`;
   return errors;
 }
 
@@ -231,20 +237,23 @@ function RegisterPage() {
 
   if (step === "done") {
     return (
-      <AuthShell title="You're all set" description="Your student account is verified and active.">
+      <AuthShell
+        title="You're all set"
+        description="Your student account is verified, and you're signed in."
+      >
         <div className="space-y-5">
           <div className="flex gap-2.5 rounded-lg border border-success/30 bg-success-muted p-3.5 text-sm text-success">
             <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             <p>
-              Welcome to Peerly, {form.name.trim()}. Sign in with{" "}
+              Welcome to Peerly, {form.name.trim()}. Next time, sign in with{" "}
               <span className="font-medium">{form.email.trim()}</span> and the password you just
               chose.
             </p>
           </div>
+          {/* Verifying the code signed them in, so the way on is the dashboard -
+              not a sign-in form asking for the password they just chose. */}
           <Button asChild className="h-11 w-full rounded-lg text-base font-semibold">
-            <Link to="/login" search={{ as: "student" }}>
-              Go to student sign in
-            </Link>
+            <Link to="/student">Go to your dashboard</Link>
           </Button>
         </div>
       </AuthShell>
@@ -366,6 +375,7 @@ function RegisterPage() {
                   <Input
                     {...props}
                     autoComplete="given-name"
+                    maxLength={NAME_MAX_LENGTH}
                     value={form.name}
                     onChange={(event) => set("name")(event.target.value)}
                   />
@@ -377,6 +387,7 @@ function RegisterPage() {
                   <Input
                     {...props}
                     autoComplete="family-name"
+                    maxLength={NAME_MAX_LENGTH}
                     value={form.surname}
                     onChange={(event) => set("surname")(event.target.value)}
                   />

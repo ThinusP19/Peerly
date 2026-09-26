@@ -8,6 +8,7 @@ import { FormField } from "@/components/shared/FormField";
 import { PasswordInput } from "@/components/shared/PasswordInput";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api";
+import { resetLinkState } from "@/lib/reset-link";
 import { type SignInAudience, parseSignInAudience } from "@/lib/sign-in-audience";
 import { resetPassword } from "@/services/auth";
 
@@ -30,16 +31,26 @@ function ResetPasswordPage() {
   const [expired, setExpired] = useState(false);
   const [done, setDone] = useState(false);
 
-  if (expired || token === "expired") {
+  const linkState = resetLinkState(token, expired);
+  if (linkState !== "form") {
+    const missing = linkState === "missing";
     return (
       <AuthShell
-        title="This reset link has expired"
-        description="Reset links are valid for one hour."
+        title={missing ? "This reset link isn't complete" : "This reset link has expired"}
+        description={
+          missing
+            ? "Part of the link is missing, so it can't be used."
+            : "Reset links are valid for one hour."
+        }
       >
         <div className="space-y-5">
           <div className="flex gap-2.5 rounded-lg border border-warning/30 bg-warning-muted p-3.5 text-sm text-warning">
             <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            <p>Request a new link and use it within the hour.</p>
+            <p>
+              {missing
+                ? "Open the link straight from the email, or copy all of it. If that doesn't work, request a new link."
+                : "Request a new link and use it within the hour."}
+            </p>
           </div>
           <Button asChild className="h-11 w-full rounded-lg text-base font-semibold">
             <Link to="/forgot-password" search={{ as }}>
@@ -60,9 +71,16 @@ function ResetPasswordPage() {
             <p>Your password has been updated. The reset link you used is no longer valid.</p>
           </div>
           <Button asChild className="h-11 w-full rounded-lg text-base font-semibold">
-            <Link to="/login" search={{ as }}>
-              Go to sign in
-            </Link>
+            {/* The e-mailed link says which form the account belongs on. An
+                older link without it goes to role selection, as a bare
+                /login would anyway. */}
+            {as ? (
+              <Link to="/login" search={{ as }}>
+                Go to sign in
+              </Link>
+            ) : (
+              <Link to="/">Go to sign in</Link>
+            )}
           </Button>
         </div>
       </AuthShell>

@@ -24,6 +24,7 @@ import {
   activateWithToken,
   changePassword,
   describeActivationToken,
+  requestActivationLink,
   requestPasswordReset,
   resetPassword,
 } from "../services/recovery.ts";
@@ -111,9 +112,24 @@ const publicUser = (user: SessionUser) => ({
 
 /* ------------------------------ registration ----------------------------- */
 
+/**
+ * Long enough for any real name, short enough that a name cannot swamp the
+ * verification e-mail, the audit log, class lists and exports it is echoed in.
+ * The registration form caps its inputs at the same length.
+ */
+const NAME_MAX_LENGTH = 100;
+
 const registerBody = z.object({
-  name: z.string().trim().min(1, "Enter your first name."),
-  surname: z.string().trim().min(1, "Enter your surname."),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Enter your first name.")
+    .max(NAME_MAX_LENGTH, `Keep your first name to ${NAME_MAX_LENGTH} characters or fewer.`),
+  surname: z
+    .string()
+    .trim()
+    .min(1, "Enter your surname.")
+    .max(NAME_MAX_LENGTH, `Keep your surname to ${NAME_MAX_LENGTH} characters or fewer.`),
   email: studentEmail,
   studentNumber: z
     .string()
@@ -262,6 +278,17 @@ authRoutes.get("/activation", async (req, res) => {
   // Null is not an error: it is the expired-link state the page renders, with a
   // resend rather than a dead end.
   res.json({ account });
+});
+
+/**
+ * "Send me a new link" on the expired activation page. The same answer whether
+ * or not the address has an account waiting to be activated (SR-06), and
+ * rate-limited like every other route that sends e-mail (CI-07).
+ */
+authRoutes.post("/activation/resend", emailLimit, async (req, res) => {
+  const { email: address } = z.object({ email }).parse(req.body);
+  await requestActivationLink(address);
+  res.status(202).json({ ok: true });
 });
 
 authRoutes.post("/activate", signInLimit, async (req, res) => {

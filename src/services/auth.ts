@@ -79,6 +79,13 @@ export const getActivation = (token: string) =>
     `/api/auth/activation?token=${encodeURIComponent(token)}`,
   ).then((reply) => reply.account);
 
+/**
+ * Asks for a fresh activation link. Acknowledged the same way whether or not
+ * the address has an account waiting to be activated (SR-06).
+ */
+export const requestActivationLink = (email: string) =>
+  post<{ ok: true }>("/api/auth/activation/resend", { email });
+
 /** Sets a staff member's first password and signs them in. */
 export const activate = (token: string, password: string) =>
   post<UserReply>("/api/auth/activate", { token, password }).then((reply) => reply.user);

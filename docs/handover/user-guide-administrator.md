@@ -288,7 +288,7 @@ Go to **Settings**.
 | Problem | What to do |
 | --- | --- |
 | A lecturer never received the activation email | Ask them to check their junk folder. Confirm the email address on their account is correct (**View / edit details**). Also see [Known limitations](#14-known-limitations-in-the-current-version) about resending. |
-| A lecturer's activation link has expired (older than 24 hours) | There's no resend button yet. See [Known limitations](#14-known-limitations-in-the-current-version). |
+| A lecturer's activation link has expired (older than 24 hours) | They can select **Send me a new link** on the page the old link opens. See also [Known limitations](#14-known-limitations-in-the-current-version). |
 | A lecturer forgot their password | They select **Forgot password?** on the sign-in form. The reset link is valid for one hour. You can't reset passwords for them. |
 | A lecturer is locked out after wrong passwords | Ask them to wait 15 minutes, or reset their password. |
 | A lecturer's name or email is wrong | Correct it in **View / edit details**. |

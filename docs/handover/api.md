@@ -223,6 +223,15 @@ The activation page calls this before it shows its form.
 - **200:** `{ "account": { "name", "email", "role" } }`, or `{ "account": null }` when the token is unknown, used or expired. A `null` account is not an error.
 - **Errors:** `400 validation_failed` when `token` is missing.
 
+### `POST /api/auth/activation/resend`
+
+"Send me a new link" on the page for an activation link that no longer works.
+
+- **Auth:** none. Rate limit: `emailLimit`.
+- **Body:** `{ "email": string }`
+- **202:** `{ "ok": true }`, whatever the address. A new link is sent (and the account's earlier links stop working) only when the address belongs to an `unverified` lecturer or administrator account; it goes to the address on the account. The request is written to the audit log as `account.activation_resent`. An active account needs `forgot-password` instead, and gets nothing here (SR-06).
+- **Errors:** `400 validation_failed`, `429`.
+
 ### `POST /api/auth/activate`
 
 A staff member sets their first password from the e-mailed link (FR-01, FR-03). The same flow bootstraps the initial administrator (AS-06). See [technical-handover.md](./technical-handover.md#59-the-initial-administrator-account-as-06).
@@ -557,9 +566,9 @@ Permanently deletes the assessment and cascades to its submissions, ratings, mar
 
 Source: `server/src/routes/student.ts`, `services/student.ts` and `services/evaluations.ts`. **Every route requires `requireAuth` and `requireRole("student")`.** No route takes a student id. The student is always the account on the session.
 
-### `GET /api/student/enrolment`
+### `GET /api/student/enrolments`
 
-- **200:** `{ "enrolment": { id, classId, moduleCode, className, studentNumber, matchStatus, matchNote? } | null }`. The lookup matches on student number, which lets an unmatched or conflicting row still reach the student. When several class lists contain the number, only the **oldest** enrolment is returned.
+- **200:** `{ "enrolments": Array<{ id, classId, moduleCode, className, studentNumber, importedName, importedSurname, matchStatus }> }`, oldest first, empty for a number on no class list. The lookup matches on student number, which lets an unmatched or conflicting row still reach the student. **Every** class list that contains the number is returned, so a problem on one list never hides another. The lecturer's `matchNote` is not included: it is written for the lecturer and reads as false to the student.
 
 ### `GET /api/student/assessments`
 

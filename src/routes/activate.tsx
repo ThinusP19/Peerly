@@ -1,7 +1,6 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { CheckCircle2, Loader2, TriangleAlert } from "lucide-react";
+import { CheckCircle2, Loader2, MailCheck, TriangleAlert } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
-import { toast } from "sonner";
 
 import { AuthShell } from "@/components/layout/AuthShell";
 import { BusyButton } from "@/components/shared/BusyButton";
@@ -9,11 +8,16 @@ import { FormField } from "@/components/shared/FormField";
 import { PasswordInput } from "@/components/shared/PasswordInput";
 import { PasswordRules } from "@/components/shared/PasswordRules";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { passwordChecks } from "@/lib/password";
 import { ApiError } from "@/lib/api";
-import { useSession } from "@/lib/session";
-import { signInAudienceFor } from "@/lib/sign-in-audience";
-import { activate, getActivation, type ActivationAccount } from "@/services/auth";
+import { homePathForRole, useSession } from "@/lib/session";
+import {
+  activate,
+  getActivation,
+  requestActivationLink,
+  type ActivationAccount,
+} from "@/services/auth";
 
 export const Route = createFileRoute("/activate")({
   // A real activation link carries a signed token. In the prototype the token
@@ -40,7 +44,6 @@ function ActivatePage() {
   const { token, email } = Route.useSearch();
   const [state, setState] = useState<State>("verifying");
   const [account, setAccount] = useState<ActivationAccount | null>(null);
-  const [resending, setResending] = useState(false);
 
   useEffect(() => {
     setState("verifying");
@@ -67,15 +70,6 @@ function ActivatePage() {
     };
   }, [token, email]);
 
-  const resend = async () => {
-    // Still a toast: re-issuing a staff activation link is an administrator
-    // action (FR-01), and that endpoint arrives with the admin portal.
-    setResending(true);
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    setResending(false);
-    toast.success("Ask your administrator to send a new activation link.");
-  };
-
   if (state === "verifying") {
     return (
       <AuthShell title="Activating your account" description="This only takes a moment.">
@@ -89,7 +83,7 @@ function ActivatePage() {
     );
   }
 
-  if (state === "set-password" && account && email) {
+  if (state === "set-password" && account) {
     // `account` is only ever set from a token the server accepted, so there is
     // always one here - but the router types it as optional, so narrow rather
     // than assert.
@@ -97,70 +91,149 @@ function ActivatePage() {
     return <SetPassword account={account} token={token} onDone={() => setState("success")} />;
   }
 
-  if (state === "success") {
-    const staff = account && account.role !== "student";
+  if (state === "success" && account) {
+    // Setting the password signed them in, so the way on is their portal - not
+    // a sign-in form asking for the password they typed a moment ago.
     return (
-      <AuthShell
-        title="Your account is active"
-        description={
-          staff
-            ? "Sign in with your email address and the password you just set."
-            : "You can sign in to Peerly now."
-        }
-      >
+      <AuthShell title="Your account is active" description="You're signed in and ready to go.">
         <div className="space-y-5">
           <div className="flex gap-2.5 rounded-lg border border-success/30 bg-success-muted p-3.5 text-sm text-success">
             <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             <p>
-              {staff
-                ? `Welcome to Peerly, ${account.name}. Your email address is confirmed and your password is set.`
-                : "Your email address is confirmed. Your lecturer will match you to a class list before your first assessment opens."}
+              Welcome to Peerly, {account.name}. Your email address is confirmed and your password
+              is set. Next time, sign in with {account.email} and that password.
             </p>
           </div>
           <Button asChild className="h-11 w-full rounded-lg text-base font-semibold">
-            <Link to="/login" search={{ as: signInAudienceFor(account?.role) }}>
-              Go to sign in
-            </Link>
+            <Link to={homePathForRole(account.role)}>Go to your portal</Link>
           </Button>
         </div>
       </AuthShell>
     );
   }
 
+  return <LinkNoLongerWorks email={email} />;
+}
+
+/**
+ * A link the server will not honour: spent, expired or never issued - the
+ * server does not say which, so neither does the page.
+ *
+ * "Send me a new link" really asks for one. The server sends it only to a
+ * staff account that has never been activated, and answers the same for every
+ * address (SR-06), so the page confirms nothing beyond "if, then".
+ */
+function LinkNoLongerWorks({ email: fromLink }: { email?: string }) {
+  const [email, setEmail] = useState(fromLink ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [sentTo, setSentTo] = useState<string | null>(null);
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    const address = email.trim();
+    if (!address) {
+      setError("Enter the email address your account was set up with.");
+      return;
+    }
+    if (!/^\S+@\S+\.\S+$/.test(address)) {
+      setError("This doesn't look like an email address. Check for a missing @ or full stop.");
+      return;
+    }
+    setError(null);
+
+    setBusy(true);
+    try {
+      await requestActivationLink(address);
+    } catch (failure) {
+      // Only an unreachable server is worth reporting: otherwise the person
+      // would wait for an email that was never even asked for. Every other
+      // answer is deliberately the same as success.
+      if (failure instanceof ApiError && (failure.status === 0 || failure.status === 429)) {
+        setBusy(false);
+        setError(
+          failure.status === 429
+            ? failure.message
+            : "We couldn't reach Peerly. Check your connection and try again.",
+        );
+        return;
+      }
+    }
+    setBusy(false);
+    setSentTo(address);
+  };
+
   return (
     <AuthShell
-      title="This link has expired"
-      description="Activation links are only valid for 24 hours."
+      title="This link no longer works"
+      description="Activation links work once, and only for 24 hours."
     >
       <div className="space-y-5">
-        <div className="flex gap-2.5 rounded-lg border border-warning/30 bg-warning-muted p-3.5 text-sm text-warning">
-          <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-          <p>
-            We couldn't activate your account with this link. It may have already been used, or it
-            may be older than 24 hours.
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-3">
-          <BusyButton
-            className="h-11 w-full rounded-lg text-base font-semibold"
-            busy={resending}
-            busyLabel="Sending a new link…"
-            onClick={resend}
+        {sentTo ? (
+          <div
+            role="status"
+            className="flex gap-2.5 rounded-lg border border-success/30 bg-success-muted p-3.5 text-sm text-success"
           >
-            Send me a new link
-          </BusyButton>
+            <MailCheck className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            <p>
+              If <span className="font-medium">{sentTo}</span> belongs to a staff account that
+              hasn't been set up yet, we've sent it a new link. It works for 24 hours, and any older
+              link stops working. Already set your password? Use "Forgot password" on the sign-in
+              page instead.
+            </p>
+          </div>
+        ) : (
+          <div className="flex gap-2.5 rounded-lg border border-warning/30 bg-warning-muted p-3.5 text-sm text-warning">
+            <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            <p>
+              We couldn't activate your account with this link. It may have already been used, or it
+              may be older than 24 hours.
+            </p>
+          </div>
+        )}
 
-          <Button asChild variant="outline" className="h-11 w-full rounded-lg">
-            {/* A bare /login bounces to role selection, so say which sign-in to open. */}
-            <Link
-              to="/login"
-              search={{ as: email?.endsWith("@nwu.ac.za") ? "lecturer" : "student" }}
+        {sentTo ? null : (
+          <form onSubmit={handleSubmit} noValidate className="space-y-5">
+            <FormField
+              label="Email address"
+              error={error}
+              hint="The address your administrator set your account up with."
+              required
             >
-              Back to sign in
-            </Link>
-          </Button>
-        </div>
+              {(props) => (
+                <Input
+                  {...props}
+                  type="email"
+                  autoComplete="email"
+                  placeholder="name.surname@nwu.ac.za"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                />
+              )}
+            </FormField>
+
+            <BusyButton
+              type="submit"
+              className="h-11 w-full rounded-lg text-base font-semibold"
+              busy={busy}
+              busyLabel="Sending a new link…"
+            >
+              Send me a new link
+            </BusyButton>
+          </form>
+        )}
+
+        <p className="text-sm text-muted-foreground">
+          Students don't get activation links - you confirm your address with the 6-digit code we
+          email when you register.
+        </p>
+
+        {/* The account's role is unknown from a link that no longer works, and
+            guessing it from the address sent administrators to the lecturer
+            form. Role selection lets them pick. */}
+        <Button asChild variant="outline" className="h-11 w-full rounded-lg">
+          <Link to="/">Back to sign in</Link>
+        </Button>
       </div>
     </AuthShell>
   );

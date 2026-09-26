@@ -98,15 +98,15 @@ function enforcePolicy(
  * around verification rather than a recovery.
  */
 export async function requestPasswordReset(email: string): Promise<void> {
-  const { rows } = await query<{ id: string; name: string; email: string }>(
-    "SELECT id, name, email FROM users WHERE lower(email) = $1 AND status = 'active'",
+  const { rows } = await query<{ id: string; name: string; email: string; role: Role }>(
+    "SELECT id, name, email, role FROM users WHERE lower(email) = $1 AND status = 'active'",
     [email.trim().toLowerCase()],
   );
   const account = rows[0];
   if (!account) return;
 
   const token = await issueFor(account.id, "recovery");
-  mail.queue(mail.passwordResetMail(account.email, account.name, token));
+  mail.queue(mail.passwordResetMail(account.email, account.name, token, account.role));
 }
 
 /** Sets a new password from a reset link and ends every existing session. */
@@ -220,6 +220,42 @@ export async function sendActivationLink(userId: string): Promise<void> {
 
   const token = await issueFor(userId, "activation");
   mail.queue(mail.activationLinkMail(account.email, account.name, token));
+}
+
+/**
+ * A new activation link, asked for by its holder from the expired-link page.
+ *
+ * Returns nothing whatever happened, like a password reset (SR-06): the page
+ * says the same thing for an address with no account, an account that is
+ * already active, and one that was sent a link. Only a staff account that has
+ * never been activated gets one - an active account needs "Forgot password",
+ * and a deactivated one is the administrator's decision. The link goes to the
+ * address on the account, never to one the caller chooses, and `issueFor`
+ * retires the earlier link so only the newest works.
+ */
+export async function requestActivationLink(email: string): Promise<void> {
+  const { rows } = await query<{
+    id: string;
+    name: string;
+    surname: string;
+    email: string;
+    role: Role;
+  }>(
+    `SELECT id, name, surname, email, role FROM users
+      WHERE lower(email) = $1 AND status = 'unverified' AND role IN ('lecturer', 'admin')`,
+    [email.trim().toLowerCase()],
+  );
+  const account = rows[0];
+  if (!account) return;
+
+  await record({
+    actor: { id: account.id, name: account.name, surname: account.surname, role: account.role },
+    eventType: "account.activation_resent",
+    objectDescription: `${account.name} ${account.surname} · ${account.email}`,
+    detail:
+      "New activation link asked for from the expired-link page; any earlier link stopped working.",
+  });
+  await sendActivationLink(account.id);
 }
 
 /**

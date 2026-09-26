@@ -147,6 +147,27 @@ describe("POST /api/auth/register", () => {
     expect(reply.body.error.fields.noticeAccepted).toBeTruthy();
   });
 
+  it("refuses a name or surname longer than 100 characters, and stores nothing", async () => {
+    const reply = await call("POST", "/api/auth/register", {
+      body: { ...registration, name: "Q".repeat(5000), surname: "Q".repeat(101) },
+    });
+
+    expect(reply.status).toBe(400);
+    expect(reply.body.error.fields.name).toContain("100 characters");
+    expect(reply.body.error.fields.surname).toContain("100 characters");
+    const { rows } = await query("SELECT 1 FROM users WHERE student_number = $1", [
+      registration.studentNumber,
+    ]);
+    expect(rows).toHaveLength(0);
+  });
+
+  it("accepts a name of exactly 100 characters", async () => {
+    const reply = await call("POST", "/api/auth/register", {
+      body: { ...registration, name: "Q".repeat(100) },
+    });
+    expect(reply.status).toBe(202);
+  });
+
   it("names the field when the email address is taken", async () => {
     await createUser({ email: registration.email, status: "active" });
     const reply = await call("POST", "/api/auth/register", { body: registration });
@@ -374,6 +395,18 @@ describe("password recovery (FR-06)", () => {
     expect(back.status).toBe(200);
   });
 
+  it("links back to the sign-in form the account belongs on", async () => {
+    const student = await createUser({ password: "a decent passphrase" });
+    const admin = await createUser({ role: "admin", password: "a decent passphrase" });
+
+    await call("POST", "/api/auth/forgot-password", { body: { email: student.email } });
+    await call("POST", "/api/auth/forgot-password", { body: { email: admin.email } });
+
+    const [toStudent, toAdmin] = queued();
+    expect(toStudent!.text).toMatch(/reset-password\?token=[^\s&]+&as=student\s/);
+    expect(toAdmin!.text).toMatch(/reset-password\?token=[^\s&]+&as=admin\s/);
+  });
+
   it("refuses an expired reset link in plain language", async () => {
     const reply = await call("POST", "/api/auth/reset-password", {
       body: { token: "never-issued", password: "a brand new phrase" },
@@ -435,6 +468,65 @@ describe("staff activation (FR-01, FR-03)", () => {
     const reply = await call("GET", "/api/auth/activation?token=never-issued");
     expect(reply.status).toBe(200);
     expect(reply.body.account).toBeNull();
+  });
+
+  describe("asking for a new link from the expired-link page", () => {
+    it("sends a working link to a staff account that was never activated", async () => {
+      const staff = await createUser({ role: "admin", status: "unverified", password: null });
+      const { sendActivationLink } = await import("../services/recovery.ts");
+      await sendActivationLink(staff.id);
+      const oldToken = activationTokenFrom();
+      vi.mocked(mail.queue).mockClear();
+
+      const reply = await call("POST", "/api/auth/activation/resend", {
+        body: { email: staff.email.toUpperCase() },
+      });
+      expect(reply.status).toBe(202);
+
+      const sent = queued();
+      expect(sent).toHaveLength(1);
+      expect(sent[0]!.to).toBe(staff.email);
+      const newToken = activationTokenFrom();
+      expect(newToken).not.toBe(oldToken);
+
+      // Only the newest link works.
+      const old = await call("GET", `/api/auth/activation?token=${encodeURIComponent(oldToken)}`);
+      expect(old.body.account).toBeNull();
+      const fresh = await call("GET", `/api/auth/activation?token=${encodeURIComponent(newToken)}`);
+      expect(fresh.body.account).toMatchObject({ email: staff.email, role: "admin" });
+
+      const { rows } = await query<{ event_type: string }>(
+        "SELECT event_type FROM audit_entries WHERE event_type = 'account.activation_resent'",
+      );
+      expect(rows).toHaveLength(1);
+    });
+
+    it("answers identically and sends nothing for any other address (SR-06)", async () => {
+      const active = await createUser({ role: "lecturer", status: "active" });
+      const inactive = await createUser({ role: "lecturer", status: "inactive" });
+      const student = await createUser({ role: "student", status: "unverified" });
+      const staff = await createUser({ role: "lecturer", status: "unverified", password: null });
+
+      const waiting = await call("POST", "/api/auth/activation/resend", {
+        body: { email: staff.email },
+      });
+      vi.mocked(mail.queue).mockClear();
+
+      for (const address of [active.email, inactive.email, student.email, "nobody@nwu.ac.za"]) {
+        const reply = await call("POST", "/api/auth/activation/resend", {
+          body: { email: address },
+        });
+        expect(reply.status).toBe(waiting.status);
+        expect(reply.body).toEqual(waiting.body);
+      }
+      // An active account needs "Forgot password", not a link that would reset it.
+      expect(queued()).toHaveLength(0);
+    });
+
+    it("refuses something that is not an email address", async () => {
+      const reply = await call("POST", "/api/auth/activation/resend", { body: { email: "nope" } });
+      expect(reply.status).toBe(400);
+    });
   });
 });
 

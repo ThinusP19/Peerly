@@ -251,13 +251,23 @@ export const submissionReminderMail = (
     signOff,
 });
 
-export const passwordResetMail = (to: string, name: string, token: string): Mail => ({
+/**
+ * The link carries which sign-in form the account belongs on, so "Go to sign
+ * in" after the reset opens that form rather than role selection. It only
+ * picks wording on the page; the portal is still decided by the account.
+ */
+export const passwordResetMail = (
+  to: string,
+  name: string,
+  token: string,
+  role: "student" | "lecturer" | "admin",
+): Mail => ({
   to,
   subject: "Reset your Peerly password",
   text:
     `Hi ${name},\n\n` +
     `Use the link below to choose a new password:\n\n` +
-    `${env.appUrl}/reset-password?token=${encodeURIComponent(token)}\n\n` +
+    `${env.appUrl}/reset-password?token=${encodeURIComponent(token)}&as=${role}\n\n` +
     `The link expires in ${env.tokens.recoveryMinutes} minutes. ` +
     `Your current password keeps working until you do.` +
     signOff,

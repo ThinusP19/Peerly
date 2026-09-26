@@ -78,11 +78,13 @@ emails you **"Set up your Peerly account"**.
    - **At least 8 characters**
    - **Not a commonly used password**
    - **Doesn't contain your email or student number**
-3. Select **Set password and activate**. When you see **Your account is active**, select **Go to
-   sign in**.
+3. Select **Set password and activate**. When you see **Your account is active**, you're already
+   signed in. Select **Go to your portal**.
 
-If the link has expired you'll see **This link has expired**. Ask your System Administrator to
-help. (The **Send me a new link** button on that page only tells you to contact them.)
+If the link has expired or was already used, you'll see **This link no longer works**. Check your
+email address and select **Send me a new link**. If your account still needs setting up, a new
+link arrives within a few minutes and works for 24 hours. If you already set your password, use
+**Forgot password?** on the sign-in form instead.
 
 ### Signing in
 
