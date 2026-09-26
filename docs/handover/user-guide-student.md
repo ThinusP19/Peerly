@@ -168,7 +168,7 @@ Everything else is grouped below the cards:
 | Section | What it means |
 | --- | --- |
 | **Submitted** | You've submitted. Select **View** to see what you sent. |
-| **Coming up** | Your lecturer hasn't opened it yet. It shows the planned opening date. |
+| **Coming up** | Not used at the moment. An assessment appears once your lecturer opens it. |
 | **Closed** | It closed and you didn't submit (*"you didn't submit"*). You can't submit now. |
 
 Each assessment also carries a status label:

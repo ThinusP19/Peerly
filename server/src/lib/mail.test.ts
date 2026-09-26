@@ -159,3 +159,29 @@ describe("mail configuration", () => {
     await expect(loadEnv({ ...mailgun, MAILGUN_REGION: "asia" })).rejects.toThrow(/MAILGUN_REGION/);
   });
 });
+
+describe("submission reminder (FR-18)", () => {
+  it("gives the closing time in South African time, as the app shows it (OR-11)", async () => {
+    const { submissionReminderMail } = await load(base);
+
+    // 20:00 UTC is 22:00 in Johannesburg.
+    const mail = submissionReminderMail(
+      "41200345@mynwu.ac.za",
+      "Lerato",
+      "Phase 2",
+      "CMPG323",
+      "2026-09-28T20:00:00.000Z",
+    );
+
+    expect(mail.text).toContain("28 September 2026 at 22:00 (South African time)");
+    expect(mail.text).not.toContain("GMT");
+  });
+
+  it("rolls the date over when South Africa is already past midnight", async () => {
+    const { inSouthAfrica } = await load(base);
+
+    expect(inSouthAfrica("2026-09-28T23:30:00.000Z")).toBe(
+      "29 September 2026 at 01:30 (South African time)",
+    );
+  });
+});

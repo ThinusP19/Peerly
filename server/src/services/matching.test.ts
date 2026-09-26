@@ -5,7 +5,7 @@ import type { SessionUser } from "../domain/types.ts";
 import * as mail from "../lib/mail.ts";
 import { createUser, resetDatabase } from "../test/helpers.ts";
 import { parseClassList } from "./class-list.ts";
-import { resolveEnrolmentConflict } from "./enrolments.ts";
+import { getConflictCandidates, resolveEnrolmentConflict } from "./enrolments.ts";
 import { commitImport } from "./import.ts";
 import { registerStudent, verifyEmailCode } from "./registration.ts";
 
@@ -231,6 +231,69 @@ describe("FR-04 on every class-list commit", () => {
       match_status: "matched",
       user_id: student.id,
     });
+  });
+});
+
+describe("a corrected list settles an automatic Conflict", () => {
+  // Nobody decided these rows - matching set them because the names differed -
+  // so a list that now agrees with the account should match rather than leave
+  // a note claiming a difference that no longer exists.
+  it("matches a Conflict once the corrected list agrees with the account", async () => {
+    const { user, classId } = await lecturerWithClass();
+    const student = await createUser({
+      studentNumber: "41200345",
+      name: "Werner",
+      surname: "Steyn",
+    });
+    const wrong = `Student Number,Name,Surname\n41200345,Willem,Steyn`;
+    await commitImport(classId, await sheet(wrong), MAPPING, "extend", user);
+    expect((await enrolment("41200345")).match_status).toBe("conflict");
+
+    const fixed = `Student Number,Name,Surname\n41200345,Werner,Steyn`;
+    await commitImport(classId, await sheet(fixed), MAPPING, "extend", user);
+
+    expect(await enrolment("41200345")).toMatchObject({
+      match_status: "matched",
+      user_id: student.id,
+      match_note: null,
+    });
+  });
+
+  it("keeps it a Conflict when the names still differ", async () => {
+    const { user, classId } = await lecturerWithClass();
+    await createUser({ studentNumber: "41200345", name: "Werner", surname: "Steyn" });
+    const wrong = `Student Number,Name,Surname\n41200345,Willem,Steyn`;
+    await commitImport(classId, await sheet(wrong), MAPPING, "extend", user);
+
+    await commitImport(classId, await sheet(wrong), MAPPING, "extend", user);
+
+    const row = await enrolment("41200345");
+    expect(row.match_status).toBe("conflict");
+    expect(row.match_note).toMatch(/name differs/);
+  });
+
+  it("reports how many conflicts the list has after the import", async () => {
+    const { user, classId } = await lecturerWithClass();
+    await createUser({ studentNumber: "41200345", name: "Sipho", surname: "Dlamini" });
+
+    const result = await commitImport(classId, await sheet(), MAPPING, "extend", user);
+
+    expect(result).toMatchObject({ matched: 0, unmatched: 1, conflicts: 1 });
+  });
+});
+
+describe("conflict candidates", () => {
+  it("say whether each account has verified its address", async () => {
+    // The dialog shows a status badge per account. Without the status every
+    // account read as "Unverified", which would steer a careful lecturer away
+    // from linking a genuine, verified student.
+    const { user, classId } = await lecturerWithClass();
+    await createUser({ studentNumber: "41200345", name: "Sipho", surname: "Dlamini" });
+    await commitImport(classId, await sheet(), MAPPING, "extend", user);
+    const row = await enrolment("41200345");
+
+    const [candidate] = await getConflictCandidates(row.id, user);
+    expect(candidate).toMatchObject({ name: "Sipho", status: "active" });
   });
 });
 

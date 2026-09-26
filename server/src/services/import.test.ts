@@ -110,6 +110,61 @@ describe("parseClassList (SI-10, SR-10)", () => {
   });
 });
 
+describe("parseClassList keeps what the lecturer sees in the file", () => {
+  it("numbers CSV rows by their line in the file, blank lines included (UR-07)", async () => {
+    const csv = "Student Number,First Name,Surname\n41200345,Lerato,Mokoena\n\n\n41200382,Thandi,";
+    const sheet = await parseClassList(upload("class.csv", csv));
+
+    const { errors } = validateRows(sheet, { ...MAPPING, name: "First Name" });
+    expect(errors).toHaveLength(1);
+    // Line 5 in the file, not 3 - lines 3 and 4 are blank.
+    expect(errors[0]!.row).toBe(5);
+  });
+
+  it("numbers .xlsx rows as the spreadsheet does, empty rows included", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const ws = workbook.addWorksheet("Class");
+    ws.addRow(["Student Number", "Name", "Surname"]);
+    ws.addRow(["41200345", "Lerato", "Mokoena"]);
+    // Rows 3 and 4 left empty; the broken row sits in row 5.
+    ws.getRow(5).values = ["41200382", "Thandi", ""];
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+
+    const sheet = await parseClassList(upload("class.xlsx", buffer));
+    const { errors } = validateRows(sheet, MAPPING);
+    expect(errors[0]).toMatchObject({ row: 5, field: "surname" });
+  });
+
+  it("reads a CSV saved as Windows-1252, Excel's plain CSV format", async () => {
+    // "Zoë Müller" in Windows-1252: ë is 0xEB and ü is 0xFC, neither valid UTF-8.
+    const bytes = Buffer.concat([
+      Buffer.from("Student Number,Name,Surname\n41200530,Zo", "latin1"),
+      Buffer.from([0xeb]),
+      Buffer.from(",M", "latin1"),
+      Buffer.from([0xfc]),
+      Buffer.from("ller", "latin1"),
+    ]);
+
+    const sheet = await parseClassList(upload("class.csv", bytes));
+    expect(sheet.rows[0]).toEqual(["41200530", "Zoë", "Müller"]);
+  });
+
+  it("still reads UTF-8 accents as UTF-8", async () => {
+    const sheet = await parseClassList(
+      upload("class.csv", "Student Number,Name,Surname\n41200530,Zoë,Müller"),
+    );
+    expect(sheet.rows[0]).toEqual(["41200530", "Zoë", "Müller"]);
+  });
+
+  it("splits a semicolon-separated CSV, as Excel saves it in South Africa", async () => {
+    const sheet = await parseClassList(
+      upload("class.csv", "Student Number;First Name;Surname\n41200345;Lerato;Mokoena"),
+    );
+    expect(sheet.headers).toEqual(["Student Number", "First Name", "Surname"]);
+    expect(sheet.rows[0]).toEqual(["41200345", "Lerato", "Mokoena"]);
+  });
+});
+
 describe("suggestMapping", () => {
   it("recognises common headings", () => {
     expect(suggestMapping(["Student Number", "Name", "Surname", "Email"])).toEqual({
@@ -177,6 +232,16 @@ describe("validateRows (FR-09)", () => {
     expect(errors.map((e) => e.field)).toEqual(["name", "surname"]);
   });
 
+  it("sends back what a broken row held, so the lecturer can tell who it is", () => {
+    const { errors } = validateRows(sheet([["41200345", "", "Mokoena"]]), MAPPING);
+    expect(errors[0]!.values).toEqual({
+      studentNumber: "41200345",
+      name: "",
+      surname: "Mokoena",
+      email: "",
+    });
+  });
+
   it("refuses a mapping naming a column the file does not have", () => {
     expect(() => validateRows(sheet([]), { ...MAPPING, name: "Nope" })).toThrow(/no column called/);
   });
@@ -234,6 +299,18 @@ describe("commitImport (FR-04, FR-08)", () => {
     await expect(
       commitImport(classId, await sheetFor(CSV), MAPPING, "replace", user),
     ).rejects.toThrow(/already has groups/);
+  });
+
+  it("does not tell the lecturer to delete the groups, which nothing can do", async () => {
+    const { user, classId } = await lecturerWithClass();
+    await commitImport(classId, await sheetFor(CSV), MAPPING, "extend", user);
+    await query("INSERT INTO groups (class_id, group_number) VALUES ($1, 1)", [classId]);
+
+    const error = await commitImport(classId, await sheetFor(CSV), MAPPING, "replace", user).catch(
+      (caught: Error) => caught,
+    );
+    expect((error as Error).message).toMatch(/Add the new students to it instead/);
+    expect((error as Error).message).not.toMatch(/delete the groups/);
   });
 
   it("skips broken rows and imports the rest", async () => {

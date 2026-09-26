@@ -100,6 +100,7 @@ ClassRecord = { id, moduleCode, name, lecturerId, academicPeriod }
 
 AssessmentRecord = { id, classId, name, description, groupIds: string[],
                      status: "draft"|"open"|"closed", opensAt, closesAt, maxMark: number,
+                     closedAt?,   // when the lecturer actually closed it; only while closed
                      calculatedAt?, calculationRunId?, exportedAt? }
 
 // A student as their own lecturer sees them.
@@ -141,7 +142,7 @@ This is student self-registration (FR-02). It creates an `unverified` student ac
 
   | Field | Type | Rule |
   | --- | --- | --- |
-  | `name` | string | trimmed, non-empty |
+  | `name` | string | trimmed, non-empty, at most 120 characters |
   | `surname` | string | trimmed, non-empty |
   | `email` | string | valid e-mail whose domain is in `STUDENT_EMAIL_DOMAINS` |
   | `studentNumber` | string | exactly 8 digits |
@@ -357,17 +358,18 @@ Validates every row using the same function the commit uses.
   ```ts
   { preview: { headers: string[],
                valid: { row, studentNumber, name, surname, email? }[],
-               errors: { row, field: "studentNumber"|"name"|"surname"|"email", message }[],
+               errors: { row, field: "studentNumber"|"name"|"surname"|"email", message,
+                         values: { studentNumber, name, surname, email } }[],  // what the row held
                duplicatesInFile: number,   // valid rows already on this class list
                totalRows: number } }
   ```
-  `row` counts from 1 and includes the header row, so it matches the row number a spreadsheet program shows.
+  `row` counts from 1 and includes the header row, so it matches the row number a spreadsheet program shows. Blank rows are skipped but still counted. A CSV may be UTF-8 or Windows-1252 (Excel's plain "CSV" format), and separated by commas or semicolons.
 
 #### `POST /api/classes/:classId/import/commit`
 
-Runs in one transaction. Each row is upserted on `(class_id, student_number)` and matched to a registered student account with the same student number (FR-04). `replace` also deletes enrolments that are not in the file.
+Runs in one transaction. Each row is upserted on `(class_id, student_number)` and matched to a registered student account with the same student number (FR-04). A row in `conflict` is matched again, so a corrected name settles it; a match, and an entry a lecturer left unmatched, are kept. `replace` also deletes enrolments that are not in the file.
 
-- **200:** `{ "result": { imported, updated, removed, matched, unmatched } }`
+- **200:** `{ "result": { imported, updated, removed, matched, unmatched, conflicts } }`. `matched`, `unmatched` and `conflicts` count the whole class list after the import.
 - **Errors:** `400 bad_request` when there are no valid rows to import. `409 conflict` for `replace` when the class already has groups (BR-09).
 
 ### Groups (FR-10, FR-11)
@@ -392,7 +394,7 @@ Confirms an allocation and **replaces** all of the class's groups in one transac
 
 #### `GET /api/classes/enrolments/:enrolmentId/candidates`
 
-- **200:** `{ "candidates": { id, name, surname, email, studentNumber }[] }`: student accounts whose student number equals the enrolment's.
+- **200:** `{ "candidates": { id, name, surname, email, studentNumber, status: "active"|"inactive"|"unverified" }[] }`: student accounts whose student number equals the enrolment's.
 
 #### `POST /api/classes/enrolments/:enrolmentId/resolve`
 
@@ -442,7 +444,7 @@ Creates an assessment. It always starts as a `draft` (FR-12).
   | `description` | string? | at most 2,000 characters |
   | `groupIds` | uuid[] | at least 1. Every group must belong to `classId`, which a composite foreign key enforces. |
   | `opensAt`, `closesAt` | string | ISO-8601 datetime. An offset is allowed (`2026-10-01T08:00:00+02:00`). `closesAt` must be after `opensAt`. |
-  | `maxMark` | number? | more than 0 and at most 1,000. The default is 100. |
+  | `maxMark` | number? | more than 0 and at most 1,000, with at most two decimal places. The default is 100. |
 
 - **201:** `{ "assessment": AssessmentRecord }`
 - **Errors:** `400 bad_request` with `fields.closesAt`. `409 rule_violation` for a group from another class. `404` for a class the caller doesn't own.
@@ -451,16 +453,16 @@ Creates an assessment. It always starts as a `draft` (FR-12).
 
 - **Body:** any subset of the create fields except `classId`. Every field is optional.
 - **200:** `{ "assessment": AssessmentRecord }`. A change to `closesAt`, for example an extension, is written to the audit log with the old and new times.
-- **Errors:** `409 conflict` when `groupIds` is sent for an assessment that is no longer a draft. `400 bad_request` with `fields.closesAt`, or with `fields.maxMark` when the new maximum is below a base mark, calculated mark or override already recorded (BR-07).
+- **Errors:** `409 conflict` when `groupIds` names a different set of groups for an assessment that is no longer a draft (the same set, in any order, is accepted). `400 bad_request` with `fields.closesAt`, or with `fields.maxMark` when the new maximum is below a base mark, calculated mark or override already recorded (BR-07).
 - **Note:** changing `maxMark` on a calculated assessment clears `calculatedAt` and `calculationRunId`, because the marks were capped at the old maximum.
 
 ### `POST /api/assessments/:assessmentId/status`
 
 A named state transition (FR-13).
 
-- **Body:** `{ "transition": "open"|"close"|"reopen" }`. The legal moves are `draft → open`, `open → closed` and `closed → open`.
-- **200:** `{ "assessment": AssessmentRecord, "invalidatedCalculation": boolean }`. Re-opening a calculated assessment clears `calculatedAt` and `calculationRunId`, and the response returns `true`.
-- **Errors:** `409 conflict` for an illegal move.
+- **Body:** `{ "transition": "open"|"close"|"reopen", "closesAt"?: datetime }`. The legal moves are `draft → open`, `open → closed` and `closed → open`. `closesAt` sets a new closing time in the same step, for `open` and `reopen` only.
+- **200:** `{ "assessment": AssessmentRecord, "invalidatedCalculation": boolean }`. Re-opening a calculated assessment clears `calculatedAt` and `calculationRunId`, and the response returns `true`. Closing records `closedAt`; re-opening clears it.
+- **Errors:** `409 conflict` for an illegal move. `400 bad_request` with `fields.closesAt` when opening or re-opening while the closing time has already passed (students could not submit, BR-05): send a later `closesAt`.
 
 ### `PUT /api/assessments/:assessmentId/marks/:groupId`
 
@@ -561,11 +563,11 @@ Source: `server/src/routes/student.ts`, `services/student.ts` and `services/eval
 
 ### `GET /api/student/assessments`
 
-- **200:** `{ "assessments": StudentAssessmentView[] }`: every assessment one of the student's groups takes part in, including drafts. Open assessments come first, then drafts, then closed ones, and within each set the soonest closing time comes first.
+- **200:** `{ "assessments": StudentAssessmentView[] }`: every open or closed assessment one of the student's groups takes part in. Drafts are left out until the lecturer opens them. Open assessments come first, then closed ones, and within each set the soonest closing time comes first.
 
   ```ts
   StudentAssessmentView = {
-    assessment: { id, name, description, status, opensAt, closesAt },
+    assessment: { id, name, description, status, opensAt, closesAt, closedAt? },
     klass: { id, moduleCode, name },
     group: { id, groupNumber },
     members: { id, name, surname }[],        // the rest of the group, without the student (BR-02)

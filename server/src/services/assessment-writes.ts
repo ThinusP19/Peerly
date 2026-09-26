@@ -101,6 +101,10 @@ export async function createAssessment(
   return getAssessment(id, user);
 }
 
+/** True when both lists name the same groups, in any order. */
+const sameGroups = (a: string[], b: string[]) =>
+  a.length === b.length && [...a].sort().join() === [...b].sort().join();
+
 export interface AssessmentChanges {
   name?: string;
   description?: string;
@@ -133,9 +137,18 @@ export async function updateAssessment(
     });
   }
 
-  if (changes.groupIds && before.status !== "draft") {
+  // The same set of groups is not a change. An edit form sends back the whole
+  // setup, and refusing an unchanged selection used to make every open or
+  // closed assessment impossible to rename or extend.
+  const groupsChanged =
+    changes.groupIds !== undefined && !sameGroups(changes.groupIds, before.groupIds);
+
+  if (groupsChanged && before.status !== "draft") {
+    // Closing does not unlock them either: ratings already given belong to the
+    // groups as they were (BR-01), so the only way to assess other groups is a
+    // new assessment.
     throw conflict(
-      "Groups can't be changed once an assessment has opened. Close it first, or create a new one.",
+      "Groups can't be changed once an assessment has opened. Create a new assessment for a different set of groups.",
     );
   }
 
@@ -184,7 +197,7 @@ export async function updateAssessment(
       ],
     );
 
-    if (changes.groupIds) {
+    if (changes.groupIds && groupsChanged) {
       await sql.query("DELETE FROM assessment_groups WHERE assessment_id = $1", [assessmentId]);
       for (const groupId of changes.groupIds) {
         await sql.query(
@@ -306,11 +319,18 @@ export interface StatusChangeResult {
  * a draft that jumped straight to closed, or an open one re-opened again, are
  * both meaningless, and allowing them would make the audit trail describe
  * states the system never really passed through.
+ *
+ * Opening or re-opening needs a closing time still in the future. BR-05 refuses
+ * every submission once the closing time has passed, so an assessment opened
+ * after it would be "open" to nobody - and every screen would say otherwise.
+ * `closesAt` lets the lecturer choose a new closing time in the same step, so
+ * a closed assessment whose time has passed can still be re-opened.
  */
 export async function changeAssessmentStatus(
   assessmentId: string,
   transition: Transition,
   user: SessionUser,
+  options: { closesAt?: string | undefined } = {},
 ): Promise<StatusChangeResult> {
   const before = await getAssessment(assessmentId, user);
   const rule = TRANSITIONS[transition];
@@ -325,20 +345,54 @@ export async function changeAssessmentStatus(
     );
   }
 
+  if (options.closesAt !== undefined && transition === "close") {
+    throw badRequest("A new closing time can only be set when opening or re-opening.");
+  }
+
+  // Normalised, so "+02:00" and "Z" spellings of the same moment compare equal.
+  const closesAt =
+    options.closesAt !== undefined ? new Date(options.closesAt).toISOString() : before.closesAt;
+  const closesAtMoved = closesAt !== before.closesAt;
+
+  if (transition !== "close") {
+    if (new Date(closesAt) <= new Date()) {
+      const message = closesAtMoved
+        ? "The new closing time has to be in the future."
+        : "The closing time has already passed, so students couldn't submit anything. Choose a later closing time first.";
+      throw badRequest(message, { closesAt: message });
+    }
+    if (new Date(closesAt) <= new Date(before.opensAt)) {
+      throw badRequest("The closing time must be after the opening time.", {
+        closesAt: "The closing time must be after the opening time.",
+      });
+    }
+  }
+
   // FR-13: re-opening after marks were calculated invalidates them, because the
   // ratings they were derived from can now change. Reported so the interface can
   // say so plainly rather than leaving stale results on screen.
   const invalidatedCalculation = transition === "reopen" && Boolean(before.calculatedAt);
 
   await withTransaction(async (sql) => {
+    // closed_at records when the lecturer actually closed it, which is often
+    // not the scheduled closing time. Re-opening clears it.
     await sql.query(
       `UPDATE assessments
-          SET status = $2,
+          SET status = $2::assessment_status,
+              closes_at = $4,
+              closed_at = CASE WHEN $2::assessment_status = 'closed' THEN now() ELSE NULL END,
               calculated_at = CASE WHEN $3 THEN NULL ELSE calculated_at END,
               calculation_run_id = CASE WHEN $3 THEN NULL ELSE calculation_run_id END
         WHERE id = $1`,
-      [assessmentId, rule.to, invalidatedCalculation],
+      [assessmentId, rule.to, invalidatedCalculation, closesAt],
     );
+
+    const sentences = [
+      invalidatedCalculation
+        ? "Re-opened after calculation; the previous results are no longer valid."
+        : `Status changed from ${before.status} to ${rule.to}.`,
+      ...(closesAtMoved ? [`Closing time changed from ${before.closesAt} to ${closesAt}.`] : []),
+    ];
 
     await record(
       {
@@ -350,13 +404,11 @@ export async function changeAssessmentStatus(
               ? "assessment.closed"
               : "assessment.reopened",
         objectDescription: before.name,
-        detail: invalidatedCalculation
-          ? "Re-opened after calculation; the previous results are no longer valid."
-          : `Status changed from ${before.status} to ${rule.to}.`,
+        detail: sentences.join(" "),
         classId: before.classId,
         assessmentId,
-        before: { status: before.status },
-        after: { status: rule.to },
+        before: { status: before.status, ...(closesAtMoved ? { closesAt: before.closesAt } : {}) },
+        after: { status: rule.to, ...(closesAtMoved ? { closesAt } : {}) },
       },
       sql,
     );

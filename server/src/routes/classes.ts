@@ -68,7 +68,11 @@ classRoutes.post("/", async (req, res) => {
   const body = z
     .object({
       moduleCode: z.string().trim().min(1, "Enter the module code."),
-      name: z.string().trim().min(1, "Enter the module name."),
+      name: z
+        .string()
+        .trim()
+        .min(1, "Enter the module name.")
+        .max(120, "Keep the class name to 120 characters or fewer."),
       academicPeriod: z.string().trim().min(1, "Enter the academic period."),
     })
     .parse(req.body);

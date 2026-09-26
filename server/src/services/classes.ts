@@ -70,6 +70,8 @@ export interface ClassSummary {
   unmatchedCount: number;
   conflictCount: number;
   groupCount: number;
+  /** Students in a confirmed group - not the same as matched, before grouping. */
+  groupedCount: number;
   assessmentCount: number;
   activeAssessment?: {
     id: string;
@@ -85,6 +87,7 @@ interface SummaryRow extends ClassRow {
   unmatched_count: string;
   conflict_count: string;
   group_count: string;
+  grouped_count: string;
   assessment_count: string;
   active_id: string | null;
   active_name: string | null;
@@ -109,6 +112,7 @@ export async function getClassSummaries(asker: Asker): Promise<ClassSummary[]> {
             (SELECT count(*) FROM enrolments e WHERE e.class_id = c.id AND e.match_status = 'unmatched') AS unmatched_count,
             (SELECT count(*) FROM enrolments e WHERE e.class_id = c.id AND e.match_status = 'conflict')  AS conflict_count,
             (SELECT count(*) FROM groups g WHERE g.class_id = c.id) AS group_count,
+            (SELECT count(*) FROM group_members gm WHERE gm.class_id = c.id) AS grouped_count,
             (SELECT count(*) FROM assessments a WHERE a.class_id = c.id) AS assessment_count,
             active.id AS active_id, active.name AS active_name,
             active.status AS active_status, active.closes_at AS active_closes_at
@@ -134,6 +138,7 @@ export async function getClassSummaries(asker: Asker): Promise<ClassSummary[]> {
     unmatchedCount: Number(row.unmatched_count),
     conflictCount: Number(row.conflict_count),
     groupCount: Number(row.group_count),
+    groupedCount: Number(row.grouped_count),
     assessmentCount: Number(row.assessment_count),
     ...(row.active_id
       ? {

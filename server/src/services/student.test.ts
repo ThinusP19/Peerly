@@ -150,6 +150,31 @@ describe("getStudentAssessments", () => {
   });
 });
 
+describe("what a student may see of an assessment's lifecycle", () => {
+  it("leaves out drafts, which the lecturer has not opened yet", async () => {
+    // The lecturer's screens promise a draft is not visible to students; its
+    // name, dates and groups may still be wrong.
+    const { students, assessmentId } = await scenario();
+    await query("UPDATE assessments SET status = 'draft' WHERE id = $1", [assessmentId]);
+
+    expect(await getStudentAssessments(students[0]!.id)).toEqual([]);
+  });
+
+  it("says when a closed assessment was actually closed", async () => {
+    const { students, assessmentId } = await scenario();
+    await query(
+      "UPDATE assessments SET status = 'closed', closed_at = now() - interval '1 hour' WHERE id = $1",
+      [assessmentId],
+    );
+
+    const [view] = await getStudentAssessments(students[0]!.id);
+    expect(view!.assessment.closedAt).toBeDefined();
+    expect(new Date(view!.assessment.closedAt!).getTime()).toBeLessThan(
+      new Date(view!.assessment.closesAt).getTime(),
+    );
+  });
+});
+
 describe("getStudentEnrolment", () => {
   it("finds the row by student number", async () => {
     const { students } = await scenario();

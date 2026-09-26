@@ -14,6 +14,9 @@ import { matchEnrolments } from "./matching.ts";
  * preview at all: the lecturer would approve one thing and get another.
  */
 
+/** The note on a row nobody's account has claimed yet. */
+const UNMATCHED_NOTE = "No registered Peerly account uses this student number yet.";
+
 /** An 8-digit student number, as printed on a student card. */
 const STUDENT_NUMBER = /^\d{8}$/;
 
@@ -29,6 +32,11 @@ export interface RowError {
   row: number;
   field: keyof ColumnMapping;
   message: string;
+  /**
+   * What the row held, as read. Without it the preview can say only "row 8 has
+   * no first name", and the lecturer cannot tell which student that is.
+   */
+  values: { studentNumber: string; name: string; surname: string; email: string };
 }
 
 export interface ImportRow {
@@ -100,15 +108,22 @@ export function validateRows(sheet: ParsedSheet, mapping: ColumnMapping) {
   const seen = new Map<string, number>();
 
   sheet.rows.forEach((cells, offset) => {
-    // +2: one for the header, one because people count from 1.
-    const row = offset + 2;
+    // The row's own number in the file when the parser kept it; otherwise +2:
+    // one for the header, one because people count from 1.
+    const row = sheet.rowNumbers?.[offset] ?? offset + 2;
     const studentNumber = (cells[columns.studentNumber] ?? "").trim();
     const name = (cells[columns.name] ?? "").trim();
     const surname = (cells[columns.surname] ?? "").trim();
     const email = columns.email === -1 ? "" : (cells[columns.email] ?? "").trim();
+    const values = { studentNumber, name, surname, email };
 
     if (!studentNumber) {
-      errors.push({ row, field: "studentNumber", message: "No student number in this row." });
+      errors.push({
+        row,
+        field: "studentNumber",
+        message: "No student number in this row.",
+        values,
+      });
       return;
     }
     if (!STUDENT_NUMBER.test(studentNumber)) {
@@ -116,6 +131,7 @@ export function validateRows(sheet: ParsedSheet, mapping: ColumnMapping) {
         row,
         field: "studentNumber",
         message: `"${studentNumber}" is not an 8-digit student number.`,
+        values,
       });
       return;
     }
@@ -127,15 +143,16 @@ export function validateRows(sheet: ParsedSheet, mapping: ColumnMapping) {
         row,
         field: "studentNumber",
         message: `${studentNumber} already appears on row ${first}.`,
+        values,
       });
       return;
     }
     if (!name) {
-      errors.push({ row, field: "name", message: "No first name in this row." });
+      errors.push({ row, field: "name", message: "No first name in this row.", values });
       return;
     }
     if (!surname) {
-      errors.push({ row, field: "surname", message: "No surname in this row." });
+      errors.push({ row, field: "surname", message: "No surname in this row.", values });
       return;
     }
 
@@ -179,6 +196,8 @@ export interface ImportResult {
   removed: number;
   matched: number;
   unmatched: number;
+  /** Rows waiting on the lecturer to resolve, so the result can say so. */
+  conflicts: number;
 }
 
 /**
@@ -213,7 +232,7 @@ export async function commitImport(
     );
     if (Number(rows[0]!.count) > 0) {
       throw conflict(
-        "This class already has groups, so its list can't be replaced. Add to it instead, or delete the groups first.",
+        "This class already has groups, so its list can't be replaced. Add the new students to it instead.",
       );
     }
   }
@@ -235,18 +254,29 @@ export async function commitImport(
     for (const row of valid) {
       // Every row lands unmatched; FR-04 runs once over the whole list below,
       // by the same rule account activation uses.
+      //
+      // An existing Conflict goes back to unmatched so that rule looks at it
+      // again. Nobody decided it - matching did, because the names differed -
+      // and a corrected list may well make them agree. If they still differ it
+      // simply becomes a Conflict again. A match, and an entry the lecturer
+      // reviewed and left unmatched, are decisions and are kept.
       const { rows } = await sql.query<{ inserted: boolean }>(
         `INSERT INTO enrolments
            (class_id, student_number, imported_name, imported_surname, imported_email,
             match_status, user_id, match_note)
-         VALUES ($1, $2, $3, $4, $5, 'unmatched', NULL,
-                 'No registered Peerly account uses this student number yet.')
+         VALUES ($1, $2, $3, $4, $5, 'unmatched', NULL, $6)
          ON CONFLICT (class_id, student_number) DO UPDATE
             SET imported_name = EXCLUDED.imported_name,
                 imported_surname = EXCLUDED.imported_surname,
-                imported_email = EXCLUDED.imported_email
+                imported_email = EXCLUDED.imported_email,
+                match_status = CASE WHEN enrolments.match_status = 'conflict'
+                                    THEN 'unmatched'::match_status
+                                    ELSE enrolments.match_status END,
+                match_note = CASE WHEN enrolments.match_status = 'conflict'
+                                  THEN EXCLUDED.match_note
+                                  ELSE enrolments.match_note END
          RETURNING (xmax = 0) AS inserted`,
-        [classId, row.studentNumber, row.name, row.surname, row.email ?? null],
+        [classId, row.studentNumber, row.name, row.surname, row.email ?? null, UNMATCHED_NOTE],
       );
       if (rows[0]?.inserted) imported += 1;
       else updated += 1;
@@ -256,9 +286,14 @@ export async function commitImport(
     // the list, so a student who registered since the last import is picked up.
     await matchEnrolments(sql, { classId });
 
-    const { rows: counts } = await sql.query<{ matched: string; unmatched: string }>(
+    const { rows: counts } = await sql.query<{
+      matched: string;
+      unmatched: string;
+      conflicts: string;
+    }>(
       `SELECT count(*) FILTER (WHERE match_status = 'matched')   AS matched,
-              count(*) FILTER (WHERE match_status = 'unmatched') AS unmatched
+              count(*) FILTER (WHERE match_status = 'unmatched') AS unmatched,
+              count(*) FILTER (WHERE match_status = 'conflict')  AS conflicts
          FROM enrolments WHERE class_id = $1`,
       [classId],
     );
@@ -284,6 +319,7 @@ export async function commitImport(
       removed,
       matched: Number(counts[0]!.matched),
       unmatched: Number(counts[0]!.unmatched),
+      conflicts: Number(counts[0]!.conflicts),
     };
   });
 }

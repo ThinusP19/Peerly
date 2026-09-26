@@ -341,9 +341,12 @@ async function seed() {
       groupIds: string[];
     }) {
       const { rows } = await sql.query<{ id: string }>(
+        // A closed one was closed at its scheduled time (closed_at, FR-13).
         `INSERT INTO assessments
-           (class_id, name, description, status, opens_at, closes_at, max_mark, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, 100, $7) RETURNING id`,
+           (class_id, name, description, status, opens_at, closes_at, closed_at, max_mark, created_by)
+         VALUES ($1, $2, $3, $4::assessment_status, $5, $6::timestamptz,
+                 CASE WHEN $4::assessment_status = 'closed' THEN $6::timestamptz END, 100, $7)
+         RETURNING id`,
         [
           input.classId,
           input.name,

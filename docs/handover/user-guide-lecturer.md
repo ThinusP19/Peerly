@@ -160,8 +160,9 @@ exists for 2026 Semester 2. Use a different module code or academic period."*
   - **Student number:** 8 digits
   - **First name**
   - **Surname**
-  - **Institutional email:** recommended
-- Other columns are ignored.
+  - **Institutional email:** optional. Choose **Not in this file** if there isn't one.
+- Other columns are ignored. The column step lists the ones it will leave out.
+- A `.csv` saved by Excel as plain **CSV** or **CSV UTF-8**, with commas or semicolons, is fine.
 - Any formulas in the file are never run. Peerly reads the last value Excel saved.
 
 ### 4.3 Import the class list
@@ -190,8 +191,8 @@ last step.
    **Rows with errors are skipped. The rest are imported.** To include a skipped row, fix the
    file and select **Upload a different file**.
 4. Select **Import N students**, check the confirmation (**Import this class list?**), then
-   select **Import class list**. A message reports how many students were imported, how many
-   were matched to an account, and how many are still unmatched.
+   select **Import class list**. A message reports how many students were added or updated, and
+   how many on the list are matched to an account, still unmatched, or have a conflict to resolve.
 
 **Importing again adds to the list.** Existing students stay, new rows are added, and students
 already on the list have their names and emails updated from the file. Students already in a
@@ -334,18 +335,18 @@ Select **View** next to an assessment on **Assessments** to open its page. It sh
 
 > **Opening and closing are manual.** The **Opens** and **Closes** times are shown to students,
 > but Peerly **doesn't open or close the assessment automatically**. Select **Open to students**
-> when you want it to start and **Close assessment** when you want it to end. Until you close
-> it, students can still submit after the closing time has passed.
+> when you want it to start and **Close assessment** when you want it to end. Students can't
+> submit after the closing time, even while the assessment still shows as open.
 >
-> **Re-opening after the closing date:** re-open first, then select **Extend deadline** so the
-> date shown to students is in the future.
+> **Opening or re-opening after the closing time:** the confirmation asks for a **New closing
+> date and time**, because otherwise nobody could submit. Choose one in the future.
 
 ### 6.3 Editing after opening
 
 The edit page warns **This assessment is already open** (or **closed**). You can still change
-the name, description, dates and maximum mark. Once an assessment has opened, Peerly **refuses
-changes to its groups**. If it can't save, you'll see *"We couldn't save this assessment. Please
-try again."* Undo the group change and save again.
+the name, description, dates and maximum mark. Once an assessment has opened, its **groups can't
+change**: the group choices are shown but locked. To assess a different set of groups, create a
+new assessment. If a value can't be saved, the reason appears beside that field.
 
 ---
 
@@ -747,8 +748,6 @@ These are known gaps in the build this guide was written against. Work around th
 3. **Reminders aren't sent.** **Send reminder** shows a confirmation, but no email goes out.
 4. **Regrouping removes groups from existing assessments** that have no submissions yet,
    including open ones ([5.3](#53-confirm)).
-5. **The column step always mentions a "Programme" column** being ignored, whatever your file
-    contains. You can ignore that note.
 
 ---
 

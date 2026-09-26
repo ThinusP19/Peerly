@@ -20,6 +20,8 @@ export interface AssessmentRecord {
   status: "draft" | "open" | "closed";
   opensAt: string;
   closesAt: string;
+  /** When the lecturer actually closed it, which can be before closesAt. */
+  closedAt?: string;
   maxMark: number;
   calculatedAt?: string;
   calculationRunId?: string;
@@ -34,6 +36,7 @@ interface AssessmentQueryRow {
   status: "draft" | "open" | "closed";
   opens_at: Date;
   closes_at: Date;
+  closed_at: Date | null;
   max_mark: string;
   calculated_at: Date | null;
   calculation_run_id: string | null;
@@ -50,6 +53,7 @@ const toAssessment = (row: AssessmentQueryRow): AssessmentRecord => ({
   status: row.status,
   opensAt: row.opens_at.toISOString(),
   closesAt: row.closes_at.toISOString(),
+  ...(row.closed_at ? { closedAt: row.closed_at.toISOString() } : {}),
   // numeric arrives as a string so no precision is lost in the driver; the
   // conversion happens here, deliberately, at the point of use.
   maxMark: Number(row.max_mark),
@@ -68,7 +72,7 @@ const toAssessment = (row: AssessmentQueryRow): AssessmentRecord => ({
  */
 const selectAssessment = (extraColumns = "") => `
   SELECT a.id, a.class_id, a.name, a.description, a.status, a.opens_at, a.closes_at,
-         a.max_mark, a.calculated_at, a.calculation_run_id, a.exported_at,
+         a.closed_at, a.max_mark, a.calculated_at, a.calculation_run_id, a.exported_at,
          (SELECT array_agg(ag.group_id ORDER BY g.group_number)
             FROM assessment_groups ag
             JOIN groups g ON g.id = ag.group_id

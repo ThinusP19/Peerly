@@ -93,6 +93,8 @@ export interface StudentAssessmentView {
     status: "draft" | "open" | "closed";
     opensAt: string;
     closesAt: string;
+    /** When the lecturer actually closed it, which can be before closesAt. */
+    closedAt?: string;
   };
   klass: { id: string; moduleCode: string; name: string };
   group: { id: string; groupNumber: number };
@@ -104,9 +106,9 @@ export interface StudentAssessmentView {
 /**
  * Every assessment this student can see, with the group context they need.
  *
- * Draft assessments are included so the dashboard can show "Not yet open"
- * rather than an empty page - but they carry no ratings, and the student
- * portal has no route that would submit against one.
+ * Drafts are left out. A draft is the lecturer's work in progress - its name,
+ * dates and groups may still be wrong - and the lecturer's screens promise
+ * that nothing is visible to students until it is opened.
  */
 export async function getStudentAssessments(studentId: string): Promise<StudentAssessmentView[]> {
   const { rows } = await query<{
@@ -116,6 +118,7 @@ export async function getStudentAssessments(studentId: string): Promise<StudentA
     status: "draft" | "open" | "closed";
     opens_at: Date;
     closes_at: Date;
+    closed_at: Date | null;
     class_id: string;
     module_code: string;
     class_name: string;
@@ -127,7 +130,7 @@ export async function getStudentAssessments(studentId: string): Promise<StudentA
     members: Array<{ id: string; name: string; surname: string }> | null;
   }>(
     `SELECT a.id AS assessment_id, a.name AS assessment_name, a.description, a.status,
-            a.opens_at, a.closes_at,
+            a.opens_at, a.closes_at, a.closed_at,
             c.id AS class_id, c.module_code, c.name AS class_name,
             g.id AS group_id, g.group_number,
             s.id AS submission_id, s.status AS submission_status, s.submitted_at,
@@ -143,8 +146,9 @@ export async function getStudentAssessments(studentId: string): Promise<StudentA
        JOIN assessments a ON a.id = ag.assessment_id
        LEFT JOIN submissions s ON s.assessment_id = a.id AND s.evaluator_id = $1
       WHERE mine.student_id = $1
-      -- Open first, then drafts, then closed; each by when it shuts.
-      ORDER BY CASE a.status WHEN 'open' THEN 0 WHEN 'draft' THEN 1 ELSE 2 END, a.closes_at`,
+        AND a.status <> 'draft'
+      -- Open first, then closed; each by when it shuts.
+      ORDER BY CASE a.status WHEN 'open' THEN 0 ELSE 1 END, a.closes_at`,
     [studentId],
   );
 
@@ -156,6 +160,7 @@ export async function getStudentAssessments(studentId: string): Promise<StudentA
       status: row.status,
       opensAt: row.opens_at.toISOString(),
       closesAt: row.closes_at.toISOString(),
+      ...(row.closed_at ? { closedAt: row.closed_at.toISOString() } : {}),
     },
     klass: { id: row.class_id, moduleCode: row.module_code, name: row.class_name },
     group: { id: row.group_id, groupNumber: row.group_number },

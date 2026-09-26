@@ -1,5 +1,5 @@
 import { query, withTransaction } from "../db/pool.ts";
-import type { SessionUser } from "../domain/types.ts";
+import type { SessionUser, UserStatus } from "../domain/types.ts";
 import { conflict, notFoundOrForbidden } from "../middleware/errors.ts";
 import { record } from "./audit.ts";
 
@@ -18,6 +18,8 @@ export interface ConflictCandidate {
   surname: string;
   email: string;
   studentNumber: string | null;
+  /** So the lecturer can see whether the account has verified its address. */
+  status: UserStatus;
 }
 
 interface EnrolmentContext {
@@ -79,7 +81,7 @@ export async function getConflictCandidates(
   const enrolment = await loadEnrolment(enrolmentId, user);
 
   const { rows } = await query<ConflictCandidate>(
-    `SELECT id, name, surname, email, student_number AS "studentNumber"
+    `SELECT id, name, surname, email, student_number AS "studentNumber", status
        FROM users
       WHERE role = 'student' AND student_number = $1
       ORDER BY created_at`,

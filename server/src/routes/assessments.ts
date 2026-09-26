@@ -94,13 +94,30 @@ assessmentRoutes.get("/:assessmentId/marks", requireRole("lecturer"), async (req
 
 const datetime = z.iso.datetime({ offset: true });
 
+/**
+ * Long enough for any real title, short enough that one name cannot push every
+ * other column of a table off the screen. The form enforces the same limit.
+ */
+const ASSESSMENT_NAME_MAX = 120;
+
 const assessmentBody = z.object({
-  name: z.string().trim().min(1, "Give the assessment a name."),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Give the assessment a name.")
+    .max(ASSESSMENT_NAME_MAX, `Keep the name to ${ASSESSMENT_NAME_MAX} characters or fewer.`),
   description: z.string().trim().max(2000).optional(),
   groupIds: z.array(z.uuid()).min(1, "Choose at least one group to take part."),
   opensAt: datetime,
   closesAt: datetime,
-  maxMark: z.number().positive().max(1000).optional(),
+  // max_mark is numeric(6,2): a third decimal would be rounded away silently,
+  // so it is refused instead.
+  maxMark: z
+    .number()
+    .positive("The maximum mark has to be more than 0.")
+    .max(1000, "The maximum mark can be at most 1000.")
+    .refine((value) => Number(value.toFixed(2)) === value, "Use at most two decimal places.")
+    .optional(),
 });
 
 assessmentRoutes.post("/", requireRole("lecturer"), async (req, res) => {
@@ -123,11 +140,13 @@ assessmentRoutes.patch("/:assessmentId", requireRole("lecturer"), async (req, re
  */
 assessmentRoutes.post("/:assessmentId/status", requireRole("lecturer"), async (req, res) => {
   const { assessmentId: id } = assessmentId.parse(req.params);
-  const { transition } = z
-    .object({ transition: z.enum(["open", "close", "reopen"]) })
+  // closesAt is optional: opening or re-opening after the closing time has
+  // passed needs a new one, chosen in the same step.
+  const { transition, closesAt } = z
+    .object({ transition: z.enum(["open", "close", "reopen"]), closesAt: datetime.optional() })
     .parse(req.body);
 
-  res.json(await changeAssessmentStatus(id, transition, currentUser(req).user));
+  res.json(await changeAssessmentStatus(id, transition, currentUser(req).user, { closesAt }));
 });
 
 assessmentRoutes.put("/:assessmentId/marks/:groupId", requireRole("lecturer"), async (req, res) => {

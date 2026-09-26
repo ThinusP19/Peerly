@@ -34,6 +34,15 @@ export interface ParsedSheet {
   headers: string[];
   /** Every data row, aligned to `headers`. */
   rows: string[][];
+  /**
+   * Where each row sits in the file, as a spreadsheet program numbers it.
+   *
+   * Blank rows are dropped from `rows`, so its index is not the row number: a
+   * file with two empty lines above a bad row would otherwise send the lecturer
+   * to a blank one. Absent only on a sheet built by hand, where the rows are
+   * taken to follow the header with no gaps.
+   */
+  rowNumbers?: number[];
 }
 
 const isXlsx = (filename: string) => /\.xlsx$/i.test(filename);
@@ -74,7 +83,7 @@ function cellText(value: ExcelJS.CellValue): string {
  * comma-separated fields with optional quoting and doubled quotes inside them,
  * and that is a dozen lines. A dependency would be more surface for less.
  */
-function splitCsvLine(line: string): string[] {
+function splitCsvLine(line: string, delimiter: string): string[] {
   const fields: string[] = [];
   let current = "";
   let quoted = false;
@@ -96,7 +105,7 @@ function splitCsvLine(line: string): string[] {
       }
     } else if (char === '"') {
       quoted = true;
-    } else if (char === ",") {
+    } else if (char === delimiter) {
       fields.push(current.trim());
       current = "";
     } else {
@@ -108,19 +117,56 @@ function splitCsvLine(line: string): string[] {
   return fields;
 }
 
+/**
+ * The file's text, whichever encoding Excel saved it in.
+ *
+ * Excel's plain "CSV (Comma delimited)" option saves Windows-1252, not UTF-8.
+ * Read as UTF-8, every accented byte becomes U+FFFD and "Zoë Müller" would be
+ * stored as "Zo\uFFFD M\uFFFDller" without a word. Strict UTF-8 is tried
+ * first, because a UTF-8 file is also mostly valid Windows-1252 and would be
+ * misread the other way round.
+ */
+function decodeCsv(buffer: Buffer): string {
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(buffer);
+  } catch {
+    return new TextDecoder("windows-1252").decode(buffer);
+  }
+}
+
+/**
+ * The field separator, read from the header line.
+ *
+ * In locales that write a comma as the decimal point - South Africa among
+ * them - Excel separates CSV fields with semicolons. A header with semicolons
+ * and no commas is one of those; anything else is the usual comma.
+ */
+const delimiterOf = (header: string) => (header.includes(";") && !header.includes(",") ? ";" : ",");
+
 function parseCsv(buffer: Buffer): ParsedSheet {
   // A byte-order mark would otherwise become part of the first header's name,
   // and the column mapping would silently fail to match it.
-  const text = buffer.toString("utf8").replace(/^\uFEFF/, "");
-  const lines = text.split(/\r\n|\n|\r/).filter((line) => line.trim() !== "");
+  const text = decodeCsv(buffer).replace(/^\uFEFF/, "");
+  // Blank lines are dropped, but each kept line remembers its line number, so
+  // an error is reported against the row the lecturer sees in the file.
+  const lines = text
+    .split(/\r\n|\n|\r/)
+    .map((line, index) => ({ line, number: index + 1 }))
+    .filter(({ line }) => line.trim() !== "");
 
   if (lines.length === 0) throw badRequest("That file is empty.");
   if (lines.length - 1 > MAX_ROWS) {
     throw badRequest(`That file has more than ${MAX_ROWS} rows. Please split it.`);
   }
 
-  const headers = splitCsvLine(lines[0]!);
-  return { headers, rows: lines.slice(1).map(splitCsvLine) };
+  const delimiter = delimiterOf(lines[0]!.line);
+  const headers = splitCsvLine(lines[0]!.line, delimiter);
+  const body = lines.slice(1);
+  return {
+    headers,
+    rows: body.map(({ line }) => splitCsvLine(line, delimiter)),
+    rowNumbers: body.map(({ number }) => number),
+  };
 }
 
 async function parseXlsx(buffer: Buffer): Promise<ParsedSheet> {
@@ -151,13 +197,17 @@ async function parseXlsx(buffer: Buffer): Promise<ParsedSheet> {
   if (headers.length === 0) throw badRequest("That file has no column headings.");
 
   const rows: string[][] = [];
+  const rowNumbers: number[] = [];
   sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
     if (rowNumber === 1) return;
     const values = headers.map((_, index) => cellText(row.getCell(index + 1).value));
-    if (values.some((value) => value !== "")) rows.push(values);
+    if (values.some((value) => value !== "")) {
+      rows.push(values);
+      rowNumbers.push(rowNumber);
+    }
   });
 
-  return { headers, rows };
+  return { headers, rows, rowNumbers };
 }
 
 export interface UploadedFile {

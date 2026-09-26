@@ -48,9 +48,17 @@ async function scenario() {
   return { user, classId, groupIds };
 }
 
+const DAY = 24 * 60 * 60 * 1000;
+const daysFromNow = (days: number) => new Date(Date.now() + days * DAY).toISOString();
+
+/**
+ * Relative to now, not fixed dates. Opening refuses a closing time already in
+ * the past (BR-05), so fixed dates would make these tests fail on the day the
+ * calendar passed them.
+ */
 const times = {
-  opensAt: "2026-10-01T08:00:00.000Z",
-  closesAt: "2026-10-14T20:00:00.000Z",
+  opensAt: daysFromNow(5),
+  closesAt: daysFromNow(18),
 };
 
 describe("createAssessment", () => {
@@ -206,6 +214,122 @@ describe("changeAssessmentStatus (FR-13)", () => {
     expect(result.invalidatedCalculation).toBe(false);
   });
 
+  describe("a closing time already in the past (BR-05)", () => {
+    // Students are refused once the closing time has passed, so an assessment
+    // opened after it is open to nobody, while every screen says it is running.
+    const makePast = async () => {
+      const s = await scenario();
+      const assessment = await createAssessment(
+        {
+          classId: s.classId,
+          name: "Phase 2",
+          groupIds: s.groupIds,
+          opensAt: daysFromNow(-3),
+          closesAt: daysFromNow(-1),
+        },
+        s.user,
+      );
+      return { ...s, assessmentId: assessment.id };
+    };
+
+    it("refuses to open it", async () => {
+      const { user, assessmentId } = await makePast();
+
+      await expect(changeAssessmentStatus(assessmentId, "open", user)).rejects.toMatchObject({
+        status: 400,
+        fields: { closesAt: expect.stringMatching(/already passed/) },
+      });
+      const { rows } = await query<{ status: string }>(
+        "SELECT status FROM assessments WHERE id = $1",
+        [assessmentId],
+      );
+      expect(rows[0]!.status).toBe("draft");
+    });
+
+    it("opens it with a new closing time chosen in the same step, and records both", async () => {
+      const { user, assessmentId } = await makePast();
+      const later = daysFromNow(7);
+
+      const { assessment } = await changeAssessmentStatus(assessmentId, "open", user, {
+        closesAt: later,
+      });
+      expect(assessment.status).toBe("open");
+      expect(assessment.closesAt).toBe(later);
+
+      const [entry] = await getAuditEntries({ eventType: "assessment.opened" });
+      expect(entry!.detail).toContain("Closing time changed");
+    });
+
+    it("refuses a new closing time that is itself in the past", async () => {
+      const { user, assessmentId } = await makePast();
+
+      await expect(
+        changeAssessmentStatus(assessmentId, "open", user, { closesAt: daysFromNow(-0.5) }),
+      ).rejects.toMatchObject({ fields: { closesAt: expect.any(String) } });
+    });
+
+    it("refuses to re-open one whose closing time has passed, unless given a new one", async () => {
+      const { user, assessmentId } = await make();
+      await changeAssessmentStatus(assessmentId, "open", user);
+      await changeAssessmentStatus(assessmentId, "close", user);
+      await query(
+        "UPDATE assessments SET opens_at = now() - interval '3 days', closes_at = now() - interval '1 day' WHERE id = $1",
+        [assessmentId],
+      );
+
+      await expect(changeAssessmentStatus(assessmentId, "reopen", user)).rejects.toMatchObject({
+        status: 400,
+      });
+
+      const { assessment } = await changeAssessmentStatus(assessmentId, "reopen", user, {
+        closesAt: daysFromNow(2),
+      });
+      expect(assessment.status).toBe("open");
+    });
+
+    it("never needs a closing time to close", async () => {
+      const { user, assessmentId } = await make();
+      await changeAssessmentStatus(assessmentId, "open", user);
+      await query(
+        "UPDATE assessments SET opens_at = now() - interval '1 day', closes_at = now() - interval '1 minute' WHERE id = $1",
+        [assessmentId],
+      );
+
+      const { assessment } = await changeAssessmentStatus(assessmentId, "close", user);
+      expect(assessment.status).toBe("closed");
+    });
+  });
+
+  describe("when it was actually closed (FR-13)", () => {
+    it("records the moment it was closed, not the scheduled closing time", async () => {
+      const { user, assessmentId } = await make();
+      await changeAssessmentStatus(assessmentId, "open", user);
+
+      const before = Date.now();
+      const { assessment } = await changeAssessmentStatus(assessmentId, "close", user);
+
+      expect(assessment.closedAt).toBeDefined();
+      const closedAt = new Date(assessment.closedAt!).getTime();
+      expect(closedAt).toBeGreaterThanOrEqual(before - 5000);
+      expect(closedAt).toBeLessThan(new Date(assessment.closesAt).getTime());
+    });
+
+    it("forgets it when the assessment is re-opened", async () => {
+      const { user, assessmentId } = await make();
+      await changeAssessmentStatus(assessmentId, "open", user);
+      await changeAssessmentStatus(assessmentId, "close", user);
+
+      const { assessment } = await changeAssessmentStatus(assessmentId, "reopen", user);
+      expect(assessment.closedAt).toBeUndefined();
+    });
+
+    it("has none while it is still open", async () => {
+      const { user, assessmentId } = await make();
+      const { assessment } = await changeAssessmentStatus(assessmentId, "open", user);
+      expect(assessment.closedAt).toBeUndefined();
+    });
+  });
+
   it("records each transition with its before and after state", async () => {
     const { user, assessmentId } = await make();
     await changeAssessmentStatus(assessmentId, "open", user);
@@ -227,7 +351,7 @@ describe("updateAssessment", () => {
 
   it("extends the closing time and records both times (FR-13)", async () => {
     const { user, assessmentId } = await make();
-    const later = "2026-10-21T20:00:00.000Z";
+    const later = daysFromNow(25);
 
     const updated = await updateAssessment(assessmentId, { closesAt: later }, user);
     expect(updated.closesAt).toBe(later);
@@ -244,6 +368,36 @@ describe("updateAssessment", () => {
     await expect(
       updateAssessment(assessmentId, { groupIds: [groupIds[0]!] }, user),
     ).rejects.toThrow(/can't be changed once an assessment has opened/);
+  });
+
+  it("accepts the same groups back once it has opened, so the rest can still be edited", async () => {
+    // The edit form sends the whole setup. Refusing an unchanged group list
+    // made every open or closed assessment impossible to rename or extend.
+    const { user, assessmentId, groupIds } = await make();
+    await changeAssessmentStatus(assessmentId, "open", user);
+
+    const updated = await updateAssessment(
+      assessmentId,
+      { name: "Phase 2 - final", groupIds: [...groupIds].reverse() },
+      user,
+    );
+    expect(updated.name).toBe("Phase 2 - final");
+    expect([...updated.groupIds].sort()).toEqual([...groupIds].sort());
+
+    const [entry] = await getAuditEntries({ eventType: "assessment.updated" });
+    expect(entry!.detail).not.toMatch(/Participating groups/);
+  });
+
+  it("does not suggest closing it to change the groups, because that doesn't help", async () => {
+    const { user, assessmentId, groupIds } = await make();
+    await changeAssessmentStatus(assessmentId, "open", user);
+    await changeAssessmentStatus(assessmentId, "close", user);
+
+    const error = await updateAssessment(assessmentId, { groupIds: [groupIds[0]!] }, user).catch(
+      (caught: Error) => caught,
+    );
+    expect((error as Error).message).toMatch(/can't be changed once an assessment has opened/);
+    expect((error as Error).message).not.toMatch(/Close it first/);
   });
 
   it("allows the groups to change while it is still a draft", async () => {
@@ -296,7 +450,7 @@ describe("updateAssessment", () => {
 
       await updateAssessment(
         assessmentId,
-        { name: "Renamed", maxMark: 75, closesAt: "2026-10-21T20:00:00.000Z" },
+        { name: "Renamed", maxMark: 75, closesAt: daysFromNow(25) },
         user,
       );
 

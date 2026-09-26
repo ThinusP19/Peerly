@@ -203,6 +203,29 @@ export const activationLinkMail = (to: string, name: string, token: string): Mai
 });
 
 /**
+ * A moment as South African students read it: "28 September 2026 at 13:13
+ * (South African time)", the same wording and zone the app shows (OR-11).
+ * Fixed to Africa/Johannesburg rather than the server's own zone, which on a
+ * hosted machine is usually UTC.
+ */
+export function inSouthAfrica(iso: string): string {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Africa/Johannesburg",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    })
+      .formatToParts(new Date(iso))
+      .map((part) => [part.type, part.value]),
+  );
+  return `${parts.day} ${parts.month} ${parts.year} at ${parts.hour}:${parts.minute} (South African time)`;
+}
+
+/**
  * Reminds a student that an evaluation is still outstanding (FR-18).
  *
  * It carries no link to a specific assessment, because a student signs in and
@@ -222,7 +245,7 @@ export const submissionReminderMail = (
   text:
     `Hi ${name},\n\n` +
     `Your peer evaluation for "${assessmentName}" (${moduleCode}) hasn't been submitted yet.\n\n` +
-    `It closes on ${new Date(closesAt).toUTCString()}. After that it can't be submitted.\n\n` +
+    `It closes on ${inSouthAfrica(closesAt)}. After that it can't be submitted.\n\n` +
     `Sign in to complete it:\n\n    ${env.appUrl}\n\n` +
     `If you've already submitted it, you can ignore this.` +
     signOff,

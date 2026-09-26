@@ -100,6 +100,23 @@ describe("getClass (SR-07)", () => {
 });
 
 describe("getClassSummaries", () => {
+  it("counts the students in groups separately from the matched students", async () => {
+    // The dashboard's "per group" average divides this by the group count.
+    // Matched students not yet in a group used to be counted too.
+    const lecturer = await createUser({ role: "lecturer" });
+    const id = await aClass(lecturer.id);
+    const members = [];
+    for (let i = 0; i < 5; i += 1) {
+      const student = await createUser({ role: "student", studentNumber: String(41200345 + i) });
+      await enrol(id, String(41200345 + i), "matched", student.id);
+      members.push(student.id);
+    }
+    await group(id, 1, members.slice(0, 2));
+
+    const [summary] = await getClassSummaries(asker(lecturer.id));
+    expect(summary).toMatchObject({ matchedCount: 5, groupCount: 1, groupedCount: 2 });
+  });
+
   it("counts the class list by match status", async () => {
     const lecturer = await createUser({ role: "lecturer" });
     const id = await aClass(lecturer.id);
