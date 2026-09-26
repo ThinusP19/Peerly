@@ -218,6 +218,22 @@ describe("staff activation (FR-01, FR-03)", () => {
     expect(await describeActivationToken("never-issued")).toBeNull();
   });
 
+  it("treats the link of a deactivated account as unusable, without spending it", async () => {
+    // Found in the 26 September re-test: the form was offered, the password
+    // refused as "expired", and the refusal burned the link - so it no longer
+    // worked once the administrator re-activated the account.
+    const user = await newStaff();
+    await sendActivationLink(user.id);
+    const token = activationToken()!;
+    await query("UPDATE users SET status = 'inactive' WHERE id = $1", [user.id]);
+
+    expect(await describeActivationToken(token)).toBeNull();
+    expect(await activateWithToken(token, PASSWORD)).toBeNull();
+
+    await query("UPDATE users SET status = 'unverified' WHERE id = $1", [user.id]);
+    expect(await activateWithToken(token, PASSWORD)).toMatchObject({ status: "active" });
+  });
+
   it("sets the first password and activates the account", async () => {
     const user = await newStaff();
     await sendActivationLink(user.id);

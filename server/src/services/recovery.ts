@@ -67,7 +67,11 @@ async function holderOf(token: string, purpose: Purpose): Promise<HolderRow | nu
       WHERE t.token_hash = $1
         AND t.purpose = $2
         AND t.consumed_at IS NULL
-        AND t.expires_at > now()`,
+        AND t.expires_at > now()
+        -- A deactivated account's links are unusable while it stays so. They
+        -- are refused here, before any form or any use, so none is spent and
+        -- re-activating the account makes them work again.
+        AND u.status <> 'inactive'`,
     [hashSecret(token), purpose],
   );
   return rows[0] ?? null;
