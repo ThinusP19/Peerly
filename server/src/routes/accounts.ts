@@ -25,6 +25,14 @@ accountRoutes.use(requireAuth, requireRole("admin"));
 
 const userId = z.object({ userId: z.uuid() });
 
+/**
+ * Generous for any real name, and short enough that a name cannot swamp the
+ * account list, the page header or every audit entry that carries it.
+ */
+const NAME_MAX = 100;
+const personName = (blank: string) =>
+  z.string().trim().min(1, blank).max(NAME_MAX, `Keep this to ${NAME_MAX} characters or fewer.`);
+
 accountRoutes.get("/", async (_req, res) => {
   res.json({ accounts: await listStaffAccounts(), activeAdmins: await activeAdminCount() });
 });
@@ -33,8 +41,8 @@ accountRoutes.post("/", async (req, res) => {
   const body = z
     .object({
       role: z.enum(["admin", "lecturer"]),
-      name: z.string().trim().min(1, "Enter a first name."),
-      surname: z.string().trim().min(1, "Enter a surname."),
+      name: personName("Enter a first name."),
+      surname: personName("Enter a surname."),
       email: z.string().trim().pipe(z.email("This doesn't look like an email address.")),
     })
     .parse(req.body);
@@ -46,8 +54,8 @@ accountRoutes.patch("/:userId", async (req, res) => {
   const { userId: id } = userId.parse(req.params);
   const changes = z
     .object({
-      name: z.string().trim().min(1).optional(),
-      surname: z.string().trim().min(1).optional(),
+      name: personName("Enter a first name.").optional(),
+      surname: personName("Enter a surname.").optional(),
       email: z.string().trim().pipe(z.email()).optional(),
       role: z.enum(["admin", "lecturer"]).optional(),
     })

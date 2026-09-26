@@ -37,6 +37,12 @@ import {
 } from "@/components/ui/select";
 import { formatDate } from "@/lib/format";
 import { roleLabel } from "@/lib/session";
+import {
+  NAME_MAX,
+  accountFormErrors,
+  blankAccountForm,
+  type AccountForm,
+} from "@/lib/staff-account-form";
 import type { Role, User } from "@/mocks/types";
 import { ApiError } from "@/lib/api";
 import {
@@ -63,7 +69,8 @@ function AccountsPage() {
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
-  const [createOpen, setCreateOpen] = useState(false);
+  // The role the create form opens with, or null while it is closed.
+  const [createRole, setCreateRole] = useState<Role | null>(null);
   const [editing, setEditing] = useState<User | null>(null);
   const [statusTarget, setStatusTarget] = useState<User | null>(null);
   const [blockedAccount, setBlockedAccount] = useState<User | null>(null);
@@ -210,7 +217,7 @@ function AccountsPage() {
         title="Lecturer & administrator accounts"
         description="Create staff accounts and control who can sign in. Student accounts are self-registered and are not managed here."
         actions={
-          <Button onClick={() => setCreateOpen(true)} className="h-10 px-4">
+          <Button onClick={() => setCreateRole("lecturer")} className="h-10 px-4">
             <UserPlus aria-hidden="true" />
             Create account
           </Button>
@@ -299,7 +306,7 @@ function AccountsPage() {
                     Clear filters
                   </Button>
                 ) : (
-                  <Button onClick={() => setCreateOpen(true)}>
+                  <Button onClick={() => setCreateRole("lecturer")}>
                     <UserPlus aria-hidden="true" />
                     Create account
                   </Button>
@@ -313,8 +320,9 @@ function AccountsPage() {
 
       <AccountFormDialog
         mode="create"
-        open={createOpen}
-        onOpenChange={setCreateOpen}
+        open={createRole !== null}
+        initialRole={createRole ?? "lecturer"}
+        onOpenChange={(open) => !open && setCreateRole(null)}
         onSaved={refresh}
       />
 
@@ -403,7 +411,7 @@ function AccountsPage() {
             <Button
               onClick={() => {
                 setBlockedAccount(null);
-                setCreateOpen(true);
+                setCreateRole("admin");
               }}
             >
               Create an administrator
@@ -419,27 +427,23 @@ function AccountsPage() {
  * Create / edit form
  * ------------------------------------------------------------------ */
 
-interface AccountForm {
-  name: string;
-  surname: string;
-  email: string;
-  role: Role;
-}
-
 function AccountFormDialog({
   mode,
   account,
+  initialRole = "lecturer",
   open,
   onOpenChange,
   onSaved,
 }: {
   mode: "create" | "edit";
   account?: User | null;
+  /** The role a new account starts with. */
+  initialRole?: Role;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved: () => void | Promise<unknown>;
 }) {
-  const blank: AccountForm = { name: "", surname: "", email: "", role: "lecturer" };
+  const blank = blankAccountForm(initialRole);
   const [form, setForm] = useState<AccountForm>(blank);
   const [errors, setErrors] = useState<Partial<Record<keyof AccountForm, string>>>({});
   const [busy, setBusy] = useState(false);
@@ -449,7 +453,7 @@ function AccountFormDialog({
   // closes is what makes the next opening start clean: without it, "Create"
   // re-opened with the last person's details and "Edit" with a cancelled draft.
   if (!open && loadedFor !== null) setLoadedFor(null);
-  const seedKey = mode === "edit" ? (account?.id ?? null) : open ? "create" : null;
+  const seedKey = mode === "edit" ? (account?.id ?? null) : open ? `create:${initialRole}` : null;
   if (open && seedKey !== loadedFor) {
     setLoadedFor(seedKey);
     setForm(
@@ -474,16 +478,7 @@ function AccountFormDialog({
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
 
-    const next: Partial<Record<keyof AccountForm, string>> = {};
-    if (!form.name.trim()) next.name = "Enter the person's first name.";
-    if (!form.surname.trim()) next.surname = "Enter the person's surname.";
-    if (!form.email.trim()) {
-      next.email = "Enter an institutional email address.";
-    } else if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) {
-      next.email = "This doesn't look like an email address - check for a missing @ or full stop.";
-    } else if (!form.email.trim().toLowerCase().endsWith("nwu.ac.za")) {
-      next.email = "Staff accounts must use an institutional address ending in nwu.ac.za.";
-    }
+    const next = accountFormErrors(form);
     setErrors(next);
     if (Object.keys(next).length) return;
 
@@ -548,6 +543,7 @@ function AccountFormDialog({
                   <Input
                     {...props}
                     value={form.name}
+                    maxLength={NAME_MAX}
                     onChange={(event) => set("name", event.target.value)}
                   />
                 )}
@@ -558,6 +554,7 @@ function AccountFormDialog({
                   <Input
                     {...props}
                     value={form.surname}
+                    maxLength={NAME_MAX}
                     onChange={(event) => set("surname", event.target.value)}
                   />
                 )}

@@ -1,7 +1,7 @@
 import { env } from "../config/env.ts";
 import { query, withTransaction } from "../db/pool.ts";
 import type { Role, SessionUser, UserStatus } from "../domain/types.ts";
-import { badRequest, conflict, notFoundOrForbidden } from "../middleware/errors.ts";
+import { AppError, badRequest, conflict, notFoundOrForbidden } from "../middleware/errors.ts";
 import { record } from "./audit.ts";
 import { sendActivationLink } from "./recovery.ts";
 import { revokeAllSessions } from "./sessions.ts";
@@ -105,8 +105,8 @@ export async function createStaffAccount(
          RETURNING id, role, name, surname, email, status, created_at`,
         [input.role, input.name.trim(), input.surname.trim(), input.email.trim()],
       );
-    } catch {
-      throw conflict("An account already uses that email address.");
+    } catch (error) {
+      throw emailTaken(error) ? emailInUse() : error;
     }
 
     const row = toAccount(created.rows[0]!);
@@ -128,6 +128,20 @@ export async function createStaffAccount(
   await sendActivationLink(account.id);
   return account;
 }
+
+/**
+ * The database is what refuses a second account on an address, case-blind
+ * (users_email_lower_key) - checking first would race. This only recognises
+ * that refusal so it can be put into words.
+ */
+const emailTaken = (error: unknown) =>
+  typeof error === "object" &&
+  error !== null &&
+  (error as { code?: string }).code === "23505" &&
+  (error as { constraint?: string }).constraint === "users_email_lower_key";
+
+const EMAIL_IN_USE = "An account already uses that email address.";
+const emailInUse = () => new AppError(409, EMAIL_IN_USE, "conflict", { email: EMAIL_IN_USE });
 
 export interface StaffChanges {
   name?: string;
@@ -190,12 +204,19 @@ export async function updateStaffAccount(
   );
 
   const after = await withTransaction(async (sql) => {
-    const updated = await sql.query<StaffRow>(
-      `UPDATE users SET name = $2, surname = $3, email = $4, role = $5, updated_at = now()
-        WHERE id = $1
-        RETURNING id, role, name, surname, email, status, created_at`,
-      [userId, next.name, next.surname, next.email, next.role],
-    );
+    let updated;
+    try {
+      updated = await sql.query<StaffRow>(
+        `UPDATE users SET name = $2, surname = $3, email = $4, role = $5, updated_at = now()
+          WHERE id = $1
+          RETURNING id, role, name, surname, email, status, created_at`,
+        [userId, next.name, next.surname, next.email, next.role],
+      );
+    } catch (error) {
+      // The same sentence create gives, beside the field, rather than the
+      // generic "that would break one of Peerly's rules".
+      throw emailTaken(error) ? emailInUse() : error;
+    }
     const row = toAccount(updated.rows[0]!);
 
     // FR-27: every change to who an account belongs to or what it may do.
