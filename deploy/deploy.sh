@@ -46,8 +46,16 @@ curl -fsS "http://127.0.0.1:${api_port}/health" >/dev/null || {
   exit 1
 }
 
+# -a: the page contains non-ASCII characters, and without it grep calls it
+# binary and prints nothing - so no asset was checked and the check passed.
+assets=$(curl -fsS "http://127.0.0.1:${web_port}/" | grep -aoE '/assets/[^"]+\.(js|css)' | sort -u)
+if [ -z "$assets" ]; then
+  echo "!! Could not find the page's assets to check. Open the site and look."
+  exit 1
+fi
+
 failed=0
-for asset in $(curl -fsS "http://127.0.0.1:${web_port}/" | grep -oE '/assets/[^"]+\.(js|css)' | sort -u); do
+for asset in $assets; do
   code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${web_port}${asset}")
   if [ "$code" != "200" ]; then
     echo "!! ${asset} answered ${code}"
@@ -59,4 +67,4 @@ if [ "$failed" != "0" ]; then
   exit 1
 fi
 
-echo "== Deployed $(git log --oneline -1). API healthy, every page asset loads."
+echo "== Deployed $(git log --oneline -1). API healthy, all $(echo "$assets" | wc -l | tr -d ' ') page assets load."
