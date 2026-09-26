@@ -1,4 +1,5 @@
 import type { Sql } from "../db/pool.ts";
+import { record, type Actor } from "./audit.ts";
 
 /**
  * FR-04: matching student accounts to class-list entries.
@@ -38,13 +39,26 @@ const NORMALISE = (column: string) => `regexp_replace(lower(${column}), '[^[:alp
  *
  * Pass `classId` after a class-list commit, or `userId` after an account is
  * activated. Returns how many rows became Matched and how many became Conflict.
+ *
+ * Each row it changes is audited (FR-27), in the caller's transaction: linking
+ * an account to a class list is what lets that student rate and be rated, so it
+ * must not happen without a trace. `actor` is whoever set it off - the lecturer
+ * who imported the list, or the student whose activation it was.
  */
 export async function matchEnrolments(
   sql: Sql,
   scope: { classId: string } | { userId: string },
+  actor: Actor = { name: "System" },
 ): Promise<{ matched: number; conflicts: number }> {
   const byClass = "classId" in scope;
-  const { rows } = await sql.query<{ status: "matched" | "conflict" }>(
+  const { rows } = await sql.query<{
+    status: "matched" | "conflict";
+    class_id: string;
+    module_code: string;
+    student_number: string;
+    imported_name: string;
+    imported_surname: string;
+  }>(
     `WITH candidates AS (
        SELECT e.id AS enrolment_id, u.id AS user_id,
               -- The surname must agree, and so must the first given name: a
@@ -75,9 +89,29 @@ export async function matchEnrolments(
             match_note   = CASE WHEN c.same_person THEN NULL ELSE $2 END
        FROM candidates c
       WHERE e.id = c.enrolment_id
-      RETURNING e.match_status::text AS status`,
+      RETURNING e.match_status::text AS status, e.class_id, e.student_number,
+                e.imported_name, e.imported_surname,
+                (SELECT k.module_code FROM classes k WHERE k.id = e.class_id) AS module_code`,
     [byClass ? scope.classId : scope.userId, CONFLICT_NOTE],
   );
+
+  for (const row of rows) {
+    await record(
+      {
+        actor,
+        eventType: row.status === "matched" ? "enrolment.matched" : "enrolment.conflict",
+        objectDescription: `${row.imported_name} ${row.imported_surname} · ${row.student_number}`,
+        detail:
+          row.status === "matched"
+            ? `Linked automatically to the registered account on the ${row.module_code} class list.`
+            : `Flagged on the ${row.module_code} class list: a registered account uses this student number, but its name differs, so a lecturer needs to check it.`,
+        classId: row.class_id,
+        before: { matchStatus: "unmatched" },
+        after: { matchStatus: row.status },
+      },
+      sql,
+    );
+  }
 
   return {
     matched: rows.filter((row) => row.status === "matched").length,

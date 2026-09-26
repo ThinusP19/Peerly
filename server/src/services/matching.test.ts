@@ -315,3 +315,63 @@ describe("resolving a conflict", () => {
     expect((await enrolment("41200345")).match_status).toBe("conflict");
   });
 });
+
+describe("matching is audited (FR-27)", () => {
+  const log = async () =>
+    (
+      await query<{
+        event_type: string;
+        actor_id: string | null;
+        class_id: string | null;
+        object_description: string;
+      }>("SELECT event_type, actor_id, class_id, object_description FROM audit_entries ORDER BY id")
+    ).rows;
+
+  it("records a match made on activation, against the class, by the student", async () => {
+    const { user, classId } = await lecturerWithClass();
+    await commitImport(classId, await sheet(), MAPPING, "extend", user);
+
+    const student = await registerAndVerify({
+      name: "Lerato",
+      surname: "Mokoena",
+      studentNumber: "41200345",
+    });
+
+    const matched = (await log()).filter((entry) => entry.event_type === "enrolment.matched");
+    expect(matched).toEqual([
+      {
+        event_type: "enrolment.matched",
+        actor_id: student!.id,
+        class_id: classId,
+        object_description: "Lerato Mokoena · 41200345",
+      },
+    ]);
+  });
+
+  it("records a match made by an import, by the lecturer who imported", async () => {
+    const { user, classId } = await lecturerWithClass();
+    await createUser({ studentNumber: "41200345", name: "Lerato", surname: "Mokoena" });
+
+    await commitImport(classId, await sheet(), MAPPING, "extend", user);
+
+    const matched = (await log()).filter((entry) => entry.event_type === "enrolment.matched");
+    expect(matched).toHaveLength(1);
+    expect(matched[0]).toMatchObject({ actor_id: user.id, class_id: classId });
+  });
+
+  it("records a conflict it sets", async () => {
+    const { user, classId } = await lecturerWithClass();
+    await commitImport(classId, await sheet(), MAPPING, "extend", user);
+
+    await registerAndVerify({ name: "Sipho", surname: "Dlamini", studentNumber: "41200345" });
+
+    expect((await log()).map((entry) => entry.event_type)).toContain("enrolment.conflict");
+  });
+
+  it("records nothing when nothing changed", async () => {
+    const { user, classId } = await lecturerWithClass();
+    await commitImport(classId, await sheet(), MAPPING, "extend", user);
+
+    expect((await log()).map((entry) => entry.event_type)).toEqual(["class.imported"]);
+  });
+});

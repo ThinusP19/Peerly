@@ -1,5 +1,6 @@
 import { query, withTransaction } from "../db/pool.ts";
 import { badRequest, conflict, notFoundOrForbidden } from "../middleware/errors.ts";
+import { record } from "./audit.ts";
 
 /**
  * Capturing and submitting a peer evaluation (FR-15, FR-16, FR-17).
@@ -304,18 +305,53 @@ export async function submitEvaluation(
     const submissionId = await upsertSubmission(sql, assessmentId, studentId, "submitted");
     await writeRatings(sql, submissionId, studentId, context, entries);
 
-    const { rows } = await sql.query<{ submitted_at: Date; count: string }>(
+    const { rows } = await sql.query<{
+      submitted_at: Date;
+      count: string;
+      amended: boolean;
+      assessment_name: string;
+      class_id: string;
+      name: string;
+      surname: string;
+    }>(
       `SELECT s.submitted_at,
-              (SELECT count(*) FROM peer_ratings r WHERE r.submission_id = s.id) AS count
-         FROM submissions s WHERE s.id = $1`,
+              (SELECT count(*) FROM peer_ratings r WHERE r.submission_id = s.id) AS count,
+              -- An amendment keeps the original submission time, so a time
+              -- earlier than this transaction means this submitted before.
+              s.submitted_at < now() AS amended,
+              a.name AS assessment_name, a.class_id, u.name, u.surname
+         FROM submissions s
+         JOIN assessments a ON a.id = s.assessment_id
+         JOIN users u ON u.id = s.evaluator_id
+        WHERE s.id = $1`,
       [submissionId],
+    );
+    const row = rows[0]!;
+    const ratingCount = Number(row.count);
+
+    // FR-27: a submission, and above all an amendment - which replaces ratings
+    // that feed a mark - must leave a trace. Only that it happened and how many
+    // ratings it holds: the log is read by administrators, and a rating's value
+    // is for the calculation and the lecturer, not for the audit trail.
+    await record(
+      {
+        actor: { id: studentId, name: row.name, surname: row.surname, role: "student" },
+        eventType: row.amended ? "evaluation.amended" : "evaluation.submitted",
+        objectDescription: row.assessment_name,
+        detail: row.amended
+          ? `Evaluation amended before the deadline: all ${ratingCount} ratings were replaced.`
+          : `Evaluation submitted with ${ratingCount} ${ratingCount === 1 ? "rating" : "ratings"}.`,
+        classId: row.class_id,
+        assessmentId,
+      },
+      sql,
     );
 
     return {
       id: submissionId,
       status: "submitted" as const,
-      submittedAt: rows[0]!.submitted_at.toISOString(),
-      ratingCount: Number(rows[0]!.count),
+      submittedAt: row.submitted_at.toISOString(),
+      ratingCount,
     };
   });
 }

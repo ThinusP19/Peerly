@@ -428,3 +428,85 @@ describe("saveDraft (CI-10)", () => {
     expect(Number(rows[0]!.count)).toBe(1);
   });
 });
+
+describe("the audit trail (FR-27)", () => {
+  const entries = () =>
+    query<{
+      event_type: string;
+      actor_id: string;
+      class_id: string;
+      assessment_id: string;
+      detail: string;
+      object_description: string;
+      before_state: unknown;
+      after_state: unknown;
+    }>("SELECT * FROM audit_entries ORDER BY id");
+
+  it("records a submission against the class and assessment", async () => {
+    const { assessmentId, classId, me, peers, options } = await scenario();
+    await submitEvaluation(me, assessmentId, rateAll(peers, options[0]!));
+
+    const { rows } = await entries();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      event_type: "evaluation.submitted",
+      actor_id: me,
+      class_id: classId,
+      assessment_id: assessmentId,
+      object_description: "Phase 2",
+    });
+  });
+
+  it("records an amendment as an amendment", async () => {
+    const { assessmentId, me, peers, options } = await scenario();
+    await submitEvaluation(me, assessmentId, rateAll(peers, options[0]!));
+    await submitEvaluation(me, assessmentId, rateAll(peers, options[1]!));
+
+    const { rows } = await entries();
+    expect(rows.map((row) => row.event_type)).toEqual([
+      "evaluation.submitted",
+      "evaluation.amended",
+    ]);
+  });
+
+  it("does not count a draft finished later as an amendment", async () => {
+    const { assessmentId, me, peers, options } = await scenario();
+    await saveDraft(me, assessmentId, rateAll(peers.slice(0, 1), options[0]!));
+    await submitEvaluation(me, assessmentId, rateAll(peers, options[0]!));
+
+    const { rows } = await entries();
+    expect(rows.map((row) => row.event_type)).toEqual(["evaluation.submitted"]);
+  });
+
+  it("never records what the ratings were", async () => {
+    // The log is read by administrators; a rating's label, value and comment
+    // are not theirs to see (SR-16).
+    const { assessmentId, me, peers, options } = await scenario();
+    const entriesWithComment = rateAll(peers, options[0]!).map((entry) => ({
+      ...entry,
+      comment: "a private remark",
+    }));
+    await submitEvaluation(me, assessmentId, entriesWithComment);
+    await submitEvaluation(me, assessmentId, rateAll(peers, options[1]!));
+
+    const { rows: scale } = await query<{ id: string; label: string; hidden_value: string }>(
+      "SELECT id, label, hidden_value::text FROM rating_options",
+    );
+    const logged = JSON.stringify((await entries()).rows);
+    expect(logged).not.toContain("a private remark");
+    for (const option of scale) {
+      expect(logged).not.toContain(option.id);
+      expect(logged).not.toContain(option.label);
+    }
+    for (const peer of peers) expect(logged).not.toContain(peer);
+  });
+
+  it("leaves no entry when the submission is refused (OR-05)", async () => {
+    const { assessmentId, me, peers, options } = await scenario();
+    await submitEvaluation(me, assessmentId, rateAll(peers.slice(0, 1), options[0]!)).catch(
+      () => undefined,
+    );
+
+    expect((await entries()).rows).toHaveLength(0);
+  });
+});

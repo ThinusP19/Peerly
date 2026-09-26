@@ -284,7 +284,11 @@ export async function commitImport(
 
     // FR-04 on every class-list commit - including rows that were already on
     // the list, so a student who registered since the last import is picked up.
-    await matchEnrolments(sql, { classId });
+    await matchEnrolments(
+      sql,
+      { classId },
+      { id: user.id, name: user.name, surname: user.surname, role: user.role },
+    );
 
     const { rows: counts } = await sql.query<{
       matched: string;

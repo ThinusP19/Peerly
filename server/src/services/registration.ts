@@ -272,7 +272,13 @@ export async function verifyEmailCode(email: string, code: string): Promise<Sess
 
     // FR-04 on activation: a list imported before this student registered now
     // reaches them, in the same transaction that makes the account usable.
-    if (user.role === "student") await matchEnrolments(sql, { userId: user.id });
+    if (user.role === "student") {
+      await matchEnrolments(
+        sql,
+        { userId: user.id },
+        { id: user.id, name: user.name, surname: user.surname, role: user.role },
+      );
+    }
 
     // In the same transaction as the activation, so the log cannot record an
     // activation that was rolled back (FR-27).
