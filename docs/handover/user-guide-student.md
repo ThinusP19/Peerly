@@ -98,8 +98,8 @@ You only do this once. It takes three short steps.
    code, for example *"123456 is your Peerly verification code"*.
 10. Type the code into the six boxes. Peerly checks it as soon as you enter the last digit, so
     you don't have to press anything. You can also select **Verify email**.
-11. When you see **You're all set**, your account is active. Select **Go to student sign in** and
-    sign in.
+11. When you see **You're all set**, your account is active and you're already signed in. Select
+    **Go to your dashboard**.
 
 **Good to know**
 
@@ -335,30 +335,32 @@ else.
 
 ## 11. If your account isn't linked to a class
 
-When you sign in, Peerly checks your student number against your lecturer's class list. If it
-can't make the link, you'll see a full-page explanation instead of your assessments.
+When you sign in, Peerly checks your student number against your lecturers' class lists. If
+one of them can't be linked to your account, the dashboard tells you which module it is and what
+to do. Assessments from your other modules still show as normal. Only when nothing is linked at
+all do you see a full-page explanation instead of the dashboard.
 
 ![The page shown when your account isn't linked to a class list](images/student-unmatched.png)
 
 | Heading | What it means |
 | --- | --- |
-| **We couldn't match your account to a class list yet** (*Unmatched*) | Your student number isn't linked to a class yet. |
-| **We need to check your class list entry** (*Conflict*) | Your number is on the list, but the details don't agree, so your lecturer has to confirm it's you. |
+| **You're not on a class list yet** | No class list in Peerly has your student number yet. Your lecturer adds it when they import their class list. |
+| **You're not linked to the ... class list yet** (*Unmatched*) | The module's class list has your number, but it isn't linked to your account yet. |
+| **Your ... class list entry needs checking** (*Conflict*) | Your number is on the list, but the name doesn't agree, so your lecturer has to confirm it's you. |
 
-The page shows **What happened**, **Your details** (the name on your account, the name on the
-class list and your student number) and **What to do next**:
+For a module with a problem, Peerly shows the module, the name on your account, the name on the
+class list and your student number, and **What to do next**:
 
-1. Check that the student number shown is the one on your student card. If it isn't, that's why
-   the link failed.
-2. Email your lecturer your **student number** and the **module code**, and ask them to fix the
-   class list match.
+1. Compare the details with your student card, so you can tell your lecturer what is different.
+2. Email your lecturer your **student number** and the **module code** (both are shown), and
+   ask them to fix the class list match.
 3. Come back afterwards. Once you're linked, your assessments appear automatically.
 
 Nothing is lost while you wait. If your lecturer fixes the match before the assessment closes,
 you can still submit.
 
-> **Registered late?** At the moment, if you register *after* your lecturer imported the class
-> list, Peerly doesn't always link you by itself. Tell your lecturer as soon as you see this page.
+> **Registered late?** That's fine. When you verify your account, Peerly links you to any class
+> list that already has your student number and name. If it still can't, tell your lecturer.
 
 ---
 
@@ -391,12 +393,13 @@ you can still submit.
 These are known limits of the current version. They don't affect your privacy or your marks.
 
 - **Changing a submitted evaluation on two devices.** If you choose to change your answers,
-  finish and submit again on the same device. Until you resubmit, your earlier submission is
-  the one that counts.
-- **Reminders.** Your lecturer's reminder button doesn't send emails yet, so keep an eye on
-  your deadlines yourself.
-- **Closing times.** Your lecturer closes each assessment in Peerly. Aim to submit before the
-  closing time shown, and don't rely on it staying open afterwards.
+  finish and submit again on the same device: the changes stay on that device until you do.
+  Until you resubmit, your earlier submission is the one that counts, and the dashboard still
+  lists it as **Submitted**, with *"your changes aren't sent yet"*.
+- **Reminders.** Your lecturer can email a reminder to anyone who hasn't submitted, but don't
+  wait for one - keep an eye on your deadlines yourself.
+- **Closing times.** An assessment closes at the closing time shown, even if your lecturer hasn't
+  closed it yet. From then on the form can't be changed or submitted, so submit before then.
 
 ---
 
@@ -432,8 +435,9 @@ Register again with the same student number and email. Peerly continues your unf
 registration and sends you a new code. It doesn't complain that the account already exists.
 
 **Can I use my phone?**
-Yes. Every page works on a phone screen. Remember that unsubmitted answers stay on the device
-you used.
+Yes. Every page works on a phone screen. Your unfinished answers are saved to your Peerly
+account as you go, so you can start on your phone and finish on a laptop. The one exception is
+changing an evaluation you've already submitted: finish that on the same device.
 
 **Who do I contact about Peerly?**
 Your lecturer, for anything about your class, group or assessment.

@@ -4,6 +4,7 @@ import { Eye, Scale, ShieldCheck } from "lucide-react";
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PanelHeader } from "@/components/shared/PanelHeader";
+import { RatingOptionList } from "@/components/shared/RatingOptionList";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getStudentRatingOptions } from "@/services/peerly";
@@ -75,23 +76,7 @@ function RatingGuidePage() {
             ))}
           </div>
         ) : (
-          <ol className="divide-y">
-            {(options.data ?? []).map((option) => (
-              <li key={option.id} className="flex items-start gap-3 px-5 py-3.5 sm:px-6">
-                <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-xs font-semibold text-muted-foreground tabular-nums">
-                  {option.order}
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold text-foreground">
-                    {option.label}
-                  </span>
-                  <span className="mt-0.5 block text-sm text-muted-foreground">
-                    {option.description}
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ol>
+          <RatingOptionList options={options.data ?? []} />
         )}
       </Card>
     </div>
