@@ -32,6 +32,13 @@ import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
 import { ApiError } from "@/lib/api";
+import {
+  REQUIRED_IMPORT_FIELDS,
+  ignoredColumns,
+  importFieldLabel,
+  importResultMessage,
+  mappingProblem,
+} from "@/lib/class-import";
 import { commitClassList, inspectClassList, previewClassList } from "@/services/peerly";
 
 export const Route = createFileRoute("/lecturer/classes/import")({
@@ -67,10 +74,13 @@ const fields: Array<{ key: FieldKey; label: string; hint: string; guess: string 
   {
     key: "email",
     label: "Institutional email",
-    hint: "Used to invite students who haven't registered.",
+    hint: "Optional. Kept with the class list; students still register themselves.",
     guess: "Email Address",
   },
 ];
+
+/** The Select can't hold an empty value, so "not in this file" has its own. */
+const NO_COLUMN = "__none__";
 
 function ImportPage() {
   const navigate = useNavigate();
@@ -124,6 +134,9 @@ function ImportPage() {
         ...(mapping.email ? { email: mapping.email } : {}),
       }),
     enabled: Boolean(file && activeClassId) && (step === "preview" || step === "confirm"),
+    // A refusal is an answer about this file and mapping; asking three more
+    // times only kept the spinner up for seven seconds before saying nothing.
+    retry: false,
   });
 
   const rows = preview.data?.rows ?? [];
@@ -134,17 +147,16 @@ function ImportPage() {
   const stepIndex = confirmOpen ? steps.length - 1 : steps.findIndex((s) => s.key === step);
 
   const goToPreview = () => {
-    const used = Object.values(mapping);
-    const duplicated = used.find((header, index) => used.indexOf(header) !== index);
-    if (duplicated) {
-      setMappingError(
-        `"${duplicated}" is mapped to more than one field. Each column can only be used once.`,
-      );
+    const problem = mappingProblem(mapping);
+    if (problem) {
+      setMappingError(problem);
       return;
     }
     setMappingError(null);
     setStep("preview");
   };
+
+  const unusedColumns = ignoredColumns(fileHeaders, mapping);
 
   return (
     <>
@@ -275,18 +287,31 @@ function ImportPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               {fields.map((field) => (
-                <FormField key={field.key} label={field.label} hint={field.hint} required>
+                <FormField
+                  key={field.key}
+                  label={field.label}
+                  hint={field.hint}
+                  required={REQUIRED_IMPORT_FIELDS.includes(field.key)}
+                >
                   {(props) => (
                     <Select
-                      value={mapping[field.key]}
+                      value={
+                        field.key === "email" && !mapping.email ? NO_COLUMN : mapping[field.key]
+                      }
                       onValueChange={(value) =>
-                        setMapping((current) => ({ ...current, [field.key]: value }))
+                        setMapping((current) => ({
+                          ...current,
+                          [field.key]: value === NO_COLUMN ? "" : value,
+                        }))
                       }
                     >
                       <SelectTrigger id={props.id} aria-describedby={props["aria-describedby"]}>
-                        <SelectValue />
+                        <SelectValue placeholder="Choose a column" />
                       </SelectTrigger>
                       <SelectContent>
+                        {field.key === "email" ? (
+                          <SelectItem value={NO_COLUMN}>Not in this file</SelectItem>
+                        ) : null}
                         {fileHeaders.map((header) => (
                           <SelectItem key={header} value={header}>
                             {header}
@@ -299,13 +324,18 @@ function ImportPage() {
               ))}
             </div>
 
-            <div className="flex gap-2.5 rounded-lg bg-muted p-3.5 text-sm text-muted-foreground">
-              <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-              <p>
-                The <span className="font-medium text-foreground">Programme</span> column isn't used
-                by Peerly and will be ignored.
-              </p>
-            </div>
+            {/* Named from the file itself, so it only mentions columns that
+                are really there. */}
+            {unusedColumns.length ? (
+              <div className="flex gap-2.5 rounded-lg bg-muted p-3.5 text-sm text-muted-foreground">
+                <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                <p className="min-w-0 wrap-anywhere">
+                  {unusedColumns.length === 1 ? "This column isn't" : "These columns aren't"} used
+                  by Peerly and will be ignored:{" "}
+                  <span className="font-medium text-foreground">{unusedColumns.join(", ")}</span>.
+                </p>
+              </div>
+            ) : null}
           </div>
 
           <div className={panelFooterClass}>
@@ -325,6 +355,33 @@ function ImportPage() {
             <Card className="flex items-center justify-center gap-3 rounded-2xl border-0 px-6 py-14 text-muted-foreground shadow-card">
               <Loader2 className="size-5 animate-spin" aria-hidden="true" />
               <p className="min-w-0 text-sm break-words">Reading {file?.name}…</p>
+            </Card>
+          ) : preview.isError ? (
+            // The server's reason, not an empty table that says every row passed.
+            <Card
+              role="alert"
+              className="flex flex-col gap-4 rounded-2xl border border-danger/30 p-5 shadow-card sm:flex-row sm:items-center sm:justify-between sm:px-6"
+            >
+              <div className="flex min-w-0 gap-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-danger-muted text-danger">
+                  <AlertTriangle className="size-4" aria-hidden="true" />
+                </span>
+                <div className="min-w-0">
+                  <h2 className="font-semibold text-foreground">We couldn't check this file</h2>
+                  <p className="mt-0.5 text-sm break-words text-muted-foreground">
+                    {preview.error instanceof ApiError && preview.error.code !== "validation_failed"
+                      ? preview.error.message
+                      : "Check which column holds each field, then try again."}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => setStep("mapping")}
+                className="h-10 shrink-0 px-4"
+              >
+                Back to the columns
+              </Button>
             </Card>
           ) : (
             <>
@@ -399,36 +456,44 @@ function ImportPage() {
                           <TableCell className="tabular-nums text-muted-foreground">
                             {row.rowNumber}
                           </TableCell>
+                          {/* The server names fields by key: studentNumber, name, surname. */}
                           <TableCell
                             className={cn(
                               "tabular-nums whitespace-nowrap",
-                              fieldsWithErrors.has("Student number") && "font-semibold text-danger",
+                              fieldsWithErrors.has("studentNumber") && "font-semibold text-danger",
                             )}
                           >
                             {row.studentNumber}
                           </TableCell>
-                          <TableCell>{row.name}</TableCell>
                           <TableCell
                             className={cn(
-                              fieldsWithErrors.has("Surname") && "font-semibold text-danger",
+                              fieldsWithErrors.has("name") && "font-semibold text-danger",
+                            )}
+                          >
+                            {row.name}
+                          </TableCell>
+                          <TableCell
+                            className={cn(
+                              fieldsWithErrors.has("surname") && "font-semibold text-danger",
                             )}
                           >
                             {row.surname}
                           </TableCell>
-                          <TableCell
-                            className={cn(
-                              "whitespace-nowrap",
-                              fieldsWithErrors.has("Email") && "font-semibold text-danger",
-                            )}
-                          >
-                            {row.email || <span className="text-danger">Missing</span>}
+                          <TableCell className="whitespace-nowrap">
+                            {/* Optional, so an empty one is not an error. */}
+                            {row.email || <span className="text-muted-foreground">-</span>}
                           </TableCell>
                           <TableCell className="min-w-56">
                             {invalid ? (
                               <ul className="space-y-1">
                                 {row.errors.map((error) => (
-                                  <li key={error.field} className="text-sm text-danger">
-                                    <span className="font-semibold">{error.field}:</span>{" "}
+                                  <li
+                                    key={`${error.field}-${error.reason}`}
+                                    className="text-sm text-danger"
+                                  >
+                                    <span className="font-semibold">
+                                      {importFieldLabel(error.field)}:
+                                    </span>{" "}
                                     {error.reason}
                                   </li>
                                 ))}
@@ -475,8 +540,8 @@ function ImportPage() {
         objectName={`${file?.name ?? "class list"} → ${klass?.moduleCode ?? "class"} (${validRows.length} students)`}
         description={
           <p>
-            {validRows.length} students will be added to the class list and matched to their Peerly
-            accounts where possible.{" "}
+            {validRows.length} students will be added to the class list, or updated if they are
+            already on it, and matched to their Peerly accounts where possible.{" "}
             {errorRows.length
               ? `${errorRows.length} rows with errors will be skipped.`
               : "No rows will be skipped."}
@@ -499,11 +564,9 @@ function ImportPage() {
             });
             await queryClient.invalidateQueries();
             // FR-04 runs on commit, so report what matched - an unmatched row
-            // is not a failure, it is a student who has not registered yet.
-            toast.success(
-              `${result.imported} imported into ${klass?.moduleCode ?? "the class"}. ` +
-                `${result.matched} matched to an account, ${result.unmatched} still unmatched.`,
-            );
+            // is not a failure, it is a student who has not registered yet. A
+            // conflict is named, because it waits on the lecturer.
+            toast.success(importResultMessage(result, klass?.moduleCode ?? "the class"));
             navigate({ to: "/lecturer/classes" });
           } catch (error) {
             toast.error(

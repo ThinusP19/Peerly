@@ -13,34 +13,25 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ApiError } from "@/lib/api";
+import {
+  ASSESSMENT_NAME_MAX,
+  MAX_MARK_LIMIT,
+  fromLocalInput,
+  maxMarkProblem,
+  serverFieldErrors,
+  toLocalInput,
+  type AssessmentDraftValues,
+  type AssessmentErrors,
+} from "@/lib/assessment-form";
 import { cn } from "@/lib/utils";
 
 import type { Assessment } from "@/mocks/types";
 import { getGroups, getRatingOptions } from "@/services/peerly";
 import { useLecturerClasses } from "@/hooks/use-lecturer-context";
 
-/** ISO → the "YYYY-MM-DDTHH:mm" that <input type="datetime-local"> expects. */
-const toLocalInput = (iso: string) => {
-  const date = new Date(iso);
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
-    date.getHours(),
-  )}:${pad(date.getMinutes())}`;
-};
+export type AssessmentDraft = AssessmentDraftValues;
 
-const fromLocalInput = (value: string) => new Date(value).toISOString();
-
-export interface AssessmentDraft {
-  name: string;
-  description: string;
-  groupIds: string[];
-  opensAt: string;
-  closesAt: string;
-  maxMark: number;
-}
-
-type Errors = Partial<Record<"name" | "groupIds" | "opensAt" | "closesAt" | "maxMark", string>>;
+type Errors = AssessmentErrors;
 
 /**
  * Create / edit form for an assessment. The class is fixed to whichever class
@@ -75,6 +66,10 @@ export function AssessmentForm({
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
 
+  // Once it has opened the server refuses any change to the groups (BR-01), so
+  // the choice is shown but can't be changed.
+  const groupsLocked = Boolean(assessment && assessment.status !== "draft");
+
   const availableGroups = groups.data ?? [];
   const allSelected = availableGroups.length > 0 && groupIds.length === availableGroups.length;
 
@@ -94,10 +89,12 @@ export function AssessmentForm({
     if (opensAt && closesAt && new Date(closesAt) <= new Date(opensAt)) {
       next.closesAt = "The closing time has to be after the opening time.";
     }
-    const max = Number(maxMark);
-    if (!maxMark.trim() || Number.isNaN(max) || max <= 0) {
-      next.maxMark = "Enter the mark this assessment is out of, for example 100.";
+    if (name.trim().length > ASSESSMENT_NAME_MAX) {
+      next.name = `Keep the name to ${ASSESSMENT_NAME_MAX} characters or fewer.`;
     }
+    const max = Number(maxMark);
+    const maxProblem = maxMarkProblem(maxMark);
+    if (maxProblem) next.maxMark = maxProblem;
 
     setErrors(next);
     if (Object.keys(next).length) return;
@@ -108,22 +105,22 @@ export function AssessmentForm({
         name: name.trim(),
         description: description.trim(),
         groupIds,
-        opensAt: fromLocalInput(opensAt),
-        closesAt: fromLocalInput(closesAt),
+        // An untouched time keeps its stored seconds rather than being rounded
+        // to the minute the input shows.
+        opensAt: fromLocalInput(opensAt, assessment?.opensAt),
+        closesAt: fromLocalInput(closesAt, assessment?.closesAt),
         maxMark: max,
       });
     } catch (error) {
-      // A rule the server holds - such as a maximum below a mark already
-      // entered (BR-07) - is said beside the field it is about.
-      const fields = error instanceof ApiError ? error.fields : {};
-      const known = (["name", "groupIds", "opensAt", "closesAt", "maxMark"] as const).filter(
-        (field) => fields[field],
-      );
-      if (known.length) {
-        setErrors(Object.fromEntries(known.map((field) => [field, fields[field]])));
+      // The server's own reason, beside the field it is about. "Please try
+      // again" could never help: the same values would be refused again.
+      const fromServer = serverFieldErrors(error);
+      if (Object.keys(fromServer).length) {
+        setErrors(fromServer);
+        toast.error("Please check the highlighted fields.");
       } else {
         toast.error(
-          error instanceof ApiError && error.message
+          error instanceof Error && error.message
             ? error.message
             : "We couldn't save this assessment. Please try again.",
         );
@@ -148,6 +145,7 @@ export function AssessmentForm({
                 <Input
                   {...props}
                   value={name}
+                  maxLength={ASSESSMENT_NAME_MAX}
                   onChange={(event) => setName(event.target.value)}
                   placeholder="Project Phase 2 - Peer Assessment"
                 />
@@ -186,9 +184,13 @@ export function AssessmentForm({
           <PanelHeader
             title="Groups taking part"
             size="lg"
-            description="Only confirmed groups can be included. Students in groups you leave out won't see this assessment."
+            description={
+              groupsLocked
+                ? "This assessment has already opened, so the groups taking part can't change. Create a new assessment for a different set of groups."
+                : "Only confirmed groups can be included. Students in groups you leave out won't see this assessment."
+            }
             actions={
-              availableGroups.length ? (
+              availableGroups.length && !groupsLocked ? (
                 <Button
                   type="button"
                   variant="outline"
@@ -227,13 +229,15 @@ export function AssessmentForm({
                       key={group.id}
                       htmlFor={id}
                       className={cn(
-                        "flex cursor-pointer items-center gap-3 rounded-xl border p-4 text-sm transition-colors",
-                        checked ? "border-primary bg-accent" : "hover:bg-muted/50",
+                        "flex items-center gap-3 rounded-xl border p-4 text-sm transition-colors",
+                        groupsLocked ? "cursor-not-allowed opacity-70" : "cursor-pointer",
+                        checked ? "border-primary bg-accent" : !groupsLocked && "hover:bg-muted/50",
                       )}
                     >
                       <Checkbox
                         id={id}
                         checked={checked}
+                        disabled={groupsLocked}
                         onCheckedChange={() => toggleGroup(group.id)}
                       />
                       <span className="min-w-0">
@@ -294,7 +298,7 @@ export function AssessmentForm({
               <FormField
                 label="Group mark is out of"
                 error={errors.maxMark}
-                hint="Individual marks are calculated from this."
+                hint={`Individual marks are calculated from this. At most ${MAX_MARK_LIMIT}.`}
                 required
               >
                 {(props) => (
@@ -302,6 +306,8 @@ export function AssessmentForm({
                     {...props}
                     type="number"
                     min={1}
+                    max={MAX_MARK_LIMIT}
+                    step="0.01"
                     value={maxMark}
                     onChange={(event) => setMaxMark(event.target.value)}
                   />

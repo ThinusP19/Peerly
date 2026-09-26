@@ -21,7 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useClassRoster, useLecturerClasses } from "@/hooks/use-lecturer-context";
+import { useLecturerClasses } from "@/hooks/use-lecturer-context";
+import { studentNamesById } from "@/lib/class-import";
 import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
@@ -45,7 +46,6 @@ function GenerateGroupsPage() {
   const queryClient = useQueryClient();
   const { activeClassId } = useSession();
   const klass = (useLecturerClasses().data ?? []).find((c) => c.id === activeClassId);
-  const { byId: roster } = useClassRoster(activeClassId);
 
   // Only matched enrolments can be allocated: an unmatched or conflicting row
   // has no account behind it, so there is nobody to put in a group. The server
@@ -55,6 +55,9 @@ function GenerateGroupsPage() {
     queryFn: () => getEnrolmentRows(activeClassId),
   });
   const eligible = (enrolmentRows.data ?? []).filter((row) => row.matchStatus === "matched").length;
+  // Names come from the class list, not the group roster: the roster lists only
+  // students already in a group, which on a first allocation is nobody.
+  const names = useMemo(() => studentNamesById(enrolmentRows.data ?? []), [enrolmentRows.data]);
 
   // The same lock as the Groups page: once students have started rating in an
   // open assessment, regrouping would orphan ratings that already exist. This
@@ -349,18 +352,20 @@ function GenerateGroupsPage() {
 
                   <ul className="flex-1 divide-y">
                     {group.memberStudentIds.map((studentId) => {
-                      const member = roster.get(studentId);
+                      const member = names.get(studentId);
+                      const fullName = member
+                        ? `${member.name} ${member.surname}`
+                        : "A student no longer on the class list";
                       return (
                         <li key={studentId} className="space-y-1.5 px-5 py-2.5 sm:px-6">
-                          <p className="text-sm break-words text-foreground">
-                            {member?.name} {member?.surname}
-                          </p>
+                          <p className="text-sm break-words text-foreground">{fullName}</p>
                           <div className="flex items-center gap-2">
                             <Label
                               htmlFor={`move-${studentId}`}
                               className="text-xs font-normal text-muted-foreground"
                             >
                               Move to
+                              <span className="sr-only"> - {fullName}</span>
                             </Label>
                             <Select
                               value={group.id}

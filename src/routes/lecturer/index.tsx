@@ -150,7 +150,9 @@ function LecturerDashboard() {
     }));
 
   const totalGroups = owned.reduce((sum, summary) => sum + summary.groupCount, 0);
-  const totalGrouped = owned.reduce((sum, summary) => sum + summary.matchedCount, 0);
+  // Students actually in a group. Matched students who have not been grouped
+  // yet are not part of any group's size.
+  const totalGrouped = owned.reduce((sum, summary) => sum + summary.groupedCount, 0);
   const averageGroupSize = totalGroups ? totalGrouped / totalGroups : 0;
   const openCount = rows.filter((r) => r.assessment.status === "open").length;
   const draftCount = rows.filter((r) => r.assessment.status === "draft").length;
@@ -275,7 +277,7 @@ function AssessmentList({ rows }: { rows: Row[] }) {
           <li key={row.assessment.id} className="space-y-3 px-5 py-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="font-semibold text-foreground">{row.assessment.name}</p>
+                <p className="font-semibold wrap-anywhere text-foreground">{row.assessment.name}</p>
                 <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <span className="font-mono">{assessmentRef(row.assessment.id)}</span>
                   <ModuleChip klass={row.klass} />
@@ -325,7 +327,11 @@ function AssessmentList({ rows }: { rows: Row[] }) {
             {rows.map((row) => (
               <tr key={row.assessment.id} className="transition-colors hover:bg-muted/40">
                 <td className="px-6 py-3.5">
-                  <p className="font-semibold text-foreground">{row.assessment.name}</p>
+                  {/* wrap-anywhere, so one long unbroken name wraps inside its
+                      cell instead of pushing every other column off screen. */}
+                  <p className="font-semibold wrap-anywhere text-foreground">
+                    {row.assessment.name}
+                  </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     <span className="font-mono">{assessmentRef(row.assessment.id)}</span> ·{" "}
                     {plural(row.groupCount, "group", "groups")}
@@ -458,8 +464,12 @@ function AttentionPanel({ items }: { items: AttentionItem[] }) {
                   <item.icon className="size-4" aria-hidden="true" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-semibold text-foreground">{item.title}</span>
-                  <span className="mt-0.5 block text-xs text-muted-foreground">{item.detail}</span>
+                  <span className="block text-sm font-semibold wrap-anywhere text-foreground">
+                    {item.title}
+                  </span>
+                  <span className="mt-0.5 block text-xs wrap-anywhere text-muted-foreground">
+                    {item.detail}
+                  </span>
                 </span>
                 <ChevronRight
                   className="mt-2 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"

@@ -25,6 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { studentAssessmentState, studentStateBadge } from "@/lib/domain";
 import { useDraftSummaries } from "@/lib/evaluation-draft";
 import { formatDate, formatDateTimeLong, formatDeadline, isOverdue } from "@/lib/format";
+import { closedAtOf } from "@/lib/assessment-form";
 import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import type { Enrolment } from "@/mocks/types";
@@ -205,7 +206,7 @@ function StudentDashboard() {
                   view={view}
                   icon={Lock}
                   tone="danger"
-                  meta={`Closed ${formatDate(view.assessment.closesAt)} · you didn't submit`}
+                  meta={`Closed ${formatDate(closedAtOf(view.assessment))} · you didn't submit`}
                 />
               ))}
             </ListPanel>

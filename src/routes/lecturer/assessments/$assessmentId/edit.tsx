@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { assessmentChanges } from "@/lib/assessment-form";
 import { getAssessment, updateAssessment } from "@/services/peerly";
 
 export const Route = createFileRoute("/lecturer/assessments/$assessmentId/edit")({
@@ -69,8 +70,9 @@ function EditAssessmentPage() {
               This assessment is already {assessment.status}
             </h2>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Removing a group now would hide the assessment from those students and discard the
-              ratings they've already given. Change the groups only if you're certain.
+              You can still change the name, description, times and maximum mark. The groups taking
+              part can't change once it has opened, because students have already been told who they
+              are rating.
             </p>
           </div>
         </Card>
@@ -81,7 +83,9 @@ function EditAssessmentPage() {
         assessment={assessment}
         submitLabel="Save changes"
         onSubmit={async (draft) => {
-          await updateAssessment(assessment.id, draft);
+          // Only what changed. Sending the unchanged groups back used to make
+          // the server refuse every save on an open or closed assessment.
+          await updateAssessment(assessment.id, assessmentChanges(assessment, draft));
           await queryClient.invalidateQueries();
           toast.success(`“${draft.name}” has been updated.`);
           navigate({

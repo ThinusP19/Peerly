@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEvaluationDraft } from "@/lib/evaluation-draft";
 import { formatDateTimeLong, isOverdue } from "@/lib/format";
+import { closedAtOf } from "@/lib/assessment-form";
 import { useSession } from "@/lib/session";
 import { getStudentRatingOptions, getStudentAssessment } from "@/services/peerly";
 
@@ -169,7 +170,7 @@ function SubmittedPage() {
             <div className="flex gap-2.5 rounded-lg bg-muted p-3.5 text-sm text-muted-foreground">
               <Lock className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               <p>
-                This assessment closed on {formatDateTimeLong(assessment.closesAt)}, so your
+                This assessment closed on {formatDateTimeLong(closedAtOf(assessment))}, so your
                 submission is final.
               </p>
             </div>

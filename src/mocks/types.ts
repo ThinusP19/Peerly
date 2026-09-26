@@ -58,6 +58,8 @@ export interface Assessment {
   status: AssessmentStatus;
   opensAt: string;
   closesAt: string;
+  /** When the lecturer actually closed it, which can be before closesAt (FR-13). */
+  closedAt?: string;
   maxMark: number;
   calculatedAt?: string;
   calculationRunId?: string;

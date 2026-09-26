@@ -37,7 +37,7 @@ export function ResolveConflictDialog({
   const { user } = useSession();
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState<string | null>(null);
-  const [busy, setBusy] = useState<"link" | "reject" | null>(null);
+  const [busy, setBusy] = useState<"link" | "leave-unmatched" | null>(null);
 
   const candidates = useQuery({
     queryKey: ["conflict-candidates", row?.id],
@@ -50,7 +50,9 @@ export function ResolveConflictDialog({
     onOpenChange(false);
   };
 
-  const decide = async (kind: "link" | "reject") => {
+  // "leave-unmatched" is the API's own name for the decision. The dialog once
+  // sent "reject", which the server refused every time.
+  const decide = async (kind: "link" | "leave-unmatched") => {
     if (!row || !user) return;
     setBusy(kind);
     try {
@@ -176,8 +178,12 @@ export function ResolveConflictDialog({
         ) : null}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => void decide("reject")} disabled={Boolean(busy)}>
-            {busy === "reject" ? "Saving…" : "Leave unmatched"}
+          <Button
+            variant="outline"
+            onClick={() => void decide("leave-unmatched")}
+            disabled={Boolean(busy)}
+          >
+            {busy === "leave-unmatched" ? "Saving…" : "Leave unmatched"}
           </Button>
           <BusyButton
             onClick={() => void decide("link")}

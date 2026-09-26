@@ -28,7 +28,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDateTime, formatDateTimeLong, formatDeadline } from "@/lib/format";
+import { closedAtOf } from "@/lib/assessment-form";
+import { formatDateTime, formatDateTimeLong, formatDeadline, isOverdue } from "@/lib/format";
 import { useLecturerClasses } from "@/hooks/use-lecturer-context";
 import { useSession } from "@/lib/session";
 
@@ -144,6 +145,42 @@ function AssessmentDetailPage() {
 
   const refresh = () => queryClient.invalidateQueries();
 
+  // BR-05: once the closing time has passed nobody can submit, whatever the
+  // status says. Opening or re-opening then needs a new closing time, and the
+  // server refuses without one.
+  const deadlinePassed = isOverdue(assessment.closesAt);
+  const newClosingIso = newClosesAt ? new Date(newClosesAt).toISOString() : "";
+  const newClosingValid = Boolean(newClosesAt) && new Date(newClosesAt) > new Date();
+  const closedAt = closedAtOf(assessment);
+  const closedEarly = new Date(closedAt) < new Date(assessment.closesAt);
+
+  const askForStatus = (action: Exclude<PendingAction, null>) => {
+    setNewClosesAt("");
+    setPending(action);
+  };
+
+  const newClosingField = (
+    <FormField
+      label="New closing date and time"
+      required
+      hint="Has to be in the future, so students have time to submit."
+      error={
+        newClosesAt && !newClosingValid
+          ? "That time has already passed. Choose a later one."
+          : undefined
+      }
+    >
+      {(props) => (
+        <Input
+          {...props}
+          type="datetime-local"
+          value={newClosesAt}
+          onChange={(event) => setNewClosesAt(event.target.value)}
+        />
+      )}
+    </FormField>
+  );
+
   return (
     <>
       <PageHeader
@@ -176,8 +213,12 @@ function AssessmentDetailPage() {
               {assessment.status === "draft"
                 ? "Not visible to students yet."
                 : assessment.status === "open"
-                  ? `Students can submit until ${formatDateTimeLong(assessment.closesAt)} (${formatDeadline(assessment.closesAt)}).`
-                  : `Closed on ${formatDateTimeLong(assessment.closesAt)}.`}
+                  ? deadlinePassed
+                    ? `The closing time passed on ${formatDateTimeLong(assessment.closesAt)}, so students can no longer submit. Extend the deadline to give them more time, or close it.`
+                    : `Students can submit until ${formatDateTimeLong(assessment.closesAt)} (${formatDeadline(assessment.closesAt)}).`
+                  : closedEarly
+                    ? `Closed on ${formatDateTimeLong(closedAt)}, before its scheduled closing time of ${formatDateTimeLong(assessment.closesAt)}.`
+                    : `Closed on ${formatDateTimeLong(closedAt)}.`}
             </p>
           </div>
           {assessment.description ? (
@@ -187,7 +228,7 @@ function AssessmentDetailPage() {
 
         <div className="flex shrink-0 flex-wrap gap-2">
           {assessment.status === "draft" ? (
-            <Button className="h-10 px-4" onClick={() => setPending("open")}>
+            <Button className="h-10 px-4" onClick={() => askForStatus("open")}>
               <Unlock aria-hidden="true" />
               Open to students
             </Button>
@@ -222,7 +263,7 @@ function AssessmentDetailPage() {
           ) : null}
 
           {assessment.status === "closed" ? (
-            <Button variant="outline" className="h-10 px-4" onClick={() => setPending("reopen")}>
+            <Button variant="outline" className="h-10 px-4" onClick={() => askForStatus("reopen")}>
               <RotateCcw aria-hidden="true" />
               Re-open
             </Button>
@@ -307,11 +348,18 @@ function AssessmentDetailPage() {
         title="Open this assessment to students?"
         objectName={`${klass?.moduleCode ?? ""} · ${assessment.name}`}
         description={
-          <p>
-            All {expected} students in the {groups.length} selected{" "}
-            {groups.length === 1 ? "group" : "groups"} will be able to rate their group members
-            immediately, until {formatDateTimeLong(assessment.closesAt)}.
-          </p>
+          deadlinePassed ? (
+            <p>
+              Its closing time, {formatDateTimeLong(assessment.closesAt)}, has already passed, so
+              students couldn't submit anything. Choose a new closing time to open it.
+            </p>
+          ) : (
+            <p>
+              All {expected} students in the {groups.length} selected{" "}
+              {groups.length === 1 ? "group" : "groups"} will be able to rate their group members
+              immediately, until {formatDateTimeLong(assessment.closesAt)}.
+            </p>
+          )
         }
         consequence={
           <p>
@@ -320,13 +368,17 @@ function AssessmentDetailPage() {
           </p>
         }
         confirmLabel="Open assessment"
+        confirmDisabled={deadlinePassed && !newClosingValid}
         onConfirm={async () => {
-          await activateAssessment(assessment.id);
+          // A refusal is shown inside the dialog by ConfirmDialog itself.
+          await activateAssessment(assessment.id, deadlinePassed ? newClosingIso : undefined);
           await refresh();
           toast.success(`“${assessment.name}” is now open to students.`);
           setPending(null);
         }}
-      />
+      >
+        {deadlinePassed ? newClosingField : null}
+      </ConfirmDialog>
 
       <ConfirmDialog
         open={pending === "close"}
@@ -361,10 +413,17 @@ function AssessmentDetailPage() {
         title="Re-open this assessment?"
         objectName={`${klass?.moduleCode ?? ""} · ${assessment.name}`}
         description={
-          <p>
-            Students will be able to submit and change their ratings again until{" "}
-            {formatDateTimeLong(assessment.closesAt)}.
-          </p>
+          deadlinePassed ? (
+            <p>
+              Its closing time, {formatDateTimeLong(assessment.closesAt)}, has already passed, so
+              re-opening it as it is would let nobody submit. Choose a new closing time.
+            </p>
+          ) : (
+            <p>
+              Students will be able to submit and change their ratings again until{" "}
+              {formatDateTimeLong(assessment.closesAt)}.
+            </p>
+          )
         }
         consequence={
           calculated ? (
@@ -379,13 +438,16 @@ function AssessmentDetailPage() {
         }
         destructive={calculated}
         confirmLabel="Re-open assessment"
+        confirmDisabled={deadlinePassed && !newClosingValid}
         onConfirm={async () => {
-          await reopenAssessment(assessment.id);
+          await reopenAssessment(assessment.id, deadlinePassed ? newClosingIso : undefined);
           await refresh();
           toast.success(`“${assessment.name}” has been re-opened.`);
           setPending(null);
         }}
-      />
+      >
+        {deadlinePassed ? newClosingField : null}
+      </ConfirmDialog>
 
       <ConfirmDialog
         open={extendOpen}

@@ -16,7 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api";
-import { formatDateTimeLong, formatDeadline } from "@/lib/format";
+import { closedAtOf } from "@/lib/assessment-form";
+import { formatDateTimeLong, formatDeadline, isOverdue } from "@/lib/format";
 import { useLecturerClasses } from "@/hooks/use-lecturer-context";
 import { useSession } from "@/lib/session";
 
@@ -169,7 +170,7 @@ function SubmissionMonitorPage() {
             {assessment.status === "open"
               ? `closes ${formatDateTimeLong(assessment.closesAt)} (${formatDeadline(assessment.closesAt)})`
               : assessment.status === "closed"
-                ? `closed ${formatDateTimeLong(assessment.closesAt)}`
+                ? `closed ${formatDateTimeLong(closedAtOf(assessment))}`
                 : "not open yet"}
           </>
         }
@@ -283,7 +284,13 @@ function SubmissionMonitorPage() {
             <BusyButton
               busy={reminding}
               busyLabel="Sending…"
-              disabled={outstanding.length === 0 || assessment.status !== "open"}
+              // Past the closing time nobody can submit (BR-05), so there is
+              // nothing left to remind anyone about.
+              disabled={
+                outstanding.length === 0 ||
+                assessment.status !== "open" ||
+                isOverdue(assessment.closesAt)
+              }
               className="h-10 px-4"
               onClick={async () => {
                 setReminding(true);

@@ -188,6 +188,61 @@ export const inspectClassList = async (classId: string, file: File): Promise<Fil
   return uploadJson<FileInspection>(`/api/classes/${classId}/import/inspect`, body);
 };
 
+/** A row the server refused, with what the row held so the student can be recognised. */
+export interface PreviewError {
+  row: number;
+  field: string;
+  message: string;
+  values?: { studentNumber: string; name: string; surname: string; email: string };
+}
+
+/**
+ * The good rows and the bad ones as one list in file order.
+ *
+ * A bad row keeps what the file said, so the lecturer can tell which student
+ * it is, and a row with more than one problem appears once with each reason.
+ */
+export function mergePreviewRows(
+  valid: Array<{
+    row: number;
+    studentNumber: string;
+    name: string;
+    surname: string;
+    email?: string;
+  }>,
+  errors: PreviewError[],
+): ImportRow[] {
+  const broken = new Map<number, ImportRow>();
+  for (const error of errors) {
+    const existing = broken.get(error.row);
+    const reason = { field: error.field, reason: error.message };
+    if (existing) {
+      existing.errors.push(reason);
+      continue;
+    }
+    broken.set(error.row, {
+      rowNumber: error.row,
+      studentNumber: error.values?.studentNumber ?? "",
+      name: error.values?.name ?? "",
+      surname: error.values?.surname ?? "",
+      email: error.values?.email ?? "",
+      errors: [reason],
+    });
+  }
+
+  return [
+    ...valid.map((row) => ({
+      rowNumber: row.row,
+      studentNumber: row.studentNumber,
+      name: row.name,
+      surname: row.surname,
+      email: row.email ?? "",
+      errors: [],
+    })),
+    ...broken.values(),
+  ].sort((a, b) => a.rowNumber - b.rowNumber);
+}
+
 export interface ImportPreview {
   rows: ImportRow[];
   validCount: number;
@@ -221,34 +276,16 @@ export const previewClassList = async (
         surname: string;
         email?: string;
       }>;
-      errors: Array<{ row: number; field: string; message: string }>;
+      errors: PreviewError[];
       duplicatesInFile: number;
       totalRows: number;
     };
   }>(`/api/classes/${classId}/import/preview`, body);
 
   const { valid, errors } = preview.preview;
-  const rows: ImportRow[] = [
-    ...valid.map((row) => ({
-      rowNumber: row.row,
-      studentNumber: row.studentNumber,
-      name: row.name,
-      surname: row.surname,
-      email: row.email ?? "",
-      errors: [],
-    })),
-    ...errors.map((error) => ({
-      rowNumber: error.row,
-      studentNumber: "",
-      name: "",
-      surname: "",
-      email: "",
-      errors: [{ field: error.field, reason: error.message }],
-    })),
-  ].sort((a, b) => a.rowNumber - b.rowNumber);
 
   return {
-    rows,
+    rows: mergePreviewRows(valid, errors),
     validCount: valid.length,
     errorCount: errors.length,
     duplicatesInFile: preview.preview.duplicatesInFile,
@@ -262,6 +299,7 @@ export interface ImportResult {
   removed: number;
   matched: number;
   unmatched: number;
+  conflicts: number;
 }
 
 /** Commits the list and runs the class-list match (FR-04, FR-09). */
@@ -368,12 +406,26 @@ interface StatusChange {
   invalidatedCalculation: boolean;
 }
 
-const changeStatus = (assessmentId: string, transition: "open" | "close" | "reopen") =>
-  post<StatusChange>(`/api/assessments/${assessmentId}/status`, { transition });
+const changeStatus = (
+  assessmentId: string,
+  transition: "open" | "close" | "reopen",
+  closesAt?: string,
+) =>
+  post<StatusChange>(`/api/assessments/${assessmentId}/status`, {
+    transition,
+    ...(closesAt ? { closesAt } : {}),
+  });
 
-export const activateAssessment = (assessmentId: string) => changeStatus(assessmentId, "open");
+/**
+ * Opening and re-opening take an optional new closing time. The server refuses
+ * either once the closing time has passed (BR-05 would refuse every student),
+ * so the screen asks for a new one in the same step.
+ */
+export const activateAssessment = (assessmentId: string, closesAt?: string) =>
+  changeStatus(assessmentId, "open", closesAt);
 export const closeAssessment = (assessmentId: string) => changeStatus(assessmentId, "close");
-export const reopenAssessment = (assessmentId: string) => changeStatus(assessmentId, "reopen");
+export const reopenAssessment = (assessmentId: string, closesAt?: string) =>
+  changeStatus(assessmentId, "reopen", closesAt);
 
 /**
  * Overrides a calculated mark (FR-24, BR-08).
@@ -637,6 +689,8 @@ export interface ClassSummary {
   unmatchedCount: number;
   conflictCount: number;
   groupCount: number;
+  /** Students in a confirmed group, which is what an average group size divides. */
+  groupedCount: number;
   assessmentCount: number;
   activeAssessment?: Assessment;
 }
@@ -836,12 +890,29 @@ export const createClass = async (
 
 /* ---------------------------- match conflicts ------------------------ */
 
-/** Registered student accounts that claim an enrolment's student number (FR-04). */
-export const getConflictCandidates = async (enrolmentId: string): Promise<User[]> =>
-  (await get<{ candidates: User[] }>(`/api/classes/enrolments/${enrolmentId}/candidates`))
-    .candidates;
+/**
+ * A registered account that claims an enrolment's student number. Its status is
+ * what the dialog's badge shows, so a verified account reads as verified.
+ */
+export interface ConflictCandidate {
+  id: string;
+  name: string;
+  surname: string;
+  email: string;
+  studentNumber: string | null;
+  status: User["status"];
+}
 
-export type ConflictDecision = { kind: "link"; userId: string } | { kind: "reject" };
+/** Registered student accounts that claim an enrolment's student number (FR-04). */
+export const getConflictCandidates = async (enrolmentId: string): Promise<ConflictCandidate[]> =>
+  (
+    await get<{ candidates: ConflictCandidate[] }>(
+      `/api/classes/enrolments/${enrolmentId}/candidates`,
+    )
+  ).candidates;
+
+/** The two decisions, named exactly as the API names them. */
+export type ConflictDecision = { kind: "link"; userId: string } | { kind: "leave-unmatched" };
 
 /**
  * FR-04: a lecturer settles a Conflict by linking the class-list entry to one

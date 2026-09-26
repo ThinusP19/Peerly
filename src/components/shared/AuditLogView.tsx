@@ -89,7 +89,7 @@ export function AuditLogView({
       sortValue: (row) => row.actorName,
       cell: (row) => (
         <div className="min-w-0">
-          <p className="font-semibold text-foreground">{row.actorName}</p>
+          <p className="font-semibold wrap-anywhere text-foreground">{row.actorName}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">{roleLabel(row.actorRole)}</p>
         </div>
       ),
@@ -106,8 +106,8 @@ export function AuditLogView({
       header: "What it affected",
       cell: (row) => (
         <div className="min-w-0">
-          <p className="text-foreground">{row.objectDescription}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">{row.detail}</p>
+          <p className="wrap-anywhere text-foreground">{row.objectDescription}</p>
+          <p className="mt-0.5 text-xs wrap-anywhere text-muted-foreground">{row.detail}</p>
         </div>
       ),
     },

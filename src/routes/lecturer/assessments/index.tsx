@@ -37,7 +37,7 @@ function AssessmentListPage() {
       sortValue: (row) => row.assessment.name,
       cell: (row) => (
         <div className="min-w-0">
-          <p className="font-semibold text-foreground">{row.assessment.name}</p>
+          <p className="font-semibold wrap-anywhere text-foreground">{row.assessment.name}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {row.groupCount} {row.groupCount === 1 ? "group" : "groups"} · {row.expected} students
           </p>

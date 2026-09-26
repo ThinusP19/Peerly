@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { COMMENT_LIMIT, useDraftProgress, useEvaluationDraft } from "@/lib/evaluation-draft";
 import { formatDateTimeLong, formatDeadline } from "@/lib/format";
+import { closedAtOf } from "@/lib/assessment-form";
 import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { getStudentRatingOptions, getStudentAssessment } from "@/services/peerly";
@@ -104,7 +105,7 @@ function EvaluationForm() {
           description={
             assessment.status === "draft"
               ? `It opens on ${formatDateTimeLong(assessment.opensAt)}. You'll be able to rate your group then.`
-              : `It closed on ${formatDateTimeLong(assessment.closesAt)}. Speak to your lecturer if you think this is a mistake.`
+              : `It closed on ${formatDateTimeLong(closedAtOf(assessment))}. Speak to your lecturer if you think this is a mistake.`
           }
           action={
             <Button asChild variant="outline">
