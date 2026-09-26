@@ -117,3 +117,29 @@ export const get = <T>(path: string, signal?: AbortSignal) =>
 
 export const post = <T>(path: string, body?: unknown) =>
   request<T>(path, body !== undefined ? { method: "POST", body } : { method: "POST" });
+
+/** How many times a failed query is tried again before its screen shows the failure. */
+const MAX_QUERY_RETRIES = 3;
+
+/**
+ * React Query's retry rule for every query.
+ *
+ * A request the server refused as wrong - a malformed id (400), not yours or
+ * not there (403, 404) - gets the same answer however often it is asked, so
+ * retrying it only keeps a skeleton on screen for seconds before the "not
+ * found" state appears. Those fail at once. Network failures, server errors,
+ * timeouts (408) and rate limiting (429) may pass on a later try, so they keep
+ * the default retries.
+ */
+export function shouldRetryQuery(failureCount: number, error: unknown): boolean {
+  if (
+    error instanceof ApiError &&
+    error.status >= 400 &&
+    error.status < 500 &&
+    error.status !== 408 &&
+    error.status !== 429
+  ) {
+    return false;
+  }
+  return failureCount < MAX_QUERY_RETRIES;
+}
