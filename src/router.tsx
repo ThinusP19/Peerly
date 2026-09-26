@@ -1,5 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
+import { NotFoundPage } from "./components/shared/NotFoundPage";
 import { shouldRetryQuery } from "./lib/api";
 import { routeTree } from "./routeTree.gen";
 
@@ -15,6 +16,9 @@ export const getRouter = () => {
     context: { queryClient },
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,
+    // An unknown address inside a portal gets the same page as one outside it,
+    // not the router's bare "Not Found".
+    defaultNotFoundComponent: NotFoundPage,
   });
 
   return router;

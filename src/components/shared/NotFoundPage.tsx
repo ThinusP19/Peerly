@@ -1,3 +1,7 @@
+import { useEffect } from "react";
+
+import { pageTitle } from "@/lib/page-title";
+
 /**
  * The page for any address that doesn't exist. It sits outside both portals,
  * so it carries its own `<main>` landmark, and its heading says what happened
@@ -7,6 +11,12 @@
  * keeps this page free of router context so it renders anywhere.
  */
 export function NotFoundPage() {
+  // A miss renders without the matched route's head(), so the tab would keep
+  // the generic site title. Name it like every other page (WCAG 2.4.2).
+  useEffect(() => {
+    document.title = pageTitle("Page not found");
+  }, []);
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">

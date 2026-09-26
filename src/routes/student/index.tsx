@@ -294,7 +294,10 @@ function ActionCard({
         <div className="flex items-center gap-2 text-sm text-foreground">
           <Users className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           <span>
-            <span className="font-semibold">{members.length} people</span> to rate
+            <span className="font-semibold">
+              {members.length} {members.length === 1 ? "person" : "people"}
+            </span>{" "}
+            to rate
           </span>
         </div>
 
