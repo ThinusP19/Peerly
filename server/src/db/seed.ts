@@ -1,5 +1,6 @@
 import { env } from "../config/env.ts";
 import { hashPassword } from "../lib/password.ts";
+import { seededSubmittedAt } from "./seed-times.ts";
 import { closePool, query, withTransaction } from "./pool.ts";
 
 /**
@@ -381,18 +382,20 @@ async function seed() {
       return assessmentId;
     }
 
+    // Relative to today, so the open assessment is genuinely open whenever
+    // this is run. Fixed dates rotted: the seed was written in September and
+    // by the end of the month a student saw "needs you" on something whose
+    // deadline had passed three weeks earlier.
+    const openWindow = { opensAt: daysFromNow(-10), closesAt: daysFromNow(11) };
+    const closedWindow = { opensAt: daysFromNow(-72), closesAt: daysFromNow(-61) };
+
     const open = await makeAssessment({
       classId: cmpg323,
       name: "Project Phase 2 - Peer Assessment",
       description:
         "Rate each member of your group on their contribution to the Phase 2 system design and implementation.",
       status: "open",
-      // Relative to today, so the open assessment is genuinely open whenever
-      // this is run. Fixed dates rotted: the seed was written in September and
-      // by the end of the month a student saw "needs you" on something whose
-      // deadline had passed three weeks earlier.
-      opensAt: daysFromNow(-10),
-      closesAt: daysFromNow(11),
+      ...openWindow,
       groupIds: groups323,
     });
 
@@ -401,8 +404,7 @@ async function seed() {
       name: "Project Phase 1 - Peer Assessment",
       description: "Peer assessment for the Phase 1 requirements and analysis deliverable.",
       status: "closed",
-      opensAt: daysFromNow(-72),
-      closesAt: daysFromNow(-61),
+      ...closedWindow,
       groupIds: groups323,
     });
 
@@ -417,7 +419,12 @@ async function seed() {
      * submission monitor exists to show - a fully-submitted assessment would
      * make that screen look broken rather than empty.
      */
-    async function rate(assessmentId: string, groupIds: string[], skipEvery: number) {
+    async function rate(
+      assessmentId: string,
+      window: { opensAt: string; closesAt: string },
+      groupIds: string[],
+      skipEvery: number,
+    ) {
       const next = sequence(20260904);
       let submitted = 0;
 
@@ -440,10 +447,15 @@ async function seed() {
         for (const [index, evaluator] of memberIds.entries()) {
           if (skipEvery > 0 && (index + memberIds.length) % skipEvery === 0) continue;
 
+          // Inside the assessment's open window, never at seed time: a closed
+          // assessment's submissions stamped after its deadline contradict
+          // the very rule (BR-05) the demo is there to show.
+          const submittedAt = seededSubmittedAt(window, submitted);
           const { rows: submission } = await sql.query<{ id: string }>(
-            `INSERT INTO submissions (assessment_id, evaluator_id, status, submitted_at)
-             VALUES ($1, $2, 'submitted', now()) RETURNING id`,
-            [assessmentId, evaluator],
+            `INSERT INTO submissions
+               (assessment_id, evaluator_id, status, submitted_at, created_at, updated_at)
+             VALUES ($1, $2, 'submitted', $3, $3, $3) RETURNING id`,
+            [assessmentId, evaluator, submittedAt],
           );
           submitted += 1;
 
@@ -473,8 +485,8 @@ async function seed() {
       return submitted;
     }
 
-    const openSubmissions = await rate(open, groups323, 7);
-    await rate(closed, groups323, 0);
+    const openSubmissions = await rate(open, openWindow, groups323, 7);
+    await rate(closed, closedWindow, groups323, 0);
 
     // The closed assessment has its group marks in, so the marks screen and the
     // results screen have something to work with (FR-21).
