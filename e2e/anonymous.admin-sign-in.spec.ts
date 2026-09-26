@@ -11,7 +11,7 @@ test("an administrator signs in through their own link and lands in the Admin Po
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("link", { name: "Administrator sign in" }).click();
+  await page.getByRole("link", { name: /I.m an administrator/ }).click();
 
   await expect(page).toHaveURL(/\/login\?as=admin/);
   await expect(page.getByRole("heading", { name: "Administrator sign in" })).toBeVisible();

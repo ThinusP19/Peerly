@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { ArrowRight, GraduationCap, Users, type LucideIcon } from "lucide-react";
+import { ArrowRight, GraduationCap, ShieldCheck, Users, type LucideIcon } from "lucide-react";
 
 import { BrandMark } from "@/components/layout/BrandMark";
 import { FloatingPathsBackground } from "@/components/ui/floating-paths";
@@ -122,22 +122,36 @@ function WelcomePage() {
           </div>
 
           {/*
-            Administrators get a door of their own, but a quiet one: there are
-            only ever a few of them, so a third card would weigh the choice down
-            for every student to serve almost nobody. Like the cards, it only
-            picks the form's wording - the portal comes from the account's role.
+            Administrators get a block of their own, but a slimmer, quieter one
+            than the two above: there are only ever a few of them, and a third
+            full card would weigh the choice down for every student. Like the
+            cards, it only picks the form's wording - the portal comes from the
+            account's role.
           */}
-          <p className="mt-6 text-sm">
-            <Link
-              to="/login"
-              search={{ as: "admin" }}
-              onClick={transitionOnClick("Opening administrator sign in")}
-              className="inline-flex items-center gap-1.5 font-semibold text-auth-panel-heading underline-offset-4 hover:underline focus-visible:outline-auth-panel-heading"
-            >
-              Administrator sign in
-              <ArrowRight className="size-4" aria-hidden="true" />
-            </Link>
-          </p>
+          <Link
+            to="/login"
+            search={{ as: "admin" }}
+            onClick={transitionOnClick("Opening administrator sign in")}
+            className="group mt-4 flex items-center gap-4 rounded-2xl border border-auth-panel-heading/25 bg-auth-panel-heading/10 px-6 py-4 text-left backdrop-blur-sm transition hover:border-auth-panel-heading/50 hover:bg-auth-panel-heading/15 focus-visible:outline-auth-panel-heading"
+          >
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-auth-panel-heading/15 text-auth-panel-heading">
+              <ShieldCheck className="size-5" aria-hidden="true" />
+            </span>
+            <span className="flex-1">
+              <span className="block font-semibold text-auth-panel-heading">
+                I'm an administrator
+              </span>
+              <span className="block text-sm">Manage lecturer and administrator accounts.</span>
+            </span>
+            {/* The word goes on a phone, where it pushed the title onto three lines. */}
+            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-auth-panel-heading">
+              <span className="hidden sm:inline">Continue</span>
+              <ArrowRight
+                className="size-4 transition-transform group-hover:translate-x-0.5"
+                aria-hidden="true"
+              />
+            </span>
+          </Link>
         </div>
       </main>
 
