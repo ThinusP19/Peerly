@@ -332,13 +332,16 @@ Select **View** next to an assessment on **Assessments** to open its page. It sh
 | **Open to students** | Draft | Confirms with **Open this assessment to students?**, then **Open assessment**. Students in the selected groups can rate immediately. |
 | **Extend deadline** | Open | Choose a **New closing date and time** later than the current one, then select **Extend deadline**. Students who already submitted keep their submission and can still amend it. |
 | **Close assessment** | Open | Confirms with **Close this assessment now?** and says how many students haven't submitted. After closing, nobody can submit or change ratings. |
-| **Re-open** | Closed | Confirms with **Re-open this assessment?** Students can submit and amend again. **If marks were already calculated, re-opening invalidates them**, and you'll need to calculate again. |
+| **Re-open** | Closed | Confirms with **Re-open this assessment?** Students can submit and amend again, as long as the closing time is still in the future. **If marks were already calculated, re-opening invalidates them**, and you'll need to calculate again. |
 | **Edit setup** | Any time | Opens the form with **Save changes**. |
 
-> **Opening and closing are manual.** The **Opens** and **Closes** times are shown to students,
-> but Peerly **doesn't open or close the assessment automatically**. Select **Open to students**
-> when you want it to start and **Close assessment** when you want it to end. Students can't
-> submit after the closing time, even while the assessment still shows as open.
+> **Opening and closing are manual, but the closing time is enforced.** Peerly **doesn't open
+> or close the assessment automatically**: select **Open to students** when you want it to start
+> and **Close assessment** when you're finished with it. But once the **Closes** time has
+> passed, **students can no longer submit or change their ratings**, even if you haven't closed
+> the assessment yet. To give students more time, use **Extend deadline**. You still need to
+> close the assessment before you can calculate marks (see [section
+> 10](#10-calculating-marks)).
 >
 > **Opening or re-opening after the closing time:** the confirmation asks for a **New closing
 > date and time**, because otherwise nobody could submit. Choose one in the future.
@@ -366,8 +369,14 @@ Go to **Submission Monitor** (with the assessment selected in the header).
   (**Complete** or *N outstanding*).
 - **Outstanding students:** everyone who hasn't submitted, with their student number and group.
 
-**Send reminder** is shown but **doesn't send any email yet**. Contact outstanding students
-through your usual channels. See [Known limitations](#17-known-limitations-in-the-current-version).
+**Send reminder** (above **Outstanding students**) emails a reminder straight away to every
+student listed there, including those who have started but not submitted. **There is no
+confirmation step**: one click sends the emails. A message confirms *"Reminder sent to N
+outstanding students."*, and the audit log records *Reminders sent* with the count.
+
+The button is only available while the assessment is open and someone is still outstanding.
+Peerly also refuses once the closing time has passed, because there is nothing left to remind
+anyone about.
 
 ---
 
@@ -421,8 +430,10 @@ Go to **Marks & Calculation**. Enter the mark each group earned **for the work i
 1. When every group has a mark, the panel says **Every group has a base mark** and **Calculate
    marks** becomes available. Until then it stays disabled, *"so nobody ends up with a mark of
    zero by accident."*
-2. **Close the assessment first.** Peerly lets you calculate while an assessment is still open,
-   but ratings can still change until you close it.
+2. **Close the assessment first.** Peerly only calculates a **closed** assessment. While it is
+   open, the panel says **This assessment is still open** (*"Close it before calculating. While
+   it is open more students may still submit, and every mark would change."*) and **Calculate
+   marks** stays disabled. Peerly refuses on the server too.
 3. Select **Calculate marks**. The confirmation, **Calculate individual marks?**, lists the base
    mark used for each group. Select **Calculate marks** again.
 4. Peerly takes you to **Results**.
@@ -560,9 +571,11 @@ What this example shows:
   place the two almost always agree, but where a mark sits right on a boundary they can differ,
   and the unrounded one is correct. The export has the full figures.
 - **Flags** (advisory only, see [11.5](#115-result-flags)): Dineo gets **Uniform rating** (he
-  gave everyone *Satisfactory*), **Low contribution** (mean received of 79, *Marginal*, or less)
-  and **Isolated outlier**. Anna also gets **Isolated outlier**, because Chris's *Excellent* is
-  10 or more above the group mean.
+  gave everyone *Satisfactory*) and **Low contribution** (mean received of 79, *Marginal*, or
+  less). Nobody gets **Isolated outlier**: the rating furthest from the group mean of 87.83 is
+  the *Deficient* (74) Dineo received, 13.8 away, which is under the threshold of 20. Nobody
+  gets **Reciprocal extremes** either: the biggest gap between two students' ratings of each
+  other is Anna and Dineo, 89 against 74, which is 15 apart, under the threshold of 40.
 
 ### 11.4 Edge cases
 
@@ -587,8 +600,8 @@ The thresholds behind them are also provisional.
 | Flag | Explanation shown in Peerly | When it appears (current settings) |
 | --- | --- | --- |
 | **Uniform rating** | This student gave every group member exactly the same rating, so their scores carry little information about who did what. | The student gave two or more ratings, all the same option. |
-| **Reciprocal extremes** | This student and another member rated each other at opposite ends of the scale, which usually points to a dispute rather than a difference in contribution. | Two students' ratings of each other differ by 50 or more (for example *Excellent* one way and *Marginal* the other). |
-| **Isolated outlier** | One evaluator rated this student far away from what everyone else in the group said. | At least one rating the student received is 25 or more away from the group mean. |
+| **Reciprocal extremes** | This student and another member rated each other at opposite ends of the scale, which usually points to a dispute rather than a difference in contribution. | Two students' ratings of each other differ by 40 or more. On the 59-to-100 scale that means one rated the other *Excellent* (100) and got *No contribution* (59) back. |
+| **Isolated outlier** | One evaluator rated this student far away from what everyone else in the group said. | At least one rating the student received is 20 or more away from the group mean, about four steps on the scale. |
 | **Incomplete group** | Fewer than half of this group submitted, so the ratings that did arrive are a weak basis for adjusting anyone's mark. | Fewer than half the members submitted. |
 | **Low contribution** | On average the group rated this student Marginal or lower - they sometimes failed to attend or to complete what was asked. | Mean received of 79 (*Marginal*) or lower. |
 | **Did not submit** | This student did not rate their group members before the assessment closed. | No submission from the student. |
@@ -597,7 +610,7 @@ The thresholds behind them are also provisional.
 | **Unmatched** | This student could not be matched to the imported class list, so their result may be incomplete. | The student's class-list entry isn't matched. |
 | **Not peer assessed** | Nobody in the group rated this student, so there is no factor to apply. They receive the group mark unchanged, which is not a peer-assessed mark. | No ratings received (group of two or more). |
 | **Group mark of zero** | This group's base mark is zero, so every member's mark is zero. Check it was entered deliberately. | Base mark is 0. |
-| **Whole group rated lowest** | Every rating in this group was the lowest option, so no factor can be calculated. Every member receives the group mark unchanged. | Group mean is 0. |
+| **Whole group rated lowest** | Every rating in this group was the lowest option, so no factor can be calculated. Every member receives the group mark unchanged. | Group mean is 0. **This can't happen on the current scale**, where the lowest option still counts for 59, so you won't see this flag. It is a safeguard in case the scale is changed. A group rated *No contribution* throughout gets **Uniform rating** and **Low contribution** instead (see [11.4](#114-edge-cases)). |
 
 ---
 
@@ -642,9 +655,8 @@ the row is marked **Overridden**, and the drill-down shows *"Overridden from X t
 name and the time. The override is also recorded in the audit log and the export. To change an
 override, open **Override mark** again.
 
-The new mark must be between 0 and the assessment's maximum. If the assessment is out of less
-than 100, don't enter more than that maximum (see [Known
-limitations](#17-known-limitations-in-the-current-version)).
+The new mark must be between 0 and the assessment's maximum. Peerly refuses anything above the
+maximum, with *"Enter a mark between 0 and [max]."*
 
 ---
 
@@ -663,7 +675,7 @@ has two worksheets:
 | Worksheet | Contents |
 | --- | --- |
 | **Results** | A header block (**Class**, **Academic period**, **Assessment**, **Generated**, **Calculation run id**, **Calculated at**, **Overrides included**, **Flagged students**), then one row per student: **Student number**, **Surname**, **Name**, **Group**, **Ratings received**, **Mean received**, **Group mean**, **Adjustment factor**, **Group base mark**, **Final mark**, **Override mark**, **Override reason**, **Overridden by**, **Flags** |
-| **Raw Ratings** | One row per rating: **Group**, **Evaluator number**, **Evaluator**, **Evaluated number**, **Evaluated**, **Rating**, **Scale value**, **Comment**, **Submitted at** |
+| **Raw Ratings** | One row per rating from a **submitted** evaluation (ratings in unsubmitted drafts are left out, as they are from the calculation): **Group**, **Evaluator number**, **Evaluator**, **Evaluated number**, **Evaluated**, **Rating**, **Scale value**, **Comment**, **Submitted at** |
 
 - **Final mark** is always the calculated mark. Where you overrode a mark, use **Override mark**
   for that student.
@@ -685,8 +697,8 @@ what it affected. Entries can't be edited or deleted by anyone.
 - Filter by **Event type**, **From date** and **To date**, then use **Clear filters** to reset.
 - The events you'll see: *Class created*, *Class list imported*, *Match conflict resolved*,
   *Groups confirmed*, *Assessment created*, *Assessment changed*, *Assessment opened*,
-  *Assessment closed*, *Assessment re-opened*, *Group mark entered*, *Marks calculated*, *Mark
-  overridden*, *Results exported*, *Assessment deleted* and *Class deleted*.
+  *Assessment closed*, *Assessment re-opened*, *Reminders sent*, *Group mark entered*, *Marks
+  calculated*, *Mark overridden*, *Results exported*, *Assessment deleted* and *Class deleted*.
 
 ---
 
@@ -731,6 +743,8 @@ first.**
 | *Use whole numbers or one decimal place, e.g. 74.5.* | Too many decimals in a base mark. | Round to one decimal. |
 | *N group(s) still have no mark…* | Calculation was refused. | Enter every group's base mark. |
 | *This assessment hasn't opened yet, so there is nothing to calculate.* | The assessment is still a draft. | Open it and collect ratings first. |
+| *Close this assessment before calculating…* | The assessment is still open. | Close it, then calculate. |
+| *Everyone has submitted, so there is nobody to remind.* / *The closing time has passed, so there is nothing left to remind anyone about.* | A reminder was refused. | Nothing to do. Extend the deadline first if students need more time. |
 | *Give a reason for the override.* | The reason is empty. | Explain the override. |
 | *This student has no calculated mark to override yet.* | No calculation has been run. | Calculate first. |
 | *Calculate the marks before exporting…* | Export with no results. | Calculate first. |
@@ -746,9 +760,8 @@ These are known gaps in the build this guide was written against. Work around th
 
 1. **Provisional marks (AS-08).** See the note at the top.
 2. **No automatic opening or closing.** You have to open and close each assessment yourself
-   ([6.2](#62-the-assessment-page)).
-3. **Reminders aren't sent.** **Send reminder** shows a confirmation, but no email goes out.
-4. **Regrouping removes groups from existing assessments** that have no submissions yet,
+   ([6.2](#62-the-assessment-page)). The closing time does stop submissions on its own.
+3. **Regrouping removes groups from existing assessments** that have no submissions yet,
    including open ones ([5.3](#53-confirm)).
 
 ---
@@ -782,9 +795,11 @@ Yes. Override it, then export again. Each export records the calculation run id,
 tell exports apart.
 
 **Should I calculate before closing the assessment?**
-No. Close it first so the ratings can't change. If you re-open after calculating, the results
-are invalidated and you'll need to calculate again.
+You can't: Peerly only calculates a closed assessment, so the ratings can't change underneath
+the marks. If you re-open after calculating, the results are invalidated and you'll need to
+calculate again.
 
 **Who do I contact about my account?**
-A System Administrator (for example, to change your name or email, or if you're locked out of
-activation).
+A System Administrator, for example to change your name, or to send a new activation link if
+yours expired. Once your account is active, its email address can't be changed: if your address
+changes, the administrator creates a new account for the new one.

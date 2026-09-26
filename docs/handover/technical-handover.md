@@ -607,7 +607,11 @@ The step-by-step screens are in the administrator user guide.
 
 #### Re-sending an expired staff activation link
 
-The API has no "resend activation" endpoint yet. If a new staff member's link expires, issue a new token for the existing account in the same way as 5.9:
+An administrator does this from the portal: **Lecturer & Admin Accounts → … → Resend activation link**, which calls `POST /api/accounts/:userId/activation` (see [api.md](./api.md#post-apiaccountsuseridactivation)). It only works for an `unverified` account, sends a new link valid for `ACTIVATION_TOKEN_MINUTES`, makes every earlier unused link for that account stop working, and writes an `account.activation_resent` audit entry. An active account's holder uses **Forgot password** instead.
+
+An activated account's e-mail address cannot be changed (`PATCH /api/accounts/:userId` refuses with `409`), because password resets go to it. Correcting the address of an `unverified` account is allowed and re-sends the link to the new address.
+
+Only if no administrator can sign in, issue a new token for the existing account from the shell, in the same way as 5.9:
 
 ```sh
 TOKEN=$(node -e 'console.log(require("node:crypto").randomBytes(32).toString("base64url"))')
@@ -651,7 +655,7 @@ Read these rules before you do it:
 - **Never delete an option that has been used.** `peer_ratings.rating_option_id` references it without a cascade, so the delete fails. Set `active = false` instead. Inactive options disappear from the rating form, and past ratings still resolve.
 - **Think carefully before changing a used option's `hidden_value`.** `calculation_runs.config` freezes the *calculation* settings, and `calculated_results` freezes each run's *numbers*. The option values themselves are **not** frozen. If an older assessment is recalculated after the change, it uses the new values. Existing stored results do not change until someone recalculates. Safer: deactivate the old option and add a new one.
 - `label` and `display_order` are unique. Renumber carefully, in a single migration.
-- The advisory thresholds in the calculation config (`lowContributionThreshold: 79`, `outlierThreshold: 10`) are set for the banded scale, whose options sit about five apart. If you change the scale, change them as well (7.6), and the matrix highlight step in `src/lib/domain.ts` (`deviationFrom`, currently 5).
+- The advisory thresholds in the calculation config (`lowContributionThreshold: 79`, `outlierThreshold: 20`, `reciprocalThreshold: 40`) are set for the banded scale, whose options sit about five apart. If you change the scale, change them as well (7.6), and the matrix highlight step in `src/lib/domain.ts` (`deviationFrom`, currently 5).
 - The scale is global. It applies to every class and assessment.
 
 ### 7.6 Changing the Felder calculation configuration
@@ -665,7 +669,8 @@ Every configurable part of the calculation is in **`CalculationConfig`**, and it
 | `roundTo` | `1` | Decimal places for the final mark. This is the **only** rounding step. Agreed 2026-09-23: it matches the precision the mark is recorded at, so the mark is rounded once rather than rounded here and rounded again downstream. |
 | `neutralFactor` | `1` | Factor used when there is nothing to calculate from, such as a group of one or a student nobody rated |
 | `lowContributionThreshold` | `79` (*Marginal*) | Mean received rating at or below this value is flagged as low contribution (advisory only) |
-| `outlierThreshold` | `10` (two steps) | Distance from the group mean at which a single rating is flagged as an outlier (advisory only) |
+| `outlierThreshold` | `20` (four steps) | Distance from the group mean at which a single rating received is flagged as an outlier (advisory only) |
+| `reciprocalThreshold` | `40` | How far apart two students' ratings of each other must be to be flagged as reciprocal extremes, for example *Excellent* (100) one way and *No contribution* (59) the other (advisory only) |
 
 The rating scale (migration 0004), the factor limits and the exclusion of self-ratings were agreed on 2026-09-22, and the rounding rule on 2026-09-23. The neutral factor and the two flag thresholds are still **provisional** until the Sponsor approves the Felder Calculation Specification (AS-08, IS-02, IS-04). Each run stores its config **and the rating scale** in `calculation_runs.config`.
 
@@ -763,7 +768,5 @@ Run `npm outdated` in both packages, update one area at a time, and install with
 The full list, with details, is in [api.md → Known issues](./api.md#known-issues). The ones that matter for operations are:
 
 - An `Origin` missing from `CORS_ORIGINS` is refused with `403` and the message *"Origin … is not allowed to call this API."* If every write fails with that after a deploy, add the public URL to `CORS_ORIGINS`.
-- There is no "resend activation link" endpoint for staff. Use the workaround in 7.2.
 - `GET /api/assessments/:id/export` records an export as a side effect.
-- An open assessment can be calculated, so BR-06 is only partly enforced.
 - `purgeExpiredSessions()` exists but nothing schedules it. Use the SQL in 7.8.

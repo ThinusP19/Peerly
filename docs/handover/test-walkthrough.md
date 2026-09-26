@@ -95,6 +95,10 @@ Sign in as `riaan.botha@nwu.ac.za`, choosing **Administrator**.
 - [ ] Creating `test.lecturer@nwu.ac.za` succeeds
 - [ ] **An activation e-mail appears in the API terminal** with a link
 - [ ] The new account shows as **unverified** until that link is used
+- [ ] **… → Resend activation link** on it prints a **new** link in the API
+      terminal, and the first link no longer works
+- [ ] **View / edit details** on the unverified account lets you correct its
+      e-mail address, and a new link is printed for the new address
 
 **Activate it** — open the link from the terminal in a private window:
 
@@ -106,6 +110,9 @@ Sign in as `riaan.botha@nwu.ac.za`, choosing **Administrator**.
 **Edit and deactivate:**
 
 - [ ] Editing the account's name saves and shows immediately
+- [ ] On the now **active** account, the e-mail field is locked and says it
+      can't be changed once an account is activated
+- [ ] **… → Resend activation link** is not offered on the active account
 - [ ] Deactivating it works and is visibly marked
 - [ ] Reactivating it works
 - [ ] Try to deactivate **every** administrator - it must refuse to remove the
@@ -121,7 +128,8 @@ Sign in as `riaan.botha@nwu.ac.za`, choosing **Administrator**.
 
 ### 1.4 Settings — `/admin/settings`
 
-- [ ] Changing your own name saves
+- [ ] The **Profile** tab is read-only: there is nothing to edit, and it says to
+      contact another System Administrator to change your details
 - [ ] Changing your password refuses a wrong current password
 - [ ] Changing your password refuses a weak new one
 - [ ] A successful change works, and **the new password is what signs you back in**
@@ -139,6 +147,8 @@ Three steps: your details, your sign-in, then a 6-digit code.
 - [ ] Step 1 refuses a student number that is not 8 digits
 - [ ] Step 1 refuses a student number already registered (try `41200345`)
 - [ ] Step 2 refuses a non-institutional address (`someone@gmail.com`)
+- [ ] Step 2 refuses a student address that is not the step 1 student number
+      followed by `@mynwu.ac.za`, and shows the address that goes with it
 - [ ] Step 2 refuses a weak password
 - [ ] You can go **back** from any step without losing what you typed
 - [ ] Step 3 sends a code - **check the API terminal**
@@ -146,7 +156,8 @@ Three steps: your details, your sign-in, then a 6-digit code.
 - [ ] **Resend code** produces a new one in the terminal
 - [ ] The correct code creates the account and signs you in
 
-Use a made-up number such as `42199999`, so you do not collide with the seed.
+Use a made-up number such as `42199999`, with the address
+`42199999@mynwu.ac.za`, so you do not collide with the seed.
 
 - [ ] Because that number is on no class list, you land on the **unmatched**
       explanation, not a broken page
@@ -214,7 +225,8 @@ closing time, and the amendment replaces what was there rather than adding to it
 
 ### 2.9 Settings — `/student/settings`
 
-- [ ] Name change saves
+- [ ] The **Profile** tab is read-only and says to contact your lecturer to
+      change your details
 - [ ] Password change works, and the new one signs you back in
 
 ### 2.10 The two broken states
@@ -322,7 +334,11 @@ Use `docs/handover/sample-data/cmpg315-class-list.csv` — 27 rows, 3 wrong on p
 - [ ] The student you submitted as in section 2 now shows submitted
 - [ ] It is clear who has not submitted
 - [ ] Progress per group is shown
-- [ ] **Send reminder** targets only the outstanding students
+- [ ] **Send reminder** sends at once, with no confirmation step, and only to
+      the outstanding students: one reminder e-mail per outstanding student
+      appears in the API terminal
+- [ ] A message says how many students were reminded, and the audit log shows
+      **Reminders sent**
 
 ### 3.7 Matrix — `/lecturer/matrix`
 
@@ -342,6 +358,9 @@ Use the **closed** assessment, Project Phase 1.
 - [ ] Each row saves on its own and says so
 - [ ] Clear a mark: **Calculate marks** becomes disabled
 - [ ] Put it back: it becomes available again
+- [ ] Switch to the **open** assessment, Project Phase 2: **Calculate marks**
+      stays disabled, and once every group has a mark the panel says to close
+      the assessment first
 
 ### 3.9 Calculate and results — `/lecturer/results`
 
@@ -379,7 +398,8 @@ Use the **closed** assessment, Project Phase 1.
 
 ### 3.12 Settings — `/lecturer/settings`
 
-- [ ] Name change saves
+- [ ] The **Profile** tab is read-only and says to contact a System
+      Administrator to change your details
 - [ ] Password change works
 
 ---
@@ -396,6 +416,8 @@ misbehaves when it is not, is not finished.
       and cannot reach CMPG323 by any route you can find
 - [ ] Sign in with an address that does not exist, then with a real address and
       a wrong password → **both say the same thing**
+- [ ] Sign in as a lecturer on the **student** sign-in, with the right password
+      → not signed in, and told to use the lecturer sign-in
 - [ ] Get a password wrong five times → locked out, and told so clearly
 - [ ] Sign out, then press the browser **back** button → you are not signed in
 - [ ] Leave a session idle past 30 minutes → you are signed out
@@ -427,7 +449,8 @@ All 34 screens. Tick each once you have actually seen it.
 - [ ] `/activate`
 - [ ] `/forgot-password`
 - [ ] `/reset-password`
-- [ ] `/dev` (prototype jump-off page)
+- [ ] `/dev` (prototype jump-off page, development server only; a production
+      build answers **404**)
 
 **Administrator (4)**
 - [ ] `/admin`

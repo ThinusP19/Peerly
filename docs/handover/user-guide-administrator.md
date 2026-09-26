@@ -45,7 +45,9 @@ Peerly has three kinds of user:
 As a System Administrator you:
 
 - create **lecturer** and **administrator** accounts
-- correct their names, email addresses and roles
+- correct their names and roles, and the email address of an account that hasn't been
+  activated yet
+- send a new activation link to someone whose link expired or went missing
 - **deactivate** accounts that should no longer have access, and **reactivate** them
 - read the **audit log** of everything that happens in Peerly
 
@@ -89,9 +91,12 @@ account"** email:
    then select **Sign in**.
 3. Peerly opens the Administrator portal.
 
-- Each sign-in form accepts only its own kind of account. An administrator who signs in on the
-  lecturer form is told *"This is an administrator account. Use the administrator sign-in."*,
-  with a link to it, and is not signed in.
+- Each sign-in form accepts only its own kind of account, and Peerly enforces this on the
+  server, not only on the screen. An administrator who signs in on the lecturer form is told
+  *"This is an administrator account. Use the administrator sign-in."*, with a link to it, and
+  is not signed in. Lecturers and students on the wrong form get the same kind of message.
+  This message only appears after the password has been checked, so it tells someone who
+  doesn't know the password nothing.
 - Any other failed sign-in always says *"Those details don't match an active Peerly account.
   Please check and try again."*, whatever the reason.
 - **5 wrong passwords in a row** lock the account for **15 minutes**.
@@ -117,8 +122,8 @@ The **Administrator dashboard** shows:
 | **Deactivated** | Sign-in blocked, history kept |
 | **Awaiting activation** | Invitation sent, not yet accepted |
 
-**Recent account activity** lists the latest six account events (created, changed, activated,
-deactivated), with who made each change. **Full audit log** and **Manage accounts** take you to
+**Recent account activity** lists the latest six account events (created, changed, activation
+link resent, activated, deactivated), with who made each change. **Full audit log** and **Manage accounts** take you to
 those pages.
 
 ---
@@ -135,7 +140,8 @@ Go to **Lecturer & Admin Accounts**. The page is titled **Lecturer & administrat
 - **Showing N of M accounts** tells you how much is filtered out. If nothing matches, select
   **Clear filters**.
 - Select a column heading (**Name**, **Email**, **Role**, **Status** or **Date created**) to
-  sort.
+  sort. On a tablet or phone the **Email** and **Date created** columns are left out to keep
+  **Status** and the actions in view; the email address then shows under the name.
 - The **…** button at the end of each row opens that account's actions.
 
 Student accounts never appear here.
@@ -165,11 +171,26 @@ What happens next:
   **Active**.
 - The creation is recorded in the audit log as *Account created*.
 
+A message confirms *"Account created. An activation link has been sent to …"*. The link itself
+is only ever in the email sent to the new user; you never see it.
+
 Tell the person to expect the email and to check their junk folder.
 
-> After you create an account, a message appears with an **Open activation link** button.
-> Ignore that button. It's left over from testing and doesn't open the real link. The real link
-> is only in the email sent to the new user.
+### Sending the activation link again
+
+If the link has expired, landed in a junk folder or been deleted:
+
+1. Find the account (its status is **Unverified**), select **…**, then **Resend activation
+   link**.
+2. A message confirms *"A new activation link has been sent to …"*.
+
+The new link is valid for another **24 hours**, and **any earlier link stops working**, so only
+the newest email can be used. The resend is recorded in the audit log as *Activation link
+resent*.
+
+**Resend activation link** is only offered for **Unverified** accounts. An account that is
+already **Active** doesn't need one: its holder uses **Forgot password?** on the sign-in form.
+A **Deactivated** account has to be reactivated first.
 
 ---
 
@@ -180,9 +201,18 @@ Tell the person to expect the email and to check their junk folder.
    created and its current status.
 3. Change what you need and select **Save changes**.
 
-- **Changing the email address also changes the address they sign in with.** Tell the person.
+- **The email address can only be corrected before the account is activated.** On an
+  **Unverified** account, correcting the address sends a new activation link to the new address,
+  and the link sent to the old address stops working.
+- **Once an account is activated, its email address can't be changed.** The field is locked
+  with the hint *"Can't be changed on an activated account…"*, and Peerly refuses the change on
+  the server too. The reason: password resets go to that address, so whoever held a new address
+  could reset the password and take the account over. If someone's address really changes,
+  create a new account for the new address, then deactivate the old one.
 - **Changing the role** between **Lecturer** and **System Administrator** takes effect the next
-  time they load a page. Role changes are recorded in the audit log as *Account changed*.
+  time they load a page.
+- Every change to the name, surname, email address or role is recorded in the audit log as
+  *Account changed*, with the old and new values.
 - You **can't demote the last active System Administrator**. Peerly refuses with *"This is the
   only active administrator. Make someone else an administrator first."*
 
@@ -211,6 +241,10 @@ The effect is immediate: **every session they have open is ended at once**.
 2. Confirm **Activate this account?** (*"They will be able to sign in again immediately with their
    existing password."*).
 
+An account that was deactivated before its holder ever activated it goes back to **Unverified**
+rather than **Active**, because nobody has set a password on it yet. Use **Resend activation
+link** to send them a working link.
+
 ### The last administrator is protected
 
 If you try to deactivate the only System Administrator who can still sign in, Peerly shows **This
@@ -222,7 +256,8 @@ administrator** to add another first, then try again.
 
 An **Unverified** account has no **Activate account** option. Only the account holder can
 activate it, by using the link they were emailed. This also proves the email address is really
-theirs.
+theirs. Its menu offers **Resend activation link** instead (see [section
+6](#sending-the-activation-link-again)).
 
 ---
 
@@ -255,9 +290,9 @@ Event types you'll see:
 
 | Group | Events |
 | --- | --- |
-| Accounts | Account created, Account changed, Account activated, Account deactivated, Password changed |
+| Accounts | Account created, Account changed, Activation link resent, Account activated, Account deactivated, Password changed |
 | Classes | Class created, Class list imported, Match conflict resolved, Groups confirmed, Class deleted |
-| Assessments | Assessment created, Assessment changed, Assessment opened, Assessment closed, Assessment re-opened, Assessment deleted |
+| Assessments | Assessment created, Assessment changed, Assessment opened, Assessment closed, Assessment re-opened, Reminders sent, Assessment deleted |
 | Marks | Group mark entered, Marks calculated, Mark overridden, Results exported |
 
 > **Confidentiality.** Some entries describe lecturers' marking. For example, *Group mark
@@ -287,14 +322,16 @@ Go to **Settings**.
 
 | Problem | What to do |
 | --- | --- |
-| A lecturer never received the activation email | Ask them to check their junk folder. Confirm the email address on their account is correct (**View / edit details**). Also see [Known limitations](#14-known-limitations-in-the-current-version) about resending. |
-| A lecturer's activation link has expired (older than 24 hours) | They can select **Send me a new link** on the page the old link opens. See also [Known limitations](#14-known-limitations-in-the-current-version). |
+| A lecturer never received the activation email | Ask them to check their junk folder. Confirm the email address on their account is correct (**View / edit details**); correcting it sends a new link. Otherwise select **…** → **Resend activation link**. |
+| A lecturer's activation link has expired (older than 24 hours) | Select **…** → **Resend activation link**, or they can select **Send me a new link** on the page the old link opens. The earlier link stops working. |
 | A lecturer forgot their password | They select **Forgot password?** on the sign-in form. The reset link is valid for one hour. You can't reset passwords for them. |
 | A lecturer is locked out after wrong passwords | Ask them to wait 15 minutes, or reset their password. |
-| A lecturer's name or email is wrong | Correct it in **View / edit details**. |
+| A lecturer's name is wrong | Correct it in **View / edit details**. |
+| A lecturer's email address is wrong or has changed | Before activation, correct it in **View / edit details**. After activation it can't be changed: create a new account for the right address, then deactivate the old one. |
 | A lecturer changed posts, or a new lecturer takes over a module | Classes belong to the lecturer who created them, and Peerly has no screen to transfer a class. Contact support. |
 | Someone has left | **Deactivate account**. Their data is kept. |
-| A student can't register or sign in | Students help themselves: **Register here**, **Resend code** and **Forgot password?**. A student who didn't finish verifying can simply register again with the same details. |
+| A student can't register or sign in | Students help themselves: **Register here**, **Resend code** and **Forgot password?**. A student who didn't finish verifying can simply register again with the same details. The student number must be the one in their student email address (`12345678@mynwu.ac.za` goes with student number `12345678`); Peerly refuses a registration where the two don't match. |
+| Someone is told to use a different sign-in | They picked the wrong card on **Welcome to Peerly**. Each sign-in form only admits its own kind of account, and the message links to the right one. |
 | A student's account "isn't linked to a class" | This is for the student's **lecturer**, who manages the class list and match conflicts. |
 
 ---
@@ -307,6 +344,10 @@ Go to **Settings**.
 | *Staff accounts must use an institutional address ending in nwu.ac.za.* / *Use an institutional address ending in @nwu.ac.za.* | Not a staff address. | Use the person's `@nwu.ac.za` address. |
 | *This doesn't look like an email address…* | Typing error. | Correct the address. |
 | *An account already uses that email address.* | That address already has an account (perhaps **Deactivated** or **Unverified**). | Search for it. Reactivate or edit it instead of creating a new one. |
+| *The email address of an account that has been activated can't be changed…* | You tried to change an activated account's address. | Create a new account for the new address, then deactivate this one. |
+| *This account is already active. Ask its holder to use "Forgot password" instead.* | You tried to resend an activation link to an **Active** account. | The holder uses **Forgot password?** on the sign-in form. |
+| *This account is deactivated. Reactivate it first.* | You tried to resend an activation link to a **Deactivated** account. | Reactivate it, then resend. |
+| *This is an administrator account. Use the administrator sign-in.* (or *lecturer* / *student*) | The right password, on the wrong sign-in form. Nobody is signed in. | Use the link in the message, or go back to **Welcome to Peerly** and pick the right card. |
 | *This is the only active administrator. Make someone else an administrator first.* | You tried to demote the last active administrator. | Create or promote another administrator first. |
 | **This account can't be deactivated** | You tried to deactivate the last active administrator. | Select **Create an administrator** first. |
 | *This account hasn't been activated yet. Its holder needs to use the link they were emailed.* | You tried to activate an **Unverified** account. | The holder must use their email link. |
@@ -318,14 +359,12 @@ Go to **Settings**.
 
 ## 14. Known limitations in the current version
 
-1. **No "resend activation link" button.** If a new user's link expires or their email is lost,
-   you can't send a new one from the portal, and you can't create the account again because the
-   address is already taken. Contact technical support.
-2. **Only role changes are audited.** Name and email corrections are saved but don't currently
-   appear in the audit log.
-4. **The audit log shows marking details** (see [section 10](#10-the-audit-log)). Administrators
+1. **The audit log shows marking details** (see [section 10](#10-the-audit-log)). Administrators
    can't open ratings or results pages, but audit entries about marking are visible to them.
-5. **Classes can't be transferred** between lecturers.
+2. **Classes can't be transferred** between lecturers.
+3. **An activated account's email address can't be changed** (see [section
+   7](#7-editing-details-and-changing-a-role)). This is deliberate: create a new account for the
+   new address instead.
 
 ---
 

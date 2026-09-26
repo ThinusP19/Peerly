@@ -2,16 +2,16 @@
 
 This reference covers requirement OR-27 (API documentation). It lists every HTTP endpoint the Express API in `server/` exposes. It was written from `server/src/app.ts`, `server/src/routes/*.ts`, `server/src/middleware/*.ts` and the services those routes call, and it describes the code as it stands. If a route and this page disagree, the route is right, so fix this page.
 
-**56 endpoints**: 55 under `/api` plus `GET /health`.
+**58 endpoints**: 57 under `/api` plus `GET /health`.
 
 | Area | Mounted at | Endpoints | Who may call |
 | --- | --- | --- | --- |
 | [Health](#health) | `/health` | 1 | Anyone |
 | [Authentication](#authentication-apiauth) | `/api/auth` | 11 | Mostly public. `me` and `change-password` need a session |
-| [Staff accounts](#staff-accounts-apiaccounts) | `/api/accounts` | 4 | `admin` |
+| [Staff accounts](#staff-accounts-apiaccounts) | `/api/accounts` | 5 | `admin` |
 | [Audit log](#audit-log-apiaudit) | `/api/audit` | 1 | `lecturer`, `admin` |
 | [Classes, class lists, groups](#classes-apiclasses) | `/api/classes` | 17 | `lecturer`, and only for classes they own |
-| [Assessments, marks, results, export](#assessments-apiassessments) | `/api/assessments` | 17 | `lecturer`, and only for assessments they own. `rating-options` accepts any signed-in role |
+| [Assessments, marks, results, export](#assessments-apiassessments) | `/api/assessments` | 18 | `lecturer`, and only for assessments they own. `rating-options` accepts any signed-in role |
 | [Student portal](#student-portal-apistudent) | `/api/student` | 5 | `student` |
 
 ---
@@ -70,7 +70,8 @@ Every error has the same shape:
 | 400 | `validation_failed` | The request failed its zod schema. `fields` is keyed by the zod path joined with `.`, for example `email`, `groups.0.memberStudentIds.2` or `entries.1.comment`. A top-level problem uses the key `_`. |
 | 400 | `bad_request` | A service refused the input, such as a wrong current password, an empty file, or a mark out of range. `fields` is present when the problem belongs to one field. |
 | 401 | `unauthorized` | No session, an expired or revoked session, or failed sign-in, verification or activation |
-| 403 | `forbidden` | Signed in, but this portal belongs to a different role |
+| 403 | `forbidden` | Signed in, but this portal belongs to a different role, or the request came from an origin not in `CORS_ORIGINS` |
+| 403 | `wrong_sign_in` | `POST /api/auth/login` only: the password is right, but the sign-in form (`as`) is not the account's role. No session is created. |
 | 404 | `not_found` | Unknown route (`"No such endpoint."`), or a resource that does not exist or is not yours (`"We couldn't find that, or you don't have access to it."`) |
 | 409 | `conflict` | The request is valid but the resource's current state forbids it, such as a wrong status transition, a closed assessment, or groups that already exist |
 | 409 | `rule_violation` | A database constraint refused the write (unique `23505`, foreign key `23503`, check `23514`). The constraint name is logged on the server and never returned. |
@@ -78,12 +79,9 @@ Every error has the same shape:
 | 400 | `malformed_request` | The body, or a JSON field inside an upload, is not valid JSON. |
 | 500 | `internal_error` | Anything else. The stack trace goes to the server log and never to the client. |
 
-**Known cases that return 500 instead of a 4xx** (the client sees the same generic message):
+A body that is not valid JSON, and a `mapping` form field on the class-list preview or commit that is not valid JSON, both return `400 malformed_request`. An `.xlsx` upload that exceljs cannot open returns `400 bad_request`. An `Origin` missing from `CORS_ORIGINS` returns `403 forbidden`.
 
-- A body that is not valid JSON, or is larger than 1 MB. `express.json()` raises these errors and the error handler does not recognise them.
-- An `Origin` that is not listed in `CORS_ORIGINS`. See above.
-- A `mapping` form field on the class-list preview or commit that is not valid JSON.
-- An `.xlsx` upload that exceljs cannot open, for example a corrupt file or a renamed non-workbook.
+**Known case that returns 500 instead of a 4xx** (the client sees the generic message): a JSON body larger than 1 MB. `express.json()` raises a `413` error that the error handler does not recognise.
 
 ---
 
@@ -145,12 +143,12 @@ This is student self-registration (FR-02). It creates an `unverified` student ac
   | `name` | string | trimmed, non-empty, at most 120 characters |
   | `surname` | string | trimmed, non-empty |
   | `email` | string | valid e-mail whose domain is in `STUDENT_EMAIL_DOMAINS` |
-  | `studentNumber` | string | exactly 8 digits |
+  | `studentNumber` | string | exactly 8 digits, and the same as the e-mail address's local part (`12345678` goes with `12345678@mynwu.ac.za`) |
   | `password` | string | non-empty |
   | `noticeAccepted` | `true` | must be the literal `true` (the POPIA notice, OR-13) |
 
 - **202:** `{ "ok": true }`. No account id is returned.
-- **Errors:** `400 validation_failed`. `400 bad_request` with `fields.email` or `fields.studentNumber` when an active or inactive account already holds the address or number. Naming the field is a deliberate departure from SR-06 at the Sponsor's request. `429`.
+- **Errors:** `400 validation_failed`. `400 bad_request` with `fields.studentNumber` when the student number is not the one in the e-mail address ("Your student number and student email don't match..."): an NWU student address is the student number, so this stops anyone registering under a classmate's number. `400 bad_request` with `fields.password` when the password breaks the policy. `400 bad_request` with `fields.email` or `fields.studentNumber` when an active or inactive account already holds the address or number. Naming the field is a deliberate departure from SR-06 at the Sponsor's request. `429`.
 
 ### `POST /api/auth/register/resend`
 
@@ -175,7 +173,7 @@ Checks the 6-digit code, activates the account and signs the student in.
 - **Auth:** none. Rate limit: `signInLimit`, plus the account and source lock-outs.
 - **Body:** `{ "email": string, "password": string, "as"?: "student" | "lecturer" | "admin" }`. Email and password are non-empty. The e-mail format is not checked. `as` names the sign-in form; the web app always sends it. Without it, any role signs in.
 - **200:** `{ "user": PublicUser }` and `Set-Cookie`.
-- **Errors:** `401 unauthorized` with one message ("We couldn't sign you in...") for every cause: unknown address, wrong password, an account that is not `active`, or a locked account. `403 wrong_sign_in` when the password is right but `as` is not the account's role - `fields.as` names the right form and no session is created. It is only sent after the password has been checked, so it reveals nothing to someone without it. `400 validation_failed`, `429`.
+- **Errors:** `401 unauthorized` with one message ("We couldn't sign you in...") for every cause: unknown address, wrong password, an account that is not `active`, or a locked account. `403 wrong_sign_in` when the password is right but `as` is not the account's role: each sign-in form admits only its own role, enforced here rather than only in the web app. The message says which form to use ("This is a lecturer account. Use the lecturer sign-in."), `fields.as` names the right form, and no session is created. It is only sent after the password has been checked, so it reveals nothing to someone without it. `400 validation_failed`, `429`.
 
 Every attempt is written to `login_attempts`.
 
@@ -259,20 +257,27 @@ Creates an `unverified` staff account with no password and e-mails its activatio
 - **201:** `{ "account": StaffAccount }`
 - **Errors:** `400 validation_failed`. `400 bad_request` with `fields.email` for a domain that is not a staff domain. `409 conflict` with `fields.email` ("An account already uses that email address.") when the e-mail address is already in use.
 
-There is no endpoint that re-sends an activation link. If the link expires before the new staff member uses it, see [technical-handover.md → Maintenance](./technical-handover.md#re-sending-an-expired-staff-activation-link).
+### `POST /api/accounts/:userId/activation`
+
+Sends the activation link again, for an account that has never been activated (FR-01, FR-03).
+
+- **Params:** `userId` (uuid)
+- **Body:** none.
+- **200:** `{ "account": StaffAccount }`. A new link is e-mailed, valid for `ACTIVATION_TOKEN_MINUTES`, and every earlier unused activation link for the account stops working. An `account.activation_resent` audit entry is written.
+- **Errors:** `409 conflict` when the account is `active` ("This account is already active. Ask its holder to use \"Forgot password\" instead.") or `inactive` ("This account is deactivated. Reactivate it first."). An active account's holder resets their own password; the administrator cannot issue a link that would take it over (SR-16). `404` for an unknown id or a student id.
 
 ### `PATCH /api/accounts/:userId`
 
 - **Params:** `userId` (uuid)
 - **Body:** any of `{ "name", "surname", "email", "role": "admin"|"lecturer" }`, each optional. `name` and `surname` are 1 to 100 characters. `email` must be a staff-domain address.
-- **200:** `{ "account": StaffAccount }`. Only a change of role is written to the audit log.
-- **Errors:** `404` for an unknown id or a student id. `409 conflict` when the change would demote the last active administrator. `409 conflict` with `fields.email` when the e-mail address is already in use. `400`.
+- **200:** `{ "account": StaffAccount }`. Every change to the name, surname, e-mail address or role is written to the audit log as `account.updated`, with the old and new values. Correcting the e-mail address of an `unverified` account also e-mails a new activation link to the new address, and the link sent to the old one stops working.
+- **Errors:** `409 conflict` when the e-mail address of an account that has been activated (status `active` or `inactive`) would change. Password resets go to that address, so whoever held a new one could take the account over; create a new account for the new address instead. `409 conflict` when the change would demote the last active administrator. `409 conflict` with `fields.email` when the e-mail address is already in use. `404` for an unknown id or a student id. `400`.
 
 ### `POST /api/accounts/:userId/status`
 
 - **Params:** `userId` (uuid)
 - **Body:** `{ "status": "active"|"inactive" }`
-- **200:** `{ "account": StaffAccount }`. Deactivating an account revokes all of its sessions immediately. No record is deleted (BR-14).
+- **200:** `{ "account": StaffAccount }`. Deactivating an account revokes all of its sessions immediately. No record is deleted (BR-14). Activating an `inactive` account that never had a password returns it to `unverified`, not `active`.
 - **Errors:** `409 conflict` when the change would deactivate the last active administrator, or when it would activate an account that is still `unverified` (the holder has to use their link). `404`, `400`.
 
 ---
@@ -443,9 +448,17 @@ Source: `server/src/routes/assessments.ts`, plus `services/assessments.ts`, `ass
 | `GET /api/assessments/:assessmentId` | `{ "assessment": AssessmentRecord }` |
 | `GET /api/assessments/:assessmentId/progress` | `{ "progress": { group: { id, groupNumber }, members: Person[], submittedIds: string[], draftIds: string[], outstanding: Person[] }[] }`. `outstanding` means members without a *submitted* evaluation, so it includes students who only have a draft. |
 | `GET /api/assessments/:assessmentId/submissions` | `{ "submissions": { id, assessmentId, evaluatorStudentId, status: "draft"\|"submitted", submittedAt?, updatedAt }[] }` |
-| `GET /api/assessments/:assessmentId/ratings` | `{ "ratings": { submissionId, evaluatedStudentId, ratingOptionId, comment? }[] }`: raw ratings for the matrix, **including ratings held in unsubmitted drafts** |
+| `GET /api/assessments/:assessmentId/ratings` | `{ "ratings": { submissionId, evaluatedStudentId, ratingOptionId, comment? }[] }`: raw ratings for the matrix, from **submitted** evaluations only. Ratings held in unsubmitted drafts are not returned. |
 | `GET /api/assessments/:assessmentId/marks` | `{ "marks": { assessmentId, groupId, baseMark: number\|null }[] }`: one entry per participating group. `null` means no mark entered, which is not the same as 0. |
 | `GET /api/assessments/:assessmentId/impact` | `{ "impact": DeletionImpact }`. `assessments` is always 1, and `enrolments` and `groups` are always 0. |
+
+### `POST /api/assessments/:assessmentId/reminders`
+
+E-mails a reminder to every student in the assessment who has not submitted, including those with only a draft (FR-18). There is no confirmation step on the server, and the web app sends it with one click.
+
+- **Body:** none.
+- **200:** `{ "sent": number }`: how many students were e-mailed. A `reminders.sent` audit entry records the count.
+- **Errors:** `409 conflict` when the assessment is not open, when its closing time has passed, or when everyone has submitted. `404`.
 
 ### `POST /api/assessments`
 
@@ -495,8 +508,8 @@ Runs the Felder calculation (FR-22) with the current `DEFAULT_CONFIG` in `server
 
 - **Body:** `{ "overrides"?: "keep" | "withdraw" }`. Required once any student in the assessment has an override (FR-24): `keep` leaves each override in force and updates its stored calculated mark to the new run's, and `withdraw` deletes them. Each is audited individually. An override for a student with no mark in the new run is withdrawn either way.
 - **200:** `{ "run": { runId, calculatedAt, students: number, flagged: number } }`
-- **Errors:** `409 conflict` when the assessment is still a draft, when any participating group has no base mark ("N group(s) still have no mark..."), or when overrides exist and `overrides` was not given. `400 bad_request` when the assessment has no groups.
-- **Note:** an **open** assessment can be calculated. BR-06 is only partly enforced. Only *submitted* ratings count towards the calculation. Drafts are ignored.
+- **Errors:** `409 conflict` unless the assessment is **closed** (BR-06): a draft gets "This assessment hasn't opened yet...", and an open one gets "Close this assessment before calculating. While it is open, more students may still submit and every mark would change." Also `409 conflict` when any participating group has no base mark ("N group(s) still have no mark..."), or when overrides exist and `overrides` was not given. `400 bad_request` when the assessment has no groups.
+- **Note:** only *submitted* ratings count towards the calculation. Drafts are ignored.
 
 ### `GET /api/assessments/:assessmentId/results`
 
@@ -521,7 +534,7 @@ The results table and its drill-down (FR-26). Only lecturers can call this, and 
              | "capped-at-maximum"
   ```
 
-  `received` lists every rating stored against the student, **including ratings in drafts that were never submitted**, even though the calculation ignores those ratings.
+  `received` lists the ratings the student received in **submitted** evaluations, the same ratings the calculation used. Ratings in drafts that were never submitted are left out.
 
 ### `POST /api/assessments/:assessmentId/override`
 
@@ -551,7 +564,7 @@ Downloads the results workbook (FR-25, CI-04).
 
 - **200:** a binary body with `content-type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` and `content-disposition: attachment; filename="peerly-<modulecode>-<assessment-slug>-<YYYY-MM-DD>.xlsx"`.
   - The **Results** sheet has a header block (class, period, assessment, generation time, calculation run id, calculation time, number of overrides, number of flagged students) followed by one row per student: student number, surname, name, group, ratings received, mean received, group mean, adjustment factor, group base mark, final mark, override mark, override reason, overridden by, flags.
-  - The **Raw Ratings** sheet has one row per stored rating: group, evaluator number and name, evaluated number and name, rating label, **scale value**, comment, submitted at. As with `/results`, it includes ratings from drafts. For those rows `submitted at` is blank.
+  - The **Raw Ratings** sheet has one row per rating from a **submitted** evaluation: group, evaluator number and name, evaluated number and name, rating label, **scale value**, comment, submitted at. As with `/results`, ratings in unsubmitted drafts are left out.
 - **Side effect:** this is a GET that writes. It sets `assessments.exported_at` and adds a `results.exported` audit entry.
 - **Errors:** JSON, with `409 conflict` when the assessment has not been calculated yet.
 
@@ -612,14 +625,14 @@ The draft and submit endpoints both take this body:
 This is autosave (CI-10). A partial draft is allowed.
 
 - **200:** `{ "ok": true }`
-- **Errors:** `409 conflict` when the assessment is not open ("hasn't opened yet" or "has closed") or the student has already submitted. After submitting, amendments go through `/submit`. `400 bad_request` when a rated student is not in the group or is rated twice, or a comment is over 500 characters (the key is `fields["comment.<id>"]`). `409 rule_violation` for an unknown `ratingOptionId`. `404`.
+- **Errors:** `409 conflict` when the assessment is not open ("hasn't opened yet" or "has closed"), when its closing time has passed even though the lecturer has not closed it yet ("The closing time for this assessment has passed.", BR-05), or when the student has already submitted. After submitting, amendments go through `/submit`. `400 bad_request` when a rated student is not in the group or is rated twice, or a comment is over 500 characters (the key is `fields["comment.<id>"]`). `409 rule_violation` for an unknown `ratingOptionId`. `404`.
 
 ### `POST /api/student/evaluations/:assessmentId/submit`
 
 Submits the evaluation, or amends a submitted one while the assessment is still open (FR-16). Every peer must be rated.
 
 - **200:** `{ "submission": { id, status: "submitted", submittedAt, ratingCount } }`. When an evaluation is amended, the original `submittedAt` is kept.
-- **Errors:** `400 bad_request` with `fields.missing` holding a comma-separated list of the unrated peer ids (BR-04). `409 conflict` when the assessment is closed (OR-08, BR-05), not yet open, or the student is in a group of one. The remaining errors are the same as for the draft endpoint.
+- **Errors:** `400 bad_request` with `fields.missing` holding a comma-separated list of the unrated peer ids (BR-04). `409 conflict` when the assessment is closed (OR-08), when its closing time has passed (BR-05: the closing time ends submissions, whether or not the lecturer has closed the assessment yet), when it is not yet open, or when the student is in a group of one. The remaining errors are the same as for the draft endpoint.
 
 ---
 

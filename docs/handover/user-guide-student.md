@@ -57,7 +57,8 @@ members contributed.
   and Safari all work. You don't need to install anything.
 
 Peerly links your account to your lecturer's class list by **student number**. Use exactly the
-number on your student card.
+number on your student card. Your student email address is that same number followed by
+`@mynwu.ac.za` (for example `41200345@mynwu.ac.za`), and Peerly checks that the two match.
 
 ---
 
@@ -80,7 +81,10 @@ You only do this once. It takes three short steps.
 
 ### Step 2 of 3: Account
 
-5. Enter your **Student email**. It must end in `@mynwu.ac.za`.
+5. Enter your **Student email**. It must end in `@mynwu.ac.za`, and the part before the `@` must
+   be the student number you entered in step 1. If they don't match, Peerly says *"This isn't
+   the address for student number …"*, shows the address that goes with your number, and won't
+   create the account.
 6. Choose a **Password** and type it again in **Confirm password**. Your password must:
    - be at least 8 characters long
    - not be a commonly used password, such as `password123`
@@ -127,6 +131,9 @@ If the details are wrong you'll see *"Those details don't match an active Peerly
 check and try again."* For security, Peerly gives this same message whatever the problem is: a
 mistyped address, a wrong password, an account that isn't verified yet, or an account that is
 locked (see below).
+
+The student sign-in only accepts student accounts. If a lecturer or administrator account signs
+in here, Peerly says which sign-in to use instead and doesn't sign them in.
 
 **Locked out?** After **5 wrong passwords in a row**, your account is locked for **15 minutes**.
 Each further attempt during that time keeps it locked, so stop and wait for the full 15 minutes.
@@ -267,7 +274,8 @@ same words you picked, with your comment underneath.
 
 ## 8. Change your answers after submitting
 
-You can change your answers **until the assessment closes**.
+You can change your answers **until the assessment closes**, which happens at the closing time
+shown, or earlier if your lecturer closes it.
 
 1. On **Assessments**, find the assessment under **Submitted** and select **View**.
 2. On the confirmation page, select **Amend your evaluation**.
@@ -370,6 +378,7 @@ you can still submit.
 | --- | --- | --- |
 | *A student number is 8 digits, for example 41200345.* | The student number isn't 8 digits. | Check your student card. |
 | *Use your student address ending in @mynwu.ac.za, not a personal one.* | You used a non-student email. | Use your `@mynwu.ac.za` address. |
+| *This isn't the address for student number …* / *Your student number and student email don't match…* | The student number isn't the one in your student email address. | Use your own student number, and your student email that starts with it. |
 | *An account already uses that student number.* / *…that email address.* | Someone has already registered with it, perhaps you. | Try **Sign in** or **Forgot password?**. If you didn't register, tell your lecturer. |
 | *That password is too common. Choose something harder to guess.* | The password is on a list of easily guessed passwords. | Choose another. |
 | *Don't use your email address or student number in your password.* | The password contains your email or student number. | Choose another. |
@@ -381,7 +390,7 @@ you can still submit.
 | *That isn't your current password.* | In **Settings**, the current password is wrong. | Retype it. |
 | *Choose a password different from your current one.* | The new password is the same as the old one. | Choose a different one. |
 | **This assessment isn't open yet** | Your lecturer hasn't opened it. | Come back after the opening date shown. |
-| **This assessment has closed** | You can no longer submit or change your answers. | Speak to your lecturer if you think this is a mistake. |
+| **This assessment has closed** | The closing time has passed, or your lecturer closed it. You can no longer submit or change your answers. | Speak to your lecturer if you think this is a mistake. |
 | **We couldn't find that assessment** | It was removed, or it's for a group you're not in. | Go **Back to your assessments**. |
 | *We couldn't submit your evaluation. Your ratings are saved - please try again.* | The submission didn't reach Peerly, for example because the connection dropped. | Check your connection and select **Submit evaluation** again. Your answers are still there. |
 | *There's nobody else in your group to rate.* | You're the only person in your group. | Tell your lecturer. |
@@ -399,7 +408,7 @@ These are known limits of the current version. They don't affect your privacy or
 - **Reminders.** Your lecturer can email a reminder to anyone who hasn't submitted, but don't
   wait for one - keep an eye on your deadlines yourself.
 - **Closing times.** An assessment closes at the closing time shown, even if your lecturer hasn't
-  closed it yet. From then on the form can't be changed or submitted, so submit before then.
+  closed it yet. From then on the form can't be changed or submitted, so submit before then. Only your lecturer can extend it.
 
 ---
 
