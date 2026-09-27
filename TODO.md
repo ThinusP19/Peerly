@@ -107,6 +107,12 @@ Still open from that deployment:
       refuses to deactivate the last administrator, so the order matters.
       Deactivation keeps the record and its audit history (BR-14). Remove any
       extra domain added to `STAFF_EMAIL_DOMAINS` for the setup
+- [ ] **Take `mynwu.ac.za` out of `STAFF_EMAIL_DOMAINS` before real use.** On 27
+      September it was added on the server (`STAFF_EMAIL_DOMAINS=nwu.ac.za,mynwu.ac.za`)
+      so testers with only a student address could be made lecturers. With it,
+      a student-domain address can hold a lecturer or administrator account.
+      Set it back to `nwu.ac.za` in `/var/www/peerly/server/.env` and run
+      `pm2 restart peerly-api`. Existing accounts are not affected
 - [ ] **Add an e-mail to the Let's Encrypt account** so expiry warnings reach
       someone: `certbot update_account -m <address>`. Renewal itself is automatic
 - [ ] **Security headers on the web pages.** The API sends them; the web app does
