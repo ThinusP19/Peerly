@@ -522,6 +522,13 @@ export const calculateMarks = async (
 };
 
 /* Groups helpers used by generation/review screens. */
+export const getGroupsEditable = async (
+  classId: string,
+): Promise<{ editable: boolean; reason: string | null }> =>
+  unset(classId)
+    ? { editable: false, reason: "Select a class first." }
+    : get<{ editable: boolean; reason: string | null }>(`/api/classes/${classId}/groups/editable`);
+
 /**
  * Proposes an allocation (FR-10). Writes nothing, so it can be re-drawn freely.
  *

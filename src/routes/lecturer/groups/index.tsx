@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { Info, Lock, Pencil, UsersRound } from "lucide-react";
+import { Eye, Info, Lock, Pencil, UsersRound } from "lucide-react";
 
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -11,10 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useClassRoster, useLecturerClasses } from "@/hooks/use-lecturer-context";
-import { useSession } from "@/lib/session";
+import { useClassRoster, useLecturerContext } from "@/hooks/use-lecturer-context";
 
-import { getAssessments, getGroups, getSubmissions } from "@/services/peerly";
+import { getGroups, getGroupsEditable } from "@/services/peerly";
 import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/lecturer/groups/")({
@@ -23,44 +22,64 @@ export const Route = createFileRoute("/lecturer/groups/")({
 });
 
 function GroupsOverview() {
-  const { activeClassId } = useSession();
-  const lecturerClasses = useLecturerClasses().data ?? [];
-  const { byId: roster } = useClassRoster(activeClassId);
-  const klass = lecturerClasses.find((c) => c.id === activeClassId);
+  const {
+    classId,
+    klass,
+    assessment,
+    assessments,
+    isLoading: contextLoading,
+  } = useLecturerContext();
+  const { byId: roster } = useClassRoster(classId);
 
   const groups = useQuery({
-    queryKey: ["groups", activeClassId],
-    queryFn: () => getGroups(activeClassId),
+    queryKey: ["groups", classId],
+    queryFn: () => getGroups(classId),
+    enabled: Boolean(classId),
   });
-  const assessments = useQuery({
-    queryKey: ["assessments", activeClassId],
-    queryFn: () => getAssessments(activeClassId),
+  const editability = useQuery({
+    queryKey: ["groups-editable", classId],
+    queryFn: () => getGroupsEditable(classId),
+    enabled: Boolean(classId),
   });
+  const locked = editability.data?.editable !== true;
+  const lockReason = editability.isError
+    ? "Couldn't check whether groups can be edited. Refresh and try again."
+    : editability.data?.reason;
 
-  const openAssessment = (assessments.data ?? []).find((a) => a.status === "open");
-
-  const openSubmissions = useQuery({
-    queryKey: ["submissions", openAssessment?.id],
-    queryFn: () => getSubmissions(openAssessment!.id),
-    enabled: Boolean(openAssessment),
-  });
-
-  // Business rule: once students have started rating each other, moving people
-  // between groups would invalidate ratings that already exist.
-  const locked = Boolean(openAssessment && (openSubmissions.data?.length ?? 0) > 0);
-
-  const list = groups.data ?? [];
+  const classGroups = groups.data ?? [];
+  const list = assessment
+    ? classGroups.filter((group) => assessment.groupIds.includes(group.id))
+    : assessments.length === 0 && !contextLoading
+      ? classGroups
+      : [];
+  const loading = groups.isPending || contextLoading || (assessments.length > 0 && !assessment);
   const totalStudents = list.reduce((sum, group) => sum + group.memberStudentIds.length, 0);
   const smallGroups = list.filter((group) => group.memberStudentIds.length < 2);
 
-  const editButton = (
-    <Button asChild disabled={locked} className="h-10 px-4">
+  const classGroupsButton = (
+    <Button asChild className="h-10 px-4">
       <Link to="/lecturer/groups/generate">
         <Pencil aria-hidden="true" />
-        {list.length ? "Edit groups" : "Generate groups"}
+        {classGroups.length ? "Regenerate class groups" : "Generate class groups"}
       </Link>
     </Button>
   );
+
+  const assessmentButton = assessment ? (
+    <Button asChild className="h-10 px-4">
+      <Link
+        to={
+          assessment.status === "draft"
+            ? "/lecturer/assessments/$assessmentId/edit"
+            : "/lecturer/assessments/$assessmentId"
+        }
+        params={{ assessmentId: assessment.id }}
+      >
+        {assessment.status === "draft" ? <Pencil aria-hidden="true" /> : <Eye aria-hidden="true" />}
+        {assessment.status === "draft" ? "Choose assessment groups" : "View assessment setup"}
+      </Link>
+    </Button>
+  ) : null;
 
   return (
     <>
@@ -68,52 +87,62 @@ function GroupsOverview() {
         title="Groups"
         description={
           klass
-            ? `Confirmed groups for ${klass.moduleCode} - ${klass.name}.`
+            ? assessment
+              ? `Groups in ${assessment.name} for ${klass.moduleCode} - ${klass.name}.`
+              : `Confirmed groups for ${klass.moduleCode} - ${klass.name}.`
             : "Select a class in the header to see its groups."
         }
         actions={
-          locked ? (
+          assessmentButton ??
+          (locked ? (
             <Tooltip>
               <TooltipTrigger asChild>
                 <span tabIndex={0}>
                   <Button disabled className="h-10 px-4">
                     <Lock aria-hidden="true" />
-                    Editing locked
+                    Class groups locked
                   </Button>
                 </span>
               </TooltipTrigger>
               <TooltipContent className="max-w-xs">
-                Students have already started rating each other in “{openAssessment?.name}”. Close
-                that assessment before changing group membership.
+                {lockReason ?? "Checking whether groups can be edited."}
               </TooltipContent>
             </Tooltip>
           ) : (
-            editButton
-          )
+            classGroupsButton
+          ))
         }
       />
 
-      {locked ? (
+      {assessment ? (
+        <Card className="flex flex-col gap-4 rounded-2xl border border-warning/25 p-5 shadow-card sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="min-w-0">
+            <h2 className="font-semibold text-foreground">Class group allocation</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {lockReason
+                ? `This allocation is shared by every assessment in this class. ${lockReason}`
+                : locked
+                  ? "Checking whether class groups can be changed."
+                  : "Regenerating class groups changes the allocation used by every assessment in this class."}
+            </p>
+          </div>
+          {!locked ? classGroupsButton : null}
+        </Card>
+      ) : lockReason ? (
         <Card className="flex gap-3 rounded-2xl border border-warning/25 p-5 shadow-card sm:px-6">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-warning-muted text-warning">
             <Info className="size-4" aria-hidden="true" />
           </span>
           <div className="min-w-0">
-            <h2 className="font-semibold text-foreground">
-              Groups are locked while an assessment runs
-            </h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              “{openAssessment?.name}” is open and {openSubmissions.data?.length} students have
-              already submitted. Moving someone now would leave ratings pointing at a group they're
-              no longer in.
-            </p>
+            <h2 className="font-semibold text-foreground">Groups cannot be changed</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">{lockReason}</p>
           </div>
         </Card>
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <StatCard label="Groups" value={list.length} icon={UsersRound} loading={groups.isPending} />
-        <StatCard label="Students allocated" value={totalStudents} loading={groups.isPending} />
+        <StatCard label="Groups" value={list.length} icon={UsersRound} loading={loading} />
+        <StatCard label="Students allocated" value={totalStudents} loading={loading} />
         <StatCard
           label="Groups under 2 members"
           value={smallGroups.length}
@@ -121,11 +150,11 @@ function GroupsOverview() {
             smallGroups.length ? "Peer rating needs at least 2 members" : "All groups are viable"
           }
           tone={smallGroups.length ? "warning" : "success"}
-          loading={groups.isPending}
+          loading={loading}
         />
       </div>
 
-      {groups.isPending ? (
+      {loading ? (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, index) => (
             <Skeleton key={index} className="h-52 rounded-2xl" />
@@ -134,9 +163,15 @@ function GroupsOverview() {
       ) : list.length === 0 ? (
         <EmptyState
           icon={UsersRound}
-          title="No groups yet"
-          description="Generate groups from the class list, then review and confirm the allocation."
-          action={editButton}
+          title={assessment ? "No groups in this assessment" : "No groups yet"}
+          description={
+            assessment
+              ? assessment.status === "draft"
+                ? "Choose participating groups when editing this assessment."
+                : "No groups are linked to this assessment."
+              : "Generate groups from the class list, then review and confirm the allocation."
+          }
+          action={locked || assessment ? undefined : classGroupsButton}
         />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

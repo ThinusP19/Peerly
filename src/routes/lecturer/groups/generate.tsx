@@ -29,9 +29,8 @@ import { cn } from "@/lib/utils";
 import type { Group } from "@/mocks/types";
 import {
   confirmGroups,
-  getAssessments,
   getEnrolmentRows,
-  getSubmissions,
+  getGroupsEditable,
   proposeGroups,
 } from "@/services/peerly";
 import { titleHead } from "@/lib/page-title";
@@ -61,20 +60,14 @@ function GenerateGroupsPage() {
   // students already in a group, which on a first allocation is nobody.
   const names = useMemo(() => studentNamesById(enrolmentRows.data ?? []), [enrolmentRows.data]);
 
-  // The same lock as the Groups page: once students have started rating in an
-  // open assessment, regrouping would orphan ratings that already exist. This
-  // page can be opened directly, so it enforces the rule too.
-  const assessmentsQuery = useQuery({
-    queryKey: ["assessments", activeClassId],
-    queryFn: () => getAssessments(activeClassId),
+  const editability = useQuery({
+    queryKey: ["groups-editable", activeClassId],
+    queryFn: () => getGroupsEditable(activeClassId),
   });
-  const openAssessment = (assessmentsQuery.data ?? []).find((a) => a.status === "open");
-  const openSubmissions = useQuery({
-    queryKey: ["submissions", openAssessment?.id],
-    queryFn: () => getSubmissions(openAssessment!.id),
-    enabled: Boolean(openAssessment),
-  });
-  const locked = Boolean(openAssessment && (openSubmissions.data?.length ?? 0) > 0);
+  const locked = editability.data?.editable !== true;
+  const lockReason = editability.isError
+    ? "Couldn't check whether groups can be edited. Refresh and try again."
+    : editability.data?.reason;
 
   const [mode, setMode] = useState<Mode>("count");
   const [groupCount, setGroupCount] = useState("6");
@@ -147,7 +140,7 @@ function GenerateGroupsPage() {
         }
       />
 
-      {locked ? (
+      {lockReason ? (
         <Card
           role="alert"
           className="flex gap-3 rounded-2xl border border-warning/25 p-5 shadow-card sm:px-6"
@@ -156,13 +149,8 @@ function GenerateGroupsPage() {
             <Lock className="size-4" aria-hidden="true" />
           </span>
           <div className="min-w-0">
-            <h2 className="font-semibold text-foreground">
-              Groups are locked while an assessment runs
-            </h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              “{openAssessment?.name}” is open and {openSubmissions.data?.length} students have
-              already submitted. Close that assessment before generating new groups.
-            </p>
+            <h2 className="font-semibold text-foreground">Groups cannot be changed</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">{lockReason}</p>
           </div>
         </Card>
       ) : null}

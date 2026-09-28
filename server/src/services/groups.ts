@@ -13,9 +13,7 @@ import { getClass } from "./classes.ts";
  * was drawn would make "generate again" feel broken rather than deliberate,
  * and there would be no way to tell a re-draw from a bug.
  *
- * Confirming is the only part that writes, and it replaces the class's groups
- * wholesale rather than merging - which is why it refuses once an assessment
- * has real submissions behind it.
+ * Confirming replaces all groups, so it refuses when an assessment depends on them.
  */
 
 export interface ProposedGroup {
@@ -108,21 +106,15 @@ export async function proposeGroups(
   return { groups, warnings, eligibleCount: rows.length };
 }
 
-/**
- * Explains why a class's groups cannot be changed, or null if they can.
- *
- * FR-11 locks editing once an assessment is open and people have submitted.
- * Re-drawing under a live assessment would orphan every rating already given:
- * BR-01 requires both parties to be in the group a rating belongs to, and a
- * student moved out of their group breaks that for ratings in both directions.
- */
+/** Returns why a class cannot be regrouped, or null when it can. */
 export async function regroupingBlockedReason(classId: string): Promise<string | null> {
   const { rows } = await query<{
     assessment_name: string;
+    status: "open" | "closed";
     submissions: string;
     results: string;
   }>(
-    `SELECT a.name AS assessment_name,
+    `SELECT a.name AS assessment_name, a.status,
             (SELECT count(*) FROM submissions s WHERE s.assessment_id = a.id) AS submissions,
             -- Results are keyed to the groups they were calculated over, so a
             -- calculated assessment locks the groups even if nobody submitted:
@@ -137,11 +129,15 @@ export async function regroupingBlockedReason(classId: string): Promise<string |
 
   const live = rows.find((row) => Number(row.submissions) > 0);
   if (live) {
-    return `"${live.assessment_name}" already has submissions, so the groups it was set up with can't be changed.`;
+    return `"${live.assessment_name}" already has submissions, so this class's groups can't be changed.`;
   }
   const calculated = rows.find((row) => Number(row.results) > 0);
   if (calculated) {
-    return `"${calculated.assessment_name}" has calculated marks, which belong to the current groups, so they can't be changed.`;
+    return `"${calculated.assessment_name}" has calculated marks tied to this class's groups, so they can't be changed.`;
+  }
+  const closed = rows.find((row) => row.status === "closed");
+  if (closed) {
+    return `"${closed.assessment_name}" is closed, so this class's groups can't be changed.`;
   }
   return null;
 }
@@ -222,7 +218,7 @@ export async function confirmGroups(
     );
   }
 
-  // Assessments not yet closed that take part through these groups. Deleting
+  // Draft and open assessments that take part through these groups. Deleting
   // the old groups deletes their links too, and an assessment with no groups
   // disappears from every student's dashboard. One that used every group moves
   // to every new group; one that used only some cannot be carried over, because
