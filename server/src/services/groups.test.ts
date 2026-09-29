@@ -353,6 +353,36 @@ describe("regroupingBlockedReason (FR-11)", () => {
     expect(await regroupingBlockedReason(classId)).toBeNull();
   });
 
+  it("keeps a closed assessment's group links when nobody submitted or has marks", async () => {
+    const { classId, user } = await withOpenAssessment(0);
+    const { rows: assessments } = await query<{ id: string }>(
+      "UPDATE assessments SET status = 'closed' WHERE class_id = $1 RETURNING id",
+      [classId],
+    );
+    const assessmentId = assessments[0]!.id;
+    const countLinks = async () =>
+      Number(
+        (
+          await query<{ count: string }>(
+            "SELECT count(*) AS count FROM assessment_groups WHERE assessment_id = $1",
+            [assessmentId],
+          )
+        ).rows[0]!.count,
+      );
+
+    expect(await countLinks()).toBe(2);
+    expect(await regroupingBlockedReason(classId)).toMatch(/Phase 2.*closed/);
+    await expect(
+      confirmGroups(classId, (await proposeGroups(classId, "count", 3, user)).groups, user),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(await countLinks()).toBe(2);
+    const { rows: groups } = await query<{ count: string }>(
+      "SELECT count(*) AS count FROM groups WHERE class_id = $1",
+      [classId],
+    );
+    expect(Number(groups[0]!.count)).toBe(2);
+  });
+
   it("blocks it once somebody has submitted, naming the assessment", async () => {
     const { classId } = await withOpenAssessment(1);
 

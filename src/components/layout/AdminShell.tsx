@@ -1,4 +1,5 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   BarChart3,
   Bell,
@@ -17,6 +18,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
+import { toast } from "sonner";
 
 import { BrandMark } from "@/components/layout/BrandMark";
 import { RoleGuard } from "@/components/layout/RoleGuard";
@@ -43,6 +45,7 @@ import { initials } from "@/lib/format";
 import { useLecturerContext } from "@/hooks/use-lecturer-context";
 import { roleLabel, useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
+import { getAssessments } from "@/services/peerly";
 
 import type { Role } from "@/mocks/types";
 
@@ -162,6 +165,18 @@ function SidebarBody({ role, onNavigate }: { role: Role; onNavigate?: () => void
 /** Which class and assessment the lecturer is currently working in. */
 function ContextSelector() {
   const { user } = useSession();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname.replace(/\/$/, ""),
+  });
+  const [switchingClass, setSwitchingClass] = useState(false);
+  const onAssessmentPage =
+    /^\/lecturer\/assessments\/[^/]+(?:\/edit)?$/.test(pathname) &&
+    pathname !== "/lecturer/assessments/new";
+  const editingAssessment = onAssessmentPage && pathname.endsWith("/edit");
+  const hideAssessmentSelector =
+    pathname === "/lecturer/assessments" || pathname === "/lecturer/assessments/new";
   // The lists come from the API, and the hook corrects a remembered selection
   // that no longer exists rather than passing it on to every screen.
   const {
@@ -173,6 +188,55 @@ function ContextSelector() {
     setActiveAssessmentId,
   } = useLecturerContext();
 
+  const canLeaveEdit = () =>
+    !editingAssessment ||
+    window.confirm("Leave this assessment setup? Any unsaved changes will be lost.");
+
+  const selectClass = async (nextClassId: string) => {
+    if (!onAssessmentPage) {
+      setActiveClassId(nextClassId);
+      setActiveAssessmentId("");
+      return;
+    }
+    if (!canLeaveEdit()) return;
+
+    setSwitchingClass(true);
+    try {
+      const nextAssessments = await queryClient.fetchQuery({
+        queryKey: ["assessments", nextClassId],
+        queryFn: () => getAssessments(nextClassId),
+      });
+      const first = nextAssessments[0];
+      setActiveClassId(nextClassId);
+      setActiveAssessmentId(first?.id ?? "");
+      if (first) {
+        await navigate({
+          to: "/lecturer/assessments/$assessmentId",
+          params: { assessmentId: first.id },
+        });
+      } else {
+        await navigate({ to: "/lecturer/assessments" });
+      }
+    } catch {
+      toast.error("Couldn't load that class's assessments. Please try again.");
+    } finally {
+      setSwitchingClass(false);
+    }
+  };
+
+  const selectAssessment = (nextAssessmentId: string) => {
+    if (!onAssessmentPage) {
+      setActiveAssessmentId(nextAssessmentId);
+      return;
+    }
+    if (!canLeaveEdit()) return;
+    setActiveAssessmentId(nextAssessmentId);
+    void navigate({
+      to: "/lecturer/assessments/$assessmentId",
+      params: { assessmentId: nextAssessmentId },
+    });
+  };
+
   if (user?.role !== "lecturer") return null;
 
   return (
@@ -181,15 +245,11 @@ function ContextSelector() {
         Active class
       </label>
       <Select
+        disabled={switchingClass}
         // An empty value would make this uncontrolled, so the placeholder is
         // shown by leaving it undefined until the classes have loaded.
         {...(classId ? { value: classId } : {})}
-        onValueChange={(value) => {
-          setActiveClassId(value);
-          // The assessment belongs to the old class, so clear it and let the
-          // hook pick the new class's first one.
-          setActiveAssessmentId("");
-        }}
+        onValueChange={(value) => void selectClass(value)}
       >
         <SelectTrigger id="context-class" className="h-9 w-auto min-w-44 gap-2 bg-card">
           <SelectValue placeholder="Select a class" />
@@ -203,24 +263,29 @@ function ContextSelector() {
         </SelectContent>
       </Select>
 
-      <label className="sr-only" htmlFor="context-assessment">
-        Active assessment
-      </label>
-      <Select
-        {...(assessmentId ? { value: assessmentId } : {})}
-        onValueChange={setActiveAssessmentId}
-      >
-        <SelectTrigger id="context-assessment" className="h-9 w-auto min-w-44 gap-2 bg-card">
-          <SelectValue placeholder="Select an assessment" />
-        </SelectTrigger>
-        <SelectContent>
-          {classAssessments.map((assessment) => (
-            <SelectItem key={assessment.id} value={assessment.id}>
-              {assessment.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {!hideAssessmentSelector ? (
+        <>
+          <label className="sr-only" htmlFor="context-assessment">
+            Active assessment
+          </label>
+          <Select
+            disabled={switchingClass}
+            {...(assessmentId ? { value: assessmentId } : {})}
+            onValueChange={selectAssessment}
+          >
+            <SelectTrigger id="context-assessment" className="h-9 w-auto min-w-44 gap-2 bg-card">
+              <SelectValue placeholder="Select an assessment" />
+            </SelectTrigger>
+            <SelectContent>
+              {classAssessments.map((assessment) => (
+                <SelectItem key={assessment.id} value={assessment.id}>
+                  {assessment.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </>
+      ) : null}
     </div>
   );
 }

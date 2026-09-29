@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, Info } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import { BusyButton } from "@/components/shared/BusyButton";
@@ -58,13 +58,21 @@ export function AssessmentForm({
 
   const [name, setName] = useState(assessment?.name ?? "");
   const [description, setDescription] = useState(assessment?.description ?? "");
-  const [groupIds, setGroupIds] = useState<string[]>(assessment?.groupIds ?? []);
+  const [groupSelection, setGroupSelection] = useState({
+    classId,
+    ids: assessment?.groupIds ?? [],
+  });
+  const groupIds = groupSelection.classId === classId ? groupSelection.ids : [];
   const [opensAt, setOpensAt] = useState(assessment ? toLocalInput(assessment.opensAt) : "");
   const [closesAt, setClosesAt] = useState(assessment ? toLocalInput(assessment.closesAt) : "");
   const [maxMark, setMaxMark] = useState(String(assessment?.maxMark ?? 100));
 
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setGroupSelection((current) => (current.classId === classId ? current : { classId, ids: [] }));
+  }, [classId]);
 
   // Once it has opened the server refuses any change to the groups (BR-01), so
   // the choice is shown but can't be changed.
@@ -74,9 +82,13 @@ export function AssessmentForm({
   const allSelected = availableGroups.length > 0 && groupIds.length === availableGroups.length;
 
   const toggleGroup = (groupId: string) =>
-    setGroupIds((current) =>
-      current.includes(groupId) ? current.filter((id) => id !== groupId) : [...current, groupId],
-    );
+    setGroupSelection((current) => {
+      const ids = current.classId === classId ? current.ids : [];
+      return {
+        classId,
+        ids: ids.includes(groupId) ? ids.filter((id) => id !== groupId) : [...ids, groupId],
+      };
+    });
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -196,7 +208,10 @@ export function AssessmentForm({
                   variant="outline"
                   className="h-10 px-4"
                   onClick={() =>
-                    setGroupIds(allSelected ? [] : availableGroups.map((group) => group.id))
+                    setGroupSelection({
+                      classId,
+                      ids: allSelected ? [] : availableGroups.map((group) => group.id),
+                    })
                   }
                 >
                   {allSelected ? "Clear all" : "Select all"}
