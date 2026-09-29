@@ -1,3 +1,4 @@
+import { assessmentPhase } from "@/lib/domain";
 import { formatDate } from "@/lib/format";
 import type { Assessment, MatchStatus, Submission } from "@/mocks/types";
 
@@ -7,17 +8,17 @@ import type { Assessment, MatchStatus, Submission } from "@/mocks/types";
  */
 
 /**
- * Whether an assessment still takes work from a student right now.
+ * Whether an assessment takes work from a student right now.
  *
- * BR-05: the closing time closes it, whether or not the lecturer has pressed
- * Close yet. The API refuses drafts and submissions past this point, so a form
- * that stays editable only collects answers that can never be sent.
+ * Only between its opening and closing times (BR-05, #13), whatever the status
+ * says: the API refuses drafts and submissions outside them, so a form that
+ * stays editable only collects answers that can never be sent.
  */
 export function acceptsWork(
-  assessment: Pick<Assessment, "status" | "closesAt">,
+  assessment: Pick<Assessment, "status" | "opensAt" | "closesAt">,
   now: Date = new Date(),
 ): boolean {
-  return assessment.status === "open" && new Date(assessment.closesAt) > now;
+  return assessmentPhase(assessment, now) === "open";
 }
 
 /** What this browser knows about a draft, as the dashboard reads it. */

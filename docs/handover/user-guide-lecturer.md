@@ -335,13 +335,17 @@ Select **View** next to an assessment on **Assessments** to open its page. It sh
 | **Re-open** | Closed | Confirms with **Re-open this assessment?** Students can submit and amend again, as long as the closing time is still in the future. **If marks were already calculated, re-opening invalidates them**, and you'll need to calculate again. |
 | **Edit setup** | Any time | Opens the form with **Save changes**. |
 
-> **Opening and closing are manual, but the closing time is enforced.** Peerly **doesn't open
-> or close the assessment automatically**: select **Open to students** when you want it to start
-> and **Close assessment** when you're finished with it. But once the **Closes** time has
-> passed, **students can no longer submit or change their ratings**, even if you haven't closed
-> the assessment yet. To give students more time, use **Extend deadline**. You still need to
-> close the assessment before you can calculate marks (see [section
-> 10](#10-calculating-marks)).
+> **Opening and closing are manual, but both times are enforced.** Peerly **doesn't open or
+> close the assessment automatically**: select **Open to students** when you want students to
+> see it and **Close assessment** when you're finished with it. But students can only submit
+> **between the Opens and Closes times**:
+>
+> - Opened **before** its opening time, the assessment is visible to students as **Coming up**
+>   and shows as **Opens (date)** for you. Students can start rating at the opening time.
+> - Once the **Closes** time has passed, **students can no longer submit or change their
+>   ratings**, even if you haven't closed the assessment yet. It then shows as **Deadline
+>   passed**. To give students more time, use **Extend deadline**. You still need to close the
+>   assessment before you can calculate marks (see [section 10](#10-calculating-marks)).
 >
 > **Opening or re-opening after the closing time:** the confirmation asks for a **New closing
 > date and time**, because otherwise nobody could submit. Choose one in the future.

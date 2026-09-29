@@ -18,6 +18,7 @@ import { ApiError } from "@/lib/api";
 import { useDraftProgress, useEvaluationDraft } from "@/lib/evaluation-draft";
 import { formatDateTimeLong } from "@/lib/format";
 import { useSession } from "@/lib/session";
+import { assessmentPhase } from "@/lib/domain";
 import { acceptsWork } from "@/lib/student-dashboard";
 import { cn } from "@/lib/utils";
 import { getStudentRatingOptions, getStudentAssessment, submitEvaluation } from "@/services/peerly";
@@ -88,18 +89,16 @@ function ReviewPage() {
   // BR-05: past the closing time nothing can be submitted, whatever the status
   // says. Offering the button anyway only leads to a refusal.
   if (!acceptsWork(assessment, now)) {
+    // Opened early, it is still before the opening time: say when it opens.
+    const notOpenYet = ["draft", "scheduled"].includes(assessmentPhase(assessment, now));
     return (
       <div className={FLOW}>
         <PageHeader title={assessment.name} backTo="/student" backLabel="Your assessments" />
         <EmptyState
           icon={Lock}
-          title={
-            assessment.status === "draft"
-              ? "This assessment isn't open yet"
-              : "This assessment has closed"
-          }
+          title={notOpenYet ? "This assessment isn't open yet" : "This assessment has closed"}
           description={
-            assessment.status === "draft"
+            notOpenYet
               ? `It opens on ${formatDateTimeLong(assessment.opensAt)}. You'll be able to rate your group then.`
               : `It closed on ${formatDateTimeLong(assessment.closesAt)}, so it can't be submitted any more. Speak to your lecturer if you think this is a mistake.`
           }

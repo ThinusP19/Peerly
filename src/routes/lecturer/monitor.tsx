@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { PanelHeader } from "@/components/shared/PanelHeader";
 import { ProgressBar } from "@/components/shared/ProgressBar";
 import { StatCard } from "@/components/shared/StatCard";
+import { AssessmentStatusBadge } from "@/components/shared/AssessmentStatusBadge";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -179,7 +180,7 @@ function SubmissionMonitorPage() {
                 : "not open yet"}
           </>
         }
-        actions={<StatusBadge status={assessment.status} className="px-3 py-1 text-sm" />}
+        actions={<AssessmentStatusBadge assessment={assessment} className="px-3 py-1 text-sm" />}
       />
 
       <div className="grid gap-3 sm:grid-cols-3">

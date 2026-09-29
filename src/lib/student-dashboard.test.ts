@@ -15,17 +15,26 @@ const future = "2026-10-20T12:00:00Z";
 
 describe("acceptsWork (BR-05)", () => {
   it("takes work while open and before the closing time", () => {
-    expect(acceptsWork({ status: "open", closesAt: future }, now)).toBe(true);
+    expect(acceptsWork({ status: "open", opensAt: past, closesAt: future }, now)).toBe(true);
   });
 
   it("stops at the closing time even while the status still says open", () => {
-    expect(acceptsWork({ status: "open", closesAt: past }, now)).toBe(false);
-    expect(acceptsWork({ status: "open", closesAt: now.toISOString() }, now)).toBe(false);
+    expect(acceptsWork({ status: "open", opensAt: past, closesAt: past }, now)).toBe(false);
+    expect(acceptsWork({ status: "open", opensAt: past, closesAt: now.toISOString() }, now)).toBe(
+      false,
+    );
+  });
+
+  it("takes nothing before the opening time, even once opened early (#13)", () => {
+    expect(acceptsWork({ status: "open", opensAt: future, closesAt: future }, now)).toBe(false);
+    expect(acceptsWork({ status: "open", opensAt: now.toISOString(), closesAt: future }, now)).toBe(
+      true,
+    );
   });
 
   it("takes nothing from a draft or closed assessment", () => {
-    expect(acceptsWork({ status: "draft", closesAt: future }, now)).toBe(false);
-    expect(acceptsWork({ status: "closed", closesAt: future }, now)).toBe(false);
+    expect(acceptsWork({ status: "draft", opensAt: past, closesAt: future }, now)).toBe(false);
+    expect(acceptsWork({ status: "closed", opensAt: past, closesAt: future }, now)).toBe(false);
   });
 });
 

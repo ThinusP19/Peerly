@@ -1,6 +1,7 @@
 import { query, withTransaction } from "../db/pool.ts";
 import { badRequest, conflict, notFoundOrForbidden } from "../middleware/errors.ts";
 import { record } from "./audit.ts";
+import { inSouthAfrica } from "../lib/mail.ts";
 
 /**
  * Capturing and submitting a peer evaluation (FR-15, FR-16, FR-17).
@@ -27,6 +28,8 @@ export interface EvaluationContext {
   /** Who this student is expected to rate: their group, minus themselves. */
   peerIds: string[];
   status: "draft" | "open" | "closed";
+  /** #13: no work before it, even once the lecturer has opened it early. */
+  opensAt: string;
   /** BR-05: the deadline itself refuses work, not only the lecturer's button. */
   closesAt: string;
   submission?: { id: string; status: "draft" | "submitted"; submittedAt?: string };
@@ -46,13 +49,14 @@ export async function getEvaluationContext(
   const { rows } = await query<{
     group_id: string;
     status: "draft" | "open" | "closed";
+    opens_at: Date;
     closes_at: Date;
     peer_ids: string[] | null;
     submission_id: string | null;
     submission_status: "draft" | "submitted" | null;
     submitted_at: Date | null;
   }>(
-    `SELECT g.id AS group_id, a.status, a.closes_at,
+    `SELECT g.id AS group_id, a.status, a.opens_at, a.closes_at,
             (SELECT array_agg(peer.student_id)
                FROM group_members peer
               WHERE peer.group_id = g.id AND peer.student_id <> $1) AS peer_ids,
@@ -72,6 +76,7 @@ export async function getEvaluationContext(
   return {
     assessmentId,
     groupId: row.group_id,
+    opensAt: row.opens_at.toISOString(),
     closesAt: row.closes_at.toISOString(),
     peerIds: row.peer_ids ?? [],
     status: row.status,
@@ -239,6 +244,15 @@ function requireOpen(context: EvaluationContext) {
   // results may be calculated.
   if (new Date(context.closesAt) <= new Date()) {
     throw conflict("The closing time for this assessment has passed.");
+  }
+  // #13, the same rule at the other end: a lecturer may open an assessment
+  // early so students can see it coming, but its opening time is when work
+  // begins. Otherwise the opening time would be a date on a form and nothing
+  // more.
+  if (new Date(context.opensAt) > new Date()) {
+    throw conflict(
+      `This assessment opens on ${inSouthAfrica(context.opensAt)}. You'll be able to rate your group then.`,
+    );
   }
 }
 

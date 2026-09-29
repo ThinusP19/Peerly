@@ -23,6 +23,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { PanelHeader } from "@/components/shared/PanelHeader";
 import { ProgressBar } from "@/components/shared/ProgressBar";
 import { StatCard } from "@/components/shared/StatCard";
+import { AssessmentStatusBadge } from "@/components/shared/AssessmentStatusBadge";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -210,14 +211,16 @@ function AssessmentDetailPage() {
       <Card className="flex flex-col gap-4 rounded-2xl border-0 p-5 shadow-card sm:px-6 xl:flex-row xl:items-center xl:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <StatusBadge status={assessment.status} className="px-3 py-1 text-sm" />
+            <AssessmentStatusBadge assessment={assessment} className="px-3 py-1 text-sm" />
             <p className="min-w-0 text-sm text-foreground">
               {assessment.status === "draft"
                 ? "Not visible to students yet."
                 : assessment.status === "open"
                   ? deadlinePassed
-                    ? `The closing time passed on ${formatDateTimeLong(assessment.closesAt)}, so students can no longer submit. Extend the deadline to give them more time, or close it.`
-                    : `Students can submit until ${formatDateTimeLong(assessment.closesAt)} (${formatDeadline(assessment.closesAt)}).`
+                    ? `The closing time passed on ${formatDateTimeLong(assessment.closesAt)}, so students can no longer submit. Extend the deadline to give them more time, or close it so you can calculate marks.`
+                    : new Date(assessment.opensAt) > new Date()
+                      ? `Students can see it now and submit from ${formatDateTimeLong(assessment.opensAt)} until ${formatDateTimeLong(assessment.closesAt)}.`
+                      : `Students can submit until ${formatDateTimeLong(assessment.closesAt)} (${formatDeadline(assessment.closesAt)}).`
                   : closedEarly
                     ? `Closed on ${formatDateTimeLong(closedAt)}, before its scheduled closing time of ${formatDateTimeLong(assessment.closesAt)}.`
                     : `Closed on ${formatDateTimeLong(closedAt)}.`}
@@ -360,8 +363,13 @@ function AssessmentDetailPage() {
           ) : (
             <p>
               All {expected} students in the {groups.length} selected{" "}
-              {groups.length === 1 ? "group" : "groups"} will be able to rate their group members
-              immediately, until {formatDateTimeLong(assessment.closesAt)}.
+              {groups.length === 1 ? "group" : "groups"} will be able to rate their group members{" "}
+              {new Date(assessment.opensAt) > new Date()
+                ? `from its opening time, ${formatDateTimeLong(assessment.opensAt)}. Until then they see it as coming up.`
+                : "immediately"}
+              {new Date(assessment.opensAt) > new Date()
+                ? ` They can submit until ${formatDateTimeLong(assessment.closesAt)}.`
+                : `, until ${formatDateTimeLong(assessment.closesAt)}.`}
             </p>
           )
         }

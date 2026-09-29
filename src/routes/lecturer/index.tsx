@@ -18,6 +18,7 @@ import { useState } from "react";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Hero } from "@/components/shared/Hero";
 import { PanelHeader } from "@/components/shared/PanelHeader";
+import { AssessmentStatusBadge } from "@/components/shared/AssessmentStatusBadge";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -287,7 +288,7 @@ function AssessmentList({ rows }: { rows: Row[] }) {
                   <span>{plural(row.groupCount, "group", "groups")}</span>
                 </p>
               </div>
-              <StatusBadge status={row.assessment.status} />
+              <AssessmentStatusBadge assessment={row.assessment} />
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <SubmissionMeter submitted={row.progress.submitted} total={row.progress.total} />
@@ -355,7 +356,7 @@ function AssessmentList({ rows }: { rows: Row[] }) {
                   <SubmissionMeter submitted={row.progress.submitted} total={row.progress.total} />
                 </td>
                 <td className="px-4 py-3.5">
-                  <StatusBadge status={row.assessment.status} />
+                  <AssessmentStatusBadge assessment={row.assessment} />
                 </td>
                 <td className="px-6 py-3.5 text-right">
                   <ViewLink assessment={row.assessment} />

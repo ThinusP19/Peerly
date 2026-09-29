@@ -458,7 +458,7 @@ E-mails a reminder to every student in the assessment who has not submitted, inc
 
 - **Body:** none.
 - **200:** `{ "sent": number }`: how many students were e-mailed. A `reminders.sent` audit entry records the count.
-- **Errors:** `409 conflict` when the assessment is not open, when its closing time has passed, or when everyone has submitted. `404`.
+- **Errors:** `409 conflict` when the assessment is not open, when its opening time has not arrived yet (#13), when its closing time has passed, or when everyone has submitted. `404`.
 
 ### `POST /api/assessments`
 
@@ -625,7 +625,7 @@ The draft and submit endpoints both take this body:
 This is autosave (CI-10). A partial draft is allowed.
 
 - **200:** `{ "ok": true }`
-- **Errors:** `409 conflict` when the assessment is not open ("hasn't opened yet" or "has closed"), when its closing time has passed even though the lecturer has not closed it yet ("The closing time for this assessment has passed.", BR-05), or when the student has already submitted. After submitting, amendments go through `/submit`. `400 bad_request` when a rated student is not in the group or is rated twice, or a comment is over 500 characters (the key is `fields["comment.<id>"]`). `409 rule_violation` for an unknown `ratingOptionId`. `404`.
+- **Errors:** `409 conflict` when the assessment is not open ("hasn't opened yet" or "has closed"), when its closing time has passed even though the lecturer has not closed it yet ("The closing time for this assessment has passed.", BR-05), when its opening time has not arrived even though the lecturer has opened it ("This assessment opens on ...", #13), or when the student has already submitted. After submitting, amendments go through `/submit`. `400 bad_request` when a rated student is not in the group or is rated twice, or a comment is over 500 characters (the key is `fields["comment.<id>"]`). `409 rule_violation` for an unknown `ratingOptionId`. `404`.
 
 ### `POST /api/student/evaluations/:assessmentId/submit`
 

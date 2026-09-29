@@ -259,6 +259,18 @@ describe("sendSubmissionReminders (FR-18)", () => {
     expect(mail.queue).not.toHaveBeenCalled();
   });
 
+  it("refuses before the opening time, when nobody can submit yet (#13)", async () => {
+    const { assessmentId, lecturer } = await scenario();
+    await query("UPDATE assessments SET opens_at = now() + interval '2 days' WHERE id = $1", [
+      assessmentId,
+    ]);
+
+    await expect(sendSubmissionReminders(assessmentId, sessionUser(lecturer.id))).rejects.toThrow(
+      /opens for students/,
+    );
+    expect(mail.queue).not.toHaveBeenCalled();
+  });
+
   it("refuses once the closing time has passed", async () => {
     // Chasing somebody to do what the system will no longer accept is worse
     // than not chasing them at all.

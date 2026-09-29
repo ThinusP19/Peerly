@@ -263,6 +263,13 @@ export async function sendSubmissionReminders(
   if (new Date(assessment.closesAt) <= new Date()) {
     throw conflict("The closing time has passed, so there is nothing left to remind anyone about.");
   }
+  // #13: before the opening time nobody can submit, so a reminder would only
+  // send students to a form that refuses them.
+  if (new Date(assessment.opensAt) > new Date()) {
+    throw conflict(
+      "This assessment only opens for students at its opening time, so there is nothing to remind them about yet.",
+    );
+  }
 
   const progress = await getGroupProgress(assessmentId, user);
   const outstanding = progress.flatMap((row) => row.outstanding);

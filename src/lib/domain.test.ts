@@ -6,6 +6,7 @@ import {
   enrolmentForUser,
   groupForStudent,
   resultFlagMeta,
+  assessmentPhase,
   studentAssessmentState,
   submissionProgress,
 } from "./domain";
@@ -313,5 +314,44 @@ describe("result flag labels", () => {
 
   it("explain a mark capped at the maximum (BR-07)", () => {
     expect(resultFlagMeta["capped-at-maximum"].label).toBe("Capped at the maximum");
+  });
+});
+
+describe("assessmentPhase (#13, #14, BR-05)", () => {
+  const at = (iso: string) => new Date(iso);
+  const window = {
+    opensAt: "2026-10-01T08:00:00Z",
+    closesAt: "2026-10-08T22:00:00Z",
+  };
+
+  it("follows the status for a draft or a closed assessment, whatever the clock says", () => {
+    expect(assessmentPhase({ ...window, status: "draft" }, at("2026-10-05T00:00:00Z"))).toBe(
+      "draft",
+    );
+    expect(assessmentPhase({ ...window, status: "closed" }, at("2026-10-05T00:00:00Z"))).toBe(
+      "closed",
+    );
+  });
+
+  it("calls an assessment opened before its opening time scheduled, not open", () => {
+    expect(assessmentPhase({ ...window, status: "open" }, at("2026-09-30T08:00:00Z"))).toBe(
+      "scheduled",
+    );
+  });
+
+  it("is open from the opening time up to the closing time", () => {
+    expect(assessmentPhase({ ...window, status: "open" }, at("2026-10-01T08:00:00Z"))).toBe("open");
+    expect(assessmentPhase({ ...window, status: "open" }, at("2026-10-08T21:59:59Z"))).toBe("open");
+  });
+
+  it("says the deadline has passed while the lecturer has not closed it yet", () => {
+    expect(assessmentPhase({ ...window, status: "open" }, at("2026-10-08T22:00:00Z"))).toBe(
+      "deadline-passed",
+    );
+  });
+
+  it("puts an assessment opened early under coming up for the student (#19)", () => {
+    const early = { ...assessment("open"), opensAt: "2099-01-01T08:00:00Z" };
+    expect(studentAssessmentState(early, undefined)).toBe("not-open");
   });
 });

@@ -510,3 +510,41 @@ describe("the audit trail (FR-27)", () => {
     expect((await entries()).rows).toHaveLength(0);
   });
 });
+
+describe("the opening time opens it (#13)", () => {
+  /** Opened by the lecturer, but with its opening time still ahead. */
+  const openedEarly = (assessmentId: string) =>
+    query(
+      "UPDATE assessments SET status = 'open', opens_at = now() + interval '2 days' WHERE id = $1",
+      [assessmentId],
+    );
+
+  it("refuses a submission before the opening time, even once opened", async () => {
+    const { assessmentId, me, peers, options } = await scenario();
+    await openedEarly(assessmentId);
+
+    await expect(submitEvaluation(me, assessmentId, rateAll(peers, options[0]!))).rejects.toThrow(
+      /opens on/,
+    );
+  });
+
+  it("refuses a draft before the opening time", async () => {
+    const { assessmentId, me, peers, options } = await scenario();
+    await openedEarly(assessmentId);
+
+    await expect(
+      saveDraft(me, assessmentId, [{ evaluatedStudentId: peers[0]!, ratingOptionId: options[0]! }]),
+    ).rejects.toThrow(/opens on/);
+  });
+
+  it("takes work from the opening time on", async () => {
+    const { assessmentId, me, peers, options } = await scenario();
+    await query("UPDATE assessments SET opens_at = now() - interval '1 minute' WHERE id = $1", [
+      assessmentId,
+    ]);
+
+    await expect(
+      saveDraft(me, assessmentId, [{ evaluatedStudentId: peers[0]!, ratingOptionId: options[0]! }]),
+    ).resolves.toBeUndefined();
+  });
+});

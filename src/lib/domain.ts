@@ -150,6 +150,31 @@ export const groupForStudent = (groups: Group[], studentId: string) =>
   groups.find((g) => g.memberStudentIds.includes(studentId));
 
 /* ------------------------------------------------------------------ *
+ * Where an assessment is in its life, by the clock as well as its status
+ * ------------------------------------------------------------------ */
+
+/**
+ * The status is what the lecturer last did; the phase is what that means now.
+ *
+ * Both times count, the same way, on the server and on every screen: an
+ * assessment opened early is "scheduled" until its opening time and takes no
+ * work before it (#13), and one left open past its closing time takes no work
+ * after it (BR-05) - the lecturer still closes it before marks are calculated.
+ */
+export type AssessmentPhase = "draft" | "scheduled" | "open" | "deadline-passed" | "closed";
+
+export function assessmentPhase(
+  assessment: Pick<Assessment, "status" | "opensAt" | "closesAt">,
+  now: Date = new Date(),
+): AssessmentPhase {
+  if (assessment.status === "draft") return "draft";
+  if (assessment.status === "closed") return "closed";
+  if (new Date(assessment.closesAt) <= now) return "deadline-passed";
+  if (new Date(assessment.opensAt) > now) return "scheduled";
+  return "open";
+}
+
+/* ------------------------------------------------------------------ *
  * Student-facing assessment state
  * ------------------------------------------------------------------ */
 export type StudentAssessmentState =
@@ -170,12 +195,14 @@ export function studentAssessmentState(
   now: Date = new Date(),
 ): StudentAssessmentState {
   if (submission?.status === "submitted") return "submitted";
-  if (assessment.status === "draft") return "not-open";
-  if (assessment.status === "closed") return "closed-missed";
+  const phase = assessmentPhase(assessment, now);
+  // Opened early, it is still coming up: the API refuses work before the
+  // opening time, so it belongs under "Coming up", not "To do" (#13, #19).
+  if (phase === "draft" || phase === "scheduled") return "not-open";
   // BR-05: the closing time closes it, whether or not the lecturer has pressed
   // the button yet. The API refuses work past this point, so offering "Start
   // evaluation" here would be inviting the student into a dead end.
-  if (new Date(assessment.closesAt) <= now) return "closed-missed";
+  if (phase === "closed" || phase === "deadline-passed") return "closed-missed";
   if (submission?.status === "draft") return "in-progress";
   return "not-started";
 }

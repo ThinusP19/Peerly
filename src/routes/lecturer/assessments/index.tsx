@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PanelHeader } from "@/components/shared/PanelHeader";
 import { ProgressBar } from "@/components/shared/ProgressBar";
+import { AssessmentStatusBadge } from "@/components/shared/AssessmentStatusBadge";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -67,7 +68,7 @@ function AssessmentListPage() {
       key: "status",
       header: "Status",
       sortValue: (row) => row.assessment.status,
-      cell: (row) => <StatusBadge status={row.assessment.status} />,
+      cell: (row) => <AssessmentStatusBadge assessment={row.assessment} />,
     },
     {
       key: "progress",
