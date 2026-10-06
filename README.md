@@ -284,7 +284,13 @@ You can also include optional `Group Name` and `Group Lead` (or `Group Leader`)
 columns. A name labels the numbered group; it does not replace the group number.
 Mark one student's leader cell with `x` (uppercase `X` also works), and leave the
 other cells blank. The designation is displayed in the lecturer and student group
-views and grants no additional permissions. For example:
+views and grants no additional permissions.
+
+Group names also appear beside group numbers in assessment selection, marks and
+calculation, monitoring, the matrix, results and student evaluation screens.
+The same small leader badge appears in the corresponding member lists.
+
+For example:
 
 ```csv
 Student Number,Surname,Name,Group Lead,Group Number,Group Name

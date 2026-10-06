@@ -36,7 +36,7 @@ export interface Person {
 }
 
 export interface GroupProgressRow {
-  group: { id: string; groupNumber: number };
+  group: { id: string; groupNumber: number; groupName?: string; leaderStudentId?: string };
   members: Person[];
   submittedIds: string[];
   draftIds: string[];
@@ -46,6 +46,8 @@ export interface GroupProgressRow {
 interface ProgressQueryRow {
   group_id: string;
   group_number: number;
+  group_name: string | null;
+  leader_id: string | null;
   members: Person[] | null;
   submitted_ids: string[] | null;
   draft_ids: string[] | null;
@@ -66,7 +68,7 @@ export async function getGroupProgress(
   await getAssessment(assessmentId, asker);
 
   const { rows } = await query<ProgressQueryRow>(
-    `SELECT g.id AS group_id, g.group_number,
+    `SELECT g.id AS group_id, g.group_number, g.group_name, leader.student_id AS leader_id,
             (SELECT json_agg(json_build_object(
                       'id', u.id, 'role', u.role, 'name', u.name, 'surname', u.surname,
                       'email', u.email, 'studentNumber', u.student_number,
@@ -84,6 +86,9 @@ export async function getGroupProgress(
               AS draft_ids
        FROM assessment_groups ag
        JOIN groups g ON g.id = ag.group_id
+       LEFT JOIN enrolments leader_enrolment ON leader_enrolment.id = g.leader_enrolment_id
+       LEFT JOIN group_members leader ON leader.group_id = g.id
+                                    AND leader.student_id = leader_enrolment.user_id
       WHERE ag.assessment_id = $1
       ORDER BY g.group_number`,
     [assessmentId],
@@ -93,7 +98,12 @@ export async function getGroupProgress(
     const members = row.members ?? [];
     const submittedIds = row.submitted_ids ?? [];
     return {
-      group: { id: row.group_id, groupNumber: row.group_number },
+      group: {
+        id: row.group_id,
+        groupNumber: row.group_number,
+        ...(row.group_name !== null ? { groupName: row.group_name } : {}),
+        ...(row.leader_id !== null ? { leaderStudentId: row.leader_id } : {}),
+      },
       members,
       submittedIds,
       draftIds: row.draft_ids ?? [],

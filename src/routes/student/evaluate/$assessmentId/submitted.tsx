@@ -4,6 +4,8 @@ import { CheckCircle2, Clock, Lock } from "lucide-react";
 import { useEffect, useMemo } from "react";
 
 import { EmptyState } from "@/components/shared/EmptyState";
+import { GroupLabel } from "@/components/shared/GroupLabel";
+import { GroupLeaderBadge } from "@/components/shared/GroupLeaderBadge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -94,7 +96,7 @@ function SubmittedPage() {
             Your evaluation has been submitted
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {klass.moduleCode} · {assessment.name} · Group {group.groupNumber}
+            {klass.moduleCode} · {assessment.name} · <GroupLabel group={group} />
           </p>
         </div>
       </Card>
@@ -140,6 +142,10 @@ function SubmittedPage() {
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                   <p className="min-w-0 text-sm font-semibold text-foreground">
                     {member.name} {member.surname}
+                    <GroupLeaderBadge
+                      leader={group.leaderStudentId === member.id}
+                      className="ml-2"
+                    />
                   </p>
                   <p className="text-sm font-semibold text-accent-foreground">
                     {option?.label ?? "Not rated"}

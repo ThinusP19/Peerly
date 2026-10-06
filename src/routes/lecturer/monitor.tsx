@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { BusyButton } from "@/components/shared/BusyButton";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { GroupLabel } from "@/components/shared/GroupLabel";
+import { GroupLeaderBadge } from "@/components/shared/GroupLeaderBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PanelHeader } from "@/components/shared/PanelHeader";
 import { ProgressBar } from "@/components/shared/ProgressBar";
@@ -73,7 +75,7 @@ function SubmissionMonitorPage() {
       header: "Group",
       sortValue: (row) => row.group.groupNumber,
       className: "font-semibold whitespace-nowrap text-foreground",
-      cell: (row) => `Group ${row.group.groupNumber}`,
+      cell: (row) => <GroupLabel group={row.group} />,
     },
     {
       key: "members",
@@ -242,6 +244,7 @@ function SubmissionMonitorPage() {
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-foreground">
                     {row.importedName} {row.importedSurname}
+                    <GroupLeaderBadge leader={row.groupLeader} className="ml-2" />
                   </p>
                   <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
                     {row.studentNumber}
@@ -349,9 +352,13 @@ function SubmissionMonitorPage() {
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-foreground">
                       {student.name} {student.surname}
+                      <GroupLeaderBadge
+                        leader={row.group.leaderStudentId === student.id}
+                        className="ml-2"
+                      />
                     </p>
                     <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
-                      {student.studentNumber} · Group {row.group.groupNumber}
+                      {student.studentNumber} · <GroupLabel group={row.group} />
                     </p>
                   </div>
                   <StatusBadge

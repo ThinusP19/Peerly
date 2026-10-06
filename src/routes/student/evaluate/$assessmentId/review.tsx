@@ -6,6 +6,8 @@ import { toast } from "sonner";
 
 import { BusyButton } from "@/components/shared/BusyButton";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { GroupLabel } from "@/components/shared/GroupLabel";
+import { GroupLeaderBadge } from "@/components/shared/GroupLeaderBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PanelHeader } from "@/components/shared/PanelHeader";
 import { ProgressBar } from "@/components/shared/ProgressBar";
@@ -159,7 +161,7 @@ function ReviewPage() {
         backLabel="Back to the form"
         description={
           <>
-            {klass.moduleCode} · {assessment.name} · Group {group.groupNumber}. Once you submit,
+            {klass.moduleCode} · {assessment.name} · <GroupLabel group={group} />. Once you submit,
             your lecturer can see your ratings.
           </>
         }
@@ -186,7 +188,14 @@ function ReviewPage() {
           <div className="min-w-0">
             <p className="font-semibold text-foreground">
               You haven't rated{" "}
-              {missingMembers.map((member) => `${member.name} ${member.surname}`).join(", ")} yet.
+              {missingMembers.map((member, index) => (
+                <span key={member.id}>
+                  {index ? ", " : ""}
+                  {member.name} {member.surname}
+                  <GroupLeaderBadge leader={group.leaderStudentId === member.id} className="ml-2" />
+                </span>
+              ))}{" "}
+              yet.
             </p>
             <p className="mt-0.5 text-sm text-muted-foreground">
               Every group member needs a rating before you can submit.
@@ -209,7 +218,12 @@ function ReviewPage() {
           >
             <PanelHeader
               eyebrow={`Member ${index + 1} of ${members.length}`}
-              title={`${member.name} ${member.surname}`}
+              title={
+                <>
+                  {member.name} {member.surname}
+                  <GroupLeaderBadge leader={group.leaderStudentId === member.id} className="ml-2" />
+                </>
+              }
               actions={
                 <Button asChild variant="ghost" size="sm">
                   <Link

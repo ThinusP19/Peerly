@@ -3,12 +3,12 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { Eye, Info, Lock, Pencil, UsersRound } from "lucide-react";
 
 import { EmptyState } from "@/components/shared/EmptyState";
+import { GroupLeaderBadge } from "@/components/shared/GroupLeaderBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PanelHeader } from "@/components/shared/PanelHeader";
 import { StatCard } from "@/components/shared/StatCard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -215,11 +215,10 @@ function GroupsOverview() {
                     >
                       <span className="min-w-0 text-sm break-words text-foreground">
                         {member!.name} {member!.surname}
-                        {group.leaderStudentId === member!.id ? (
-                          <Badge variant="secondary" className="ml-2">
-                            Group leader
-                          </Badge>
-                        ) : null}
+                        <GroupLeaderBadge
+                          leader={group.leaderStudentId === member!.id}
+                          className="ml-2"
+                        />
                       </span>
                       <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                         {member!.studentNumber}
@@ -231,11 +230,10 @@ function GroupsOverview() {
                       <div className="flex items-baseline justify-between gap-3">
                         <span className="min-w-0 text-sm break-words text-foreground">
                           {row.importedName} {row.importedSurname}
-                          {group.leaderStudentNumber === row.studentNumber ? (
-                            <Badge variant="secondary" className="ml-2">
-                              Group leader
-                            </Badge>
-                          ) : null}
+                          <GroupLeaderBadge
+                            leader={group.leaderStudentNumber === row.studentNumber}
+                            className="ml-2"
+                          />
                         </span>
                         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                           {row.studentNumber}

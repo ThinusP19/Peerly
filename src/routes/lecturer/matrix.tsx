@@ -5,6 +5,8 @@ import { useMemo, useState } from "react";
 
 import { EmptyState } from "@/components/shared/EmptyState";
 import { FlagBadge } from "@/components/shared/FlagBadge";
+import { GroupLabel } from "@/components/shared/GroupLabel";
+import { GroupLeaderBadge } from "@/components/shared/GroupLeaderBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PanelHeader } from "@/components/shared/PanelHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -21,6 +23,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { buildMatrix, deviationFrom } from "@/lib/domain";
 import { formatMark } from "@/lib/format";
+import { groupLabel } from "@/lib/group-display";
 import { useClassRoster, useLecturerClasses } from "@/hooks/use-lecturer-context";
 import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -185,7 +188,7 @@ function MatrixPage() {
               <SelectContent>
                 {groups.map((option) => (
                   <SelectItem key={option.id} value={option.id}>
-                    Group {option.groupNumber}
+                    <GroupLabel group={option} />
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -224,7 +227,7 @@ function MatrixPage() {
         <div className="relative w-full overflow-x-auto">
           <table className="w-full border-collapse text-sm">
             <caption className="sr-only">
-              Evaluation matrix for group {group.groupNumber}: rows are evaluators, columns are the
+              Evaluation matrix for {groupLabel(group)}: rows are evaluators, columns are the
               students being evaluated.
             </caption>
             <thead className="bg-muted/50">
@@ -252,6 +255,7 @@ function MatrixPage() {
                       {shortName(roster, memberId)}
                     </span>
                     <span className="mt-1 flex flex-wrap gap-1">
+                      <GroupLeaderBadge leader={group.leaderStudentId === memberId} />
                       {flagsFor(memberId).map((flag) => (
                         <FlagBadge key={flag} flag={flag} />
                       ))}
@@ -294,6 +298,10 @@ function MatrixPage() {
                     {!row.submitted ? (
                       <StatusBadge status="outstanding" label="Did not submit" className="mt-1" />
                     ) : null}
+                    <GroupLeaderBadge
+                      leader={group.leaderStudentId === row.evaluatorId}
+                      className="mt-1"
+                    />
                   </th>
 
                   {row.cells.map((cell) => {
@@ -377,8 +385,16 @@ function MatrixPage() {
                               align="start"
                             >
                               <p className="font-semibold text-foreground">
-                                {fullName(roster, row.evaluatorId)} on{" "}
-                                {shortName(roster, cell.evaluatedId)}
+                                {fullName(roster, row.evaluatorId)}
+                                <GroupLeaderBadge
+                                  leader={group.leaderStudentId === row.evaluatorId}
+                                  className="ml-2"
+                                />{" "}
+                                on {shortName(roster, cell.evaluatedId)}
+                                <GroupLeaderBadge
+                                  leader={group.leaderStudentId === cell.evaluatedId}
+                                  className="ml-2"
+                                />
                               </p>
                               <p className="mt-1 text-muted-foreground">“{cell.comment}”</p>
                             </PopoverContent>
@@ -448,6 +464,7 @@ function MatrixPage() {
                 <span className="text-sm font-semibold text-foreground">
                   {fullName(roster, id)}
                 </span>
+                <GroupLeaderBadge leader={group.leaderStudentId === id} />
                 {flagsFor(id).map((flag) => (
                   <FlagBadge key={flag} flag={flag} />
                 ))}

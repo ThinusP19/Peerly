@@ -164,6 +164,8 @@ export interface EnrolmentRow {
   matchNote?: string;
   account?: { id: string; name: string; surname: string; email: string };
   groupNumber?: number;
+  groupName?: string;
+  groupLeader?: boolean;
 }
 
 interface EnrolmentQueryRow {
@@ -179,6 +181,8 @@ interface EnrolmentQueryRow {
   account_surname: string | null;
   account_email: string | null;
   group_number: number | null;
+  group_name: string | null;
+  group_leader: boolean | null;
 }
 
 /** The class list, joined to the account each row matched and its group. */
@@ -189,7 +193,10 @@ export async function getEnrolments(classId: string, asker: Asker): Promise<Enro
     `SELECT e.id, e.class_id, e.student_number, e.imported_name, e.imported_surname,
             e.match_status, e.user_id, e.match_note,
             u.name AS account_name, u.surname AS account_surname, u.email AS account_email,
-            COALESCE(g.group_number, imported_group.group_number) AS group_number
+            COALESCE(g.group_number, imported_group.group_number) AS group_number,
+            CASE WHEN g.id IS NOT NULL THEN g.group_name ELSE imported_group.group_name END AS group_name,
+            CASE WHEN g.id IS NOT NULL THEN g.leader_enrolment_id = e.id
+                 ELSE imported_group.leader_enrolment_id = e.id END AS group_leader
        FROM enrolments e
        LEFT JOIN users u ON u.id = e.user_id
        LEFT JOIN group_members gm ON gm.student_id = e.user_id AND gm.class_id = e.class_id
@@ -220,6 +227,8 @@ export async function getEnrolments(classId: string, asker: Asker): Promise<Enro
         }
       : {}),
     ...(row.group_number !== null ? { groupNumber: row.group_number } : {}),
+    ...(row.group_name !== null ? { groupName: row.group_name } : {}),
+    ...(row.group_leader ? { groupLeader: true } : {}),
   }));
 }
 
