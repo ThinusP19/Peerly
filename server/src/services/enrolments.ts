@@ -2,6 +2,7 @@ import { query, withTransaction } from "../db/pool.ts";
 import type { SessionUser, UserStatus } from "../domain/types.ts";
 import { conflict, notFoundOrForbidden } from "../middleware/errors.ts";
 import { record } from "./audit.ts";
+import { assignImportedGroups } from "./imported-groups.ts";
 
 /**
  * Resolving a class-list match conflict (FR-04).
@@ -142,6 +143,7 @@ export async function resolveEnrolmentConflict(
         [enrolmentId, decision.userId],
       );
       detail = `Linked to ${account.name} ${account.surname} (${account.email}).`;
+      await assignImportedGroups(sql, { classId: enrolment.classId }, user);
     } else {
       await sql.query(
         `UPDATE enrolments

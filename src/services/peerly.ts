@@ -190,6 +190,7 @@ export interface ImportRow {
   name: string;
   surname: string;
   email: string;
+  groupNumber?: string;
   errors: Array<{ field: string; reason: string }>;
 }
 
@@ -198,6 +199,7 @@ export interface ColumnMapping {
   name: string;
   surname: string;
   email?: string;
+  groupNumber?: string;
 }
 
 export interface FileInspection {
@@ -220,7 +222,13 @@ export interface PreviewError {
   row: number;
   field: string;
   message: string;
-  values?: { studentNumber: string; name: string; surname: string; email: string };
+  values?: {
+    studentNumber: string;
+    name: string;
+    surname: string;
+    email: string;
+    groupNumber?: string;
+  };
 }
 
 /**
@@ -236,6 +244,7 @@ export function mergePreviewRows(
     name: string;
     surname: string;
     email?: string;
+    groupNumber?: number;
   }>,
   errors: PreviewError[],
 ): ImportRow[] {
@@ -253,6 +262,7 @@ export function mergePreviewRows(
       name: error.values?.name ?? "",
       surname: error.values?.surname ?? "",
       email: error.values?.email ?? "",
+      ...(error.values?.groupNumber !== undefined ? { groupNumber: error.values.groupNumber } : {}),
       errors: [reason],
     });
   }
@@ -264,6 +274,7 @@ export function mergePreviewRows(
       name: row.name,
       surname: row.surname,
       email: row.email ?? "",
+      ...(row.groupNumber !== undefined ? { groupNumber: String(row.groupNumber) } : {}),
       errors: [],
     })),
     ...broken.values(),
@@ -302,6 +313,7 @@ export const previewClassList = async (
         name: string;
         surname: string;
         email?: string;
+        groupNumber?: number;
       }>;
       errors: PreviewError[];
       duplicatesInFile: number;
@@ -327,6 +339,8 @@ export interface ImportResult {
   matched: number;
   unmatched: number;
   conflicts: number;
+  groupsCreated: number;
+  groupAssignments: number;
 }
 
 /** Commits the list and runs the class-list match (FR-04, FR-09). */

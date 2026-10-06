@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useClassRoster, useLecturerContext } from "@/hooks/use-lecturer-context";
 
-import { getGroups, getGroupsEditable } from "@/services/peerly";
+import { getEnrolmentRows, getGroups, getGroupsEditable } from "@/services/peerly";
 import { titleHead } from "@/lib/page-title";
 
 export const Route = createFileRoute("/lecturer/groups/")({
@@ -39,6 +39,11 @@ function GroupsOverview() {
   const editability = useQuery({
     queryKey: ["groups-editable", classId],
     queryFn: () => getGroupsEditable(classId),
+    enabled: Boolean(classId),
+  });
+  const enrolments = useQuery({
+    queryKey: ["enrolments", classId],
+    queryFn: () => getEnrolmentRows(classId),
     enabled: Boolean(classId),
   });
   const locked = editability.data?.editable !== true;
@@ -177,6 +182,11 @@ function GroupsOverview() {
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {list.map((group) => {
             const members = group.memberStudentIds.map((id) => roster.get(id)).filter(Boolean);
+            const pending = (enrolments.data ?? []).filter(
+              (row) =>
+                row.groupNumber === group.groupNumber &&
+                (!row.userId || !group.memberStudentIds.includes(row.userId)),
+            );
 
             return (
               <Card
@@ -209,7 +219,36 @@ function GroupsOverview() {
                       </span>
                     </li>
                   ))}
+                  {pending.map((row) => (
+                    <li key={row.id} className="space-y-1 px-5 py-2.5 sm:px-6">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <span className="min-w-0 text-sm break-words text-foreground">
+                          {row.importedName} {row.importedSurname}
+                        </span>
+                        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                          {row.studentNumber}
+                        </span>
+                      </div>
+                      <StatusBadge
+                        status={row.matchStatus}
+                        label={
+                          row.matchStatus === "matched"
+                            ? "Assignment pending — groups locked"
+                            : row.matchStatus === "conflict"
+                              ? "Account conflict"
+                              : "Awaiting registration"
+                        }
+                      />
+                    </li>
+                  ))}
                 </ul>
+                {pending.length ? (
+                  <p className="border-t px-5 py-3 text-xs text-muted-foreground sm:px-6">
+                    {pending.length} CSV assignments pending. Students join automatically when
+                    matched to an account, while group editing is allowed. Pending students cannot
+                    evaluate yet.
+                  </p>
+                ) : null}
               </Card>
             );
           })}

@@ -58,7 +58,7 @@ type StepKey = (typeof steps)[number]["key"];
 
 /** Headers as they appear in a typical exported class list - deliberately messy. */
 
-type FieldKey = "studentNumber" | "name" | "surname" | "email";
+type FieldKey = "studentNumber" | "name" | "surname" | "email" | "groupNumber";
 
 // The submit strip at the foot of each step panel.
 const panelFooterClass =
@@ -78,6 +78,12 @@ const fields: Array<{ key: FieldKey; label: string; hint: string; guess: string 
     label: "Institutional email",
     hint: "Optional. Kept with the class list; students still register themselves.",
     guess: "Email Address",
+  },
+  {
+    key: "groupNumber",
+    label: "Group number",
+    hint: "Optional. Assign students automatically. Blank cells keep existing groups or leave new students unallocated.",
+    guess: "Group Number",
   },
 ];
 
@@ -123,6 +129,7 @@ function ImportPage() {
       name: current.name || (suggested.name ?? ""),
       surname: current.surname || (suggested.surname ?? ""),
       email: current.email || (suggested.email ?? ""),
+      groupNumber: current.groupNumber || (suggested.groupNumber ?? ""),
     }));
   }, [inspection.data]);
 
@@ -134,6 +141,7 @@ function ImportPage() {
         name: mapping.name,
         surname: mapping.surname,
         ...(mapping.email ? { email: mapping.email } : {}),
+        ...(mapping.groupNumber ? { groupNumber: mapping.groupNumber } : {}),
       }),
     enabled: Boolean(file && activeClassId) && (step === "preview" || step === "confirm"),
     // A refusal is an answer about this file and mapping; asking three more
@@ -144,6 +152,8 @@ function ImportPage() {
   const rows = preview.data?.rows ?? [];
   const errorRows = rows.filter((row) => row.errors.length > 0);
   const validRows = rows.filter((row) => row.errors.length === 0);
+  const groupedRows = validRows.filter((row) => row.groupNumber);
+  const groupCount = new Set(groupedRows.map((row) => row.groupNumber)).size;
 
   // The last step is the confirmation itself, so it's current while that dialog is open.
   const stepIndex = confirmOpen ? steps.length - 1 : steps.findIndex((s) => s.key === step);
@@ -216,7 +226,7 @@ function ImportPage() {
           <PanelHeader
             title="Upload the class list"
             size="lg"
-            description="Export the list from the student system and upload it here. We'll show you exactly what will be imported before anything changes."
+            description="Export the list from the student system and upload it here. Include an optional Group Number column to assign students to groups automatically. We'll show you exactly what will be imported before anything changes."
           />
 
           <div className="px-5 py-5 sm:px-6">
@@ -298,7 +308,9 @@ function ImportPage() {
                   {(props) => (
                     <Select
                       value={
-                        field.key === "email" && !mapping.email ? NO_COLUMN : mapping[field.key]
+                        !REQUIRED_IMPORT_FIELDS.includes(field.key) && !mapping[field.key]
+                          ? NO_COLUMN
+                          : mapping[field.key]
                       }
                       onValueChange={(value) =>
                         setMapping((current) => ({
@@ -311,7 +323,7 @@ function ImportPage() {
                         <SelectValue placeholder="Choose a column" />
                       </SelectTrigger>
                       <SelectContent>
-                        {field.key === "email" ? (
+                        {!REQUIRED_IMPORT_FIELDS.includes(field.key) ? (
                           <SelectItem value={NO_COLUMN}>Not in this file</SelectItem>
                         ) : null}
                         {fileHeaders.map((header) => (
@@ -429,6 +441,16 @@ function ImportPage() {
                 </Button>
               </Card>
 
+              {mapping.groupNumber ? (
+                <Card className="rounded-2xl border-0 px-5 py-4 text-sm text-muted-foreground shadow-card sm:px-6">
+                  {groupedRows.length} students have a group number across {groupCount} groups.
+                  Groups will be created or reused automatically. Blank group numbers leave new
+                  students unallocated; existing group assignments are kept. Assignments for
+                  unmatched or conflicting accounts are saved until they can be linked. Locked
+                  groups cannot gain members.
+                </Card>
+              ) : null}
+
               {/* Rows, then the step's actions, in one panel. The table scrolls
                   sideways inside its own wrapper on narrow screens. */}
               <Card className="overflow-hidden rounded-2xl border-0 shadow-card">
@@ -443,6 +465,7 @@ function ImportPage() {
                       <TableHead>First name</TableHead>
                       <TableHead>Surname</TableHead>
                       <TableHead>Email</TableHead>
+                      {mapping.groupNumber ? <TableHead>Group number</TableHead> : null}
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -485,6 +508,18 @@ function ImportPage() {
                             {/* Optional, so an empty one is not an error. */}
                             {row.email || <span className="text-muted-foreground">-</span>}
                           </TableCell>
+                          {mapping.groupNumber ? (
+                            <TableCell
+                              className={cn(
+                                "tabular-nums",
+                                fieldsWithErrors.has("groupNumber") && "font-semibold text-danger",
+                              )}
+                            >
+                              {row.groupNumber || (
+                                <span className="text-muted-foreground">No group supplied</span>
+                              )}
+                            </TableCell>
+                          ) : null}
                           <TableCell className="min-w-56">
                             {invalid ? (
                               <ul className="space-y-1">
@@ -547,6 +582,9 @@ function ImportPage() {
             {errorRows.length
               ? `${errorRows.length} rows with errors will be skipped.`
               : "No rows will be skipped."}
+            {groupedRows.length
+              ? ` ${groupedRows.length} group assignments will be saved across ${groupCount} groups, without generating groups.`
+              : ""}
           </p>
         }
         consequence={
@@ -563,6 +601,7 @@ function ImportPage() {
               name: mapping.name,
               surname: mapping.surname,
               ...(mapping.email ? { email: mapping.email } : {}),
+              ...(mapping.groupNumber ? { groupNumber: mapping.groupNumber } : {}),
             });
             await queryClient.invalidateQueries();
             // FR-04 runs on commit, so report what matched - an unmatched row

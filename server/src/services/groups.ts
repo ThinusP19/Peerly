@@ -1,4 +1,4 @@
-import { query, withTransaction } from "../db/pool.ts";
+import { pool, query, withTransaction, type Sql } from "../db/pool.ts";
 import type { SessionUser } from "../domain/types.ts";
 import { badRequest, conflict } from "../middleware/errors.ts";
 import { record } from "./audit.ts";
@@ -107,8 +107,11 @@ export async function proposeGroups(
 }
 
 /** Returns why a class cannot be regrouped, or null when it can. */
-export async function regroupingBlockedReason(classId: string): Promise<string | null> {
-  const { rows } = await query<{
+export async function regroupingBlockedReason(
+  classId: string,
+  sql: Sql = pool,
+): Promise<string | null> {
+  const { rows } = await sql.query<{
     assessment_name: string;
     status: "open" | "closed";
     submissions: string;

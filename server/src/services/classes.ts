@@ -189,11 +189,12 @@ export async function getEnrolments(classId: string, asker: Asker): Promise<Enro
     `SELECT e.id, e.class_id, e.student_number, e.imported_name, e.imported_surname,
             e.match_status, e.user_id, e.match_note,
             u.name AS account_name, u.surname AS account_surname, u.email AS account_email,
-            g.group_number
+            COALESCE(g.group_number, imported_group.group_number) AS group_number
        FROM enrolments e
        LEFT JOIN users u ON u.id = e.user_id
        LEFT JOIN group_members gm ON gm.student_id = e.user_id AND gm.class_id = e.class_id
        LEFT JOIN groups g ON g.id = gm.group_id
+       LEFT JOIN groups imported_group ON imported_group.id = e.imported_group_id
       WHERE e.class_id = $1
       ORDER BY e.student_number`,
     [classId],

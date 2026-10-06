@@ -265,6 +265,21 @@ proxies to the API on port 4000 - so the browser sees one origin and the session
 cookie is sent. Running the web app alone leaves every sign-in failing at the
 network.
 
+### Optional groups in class-list imports
+
+Include a `Group Number` column in a `.csv` or `.xlsx` class list to assign
+students to groups during import. Headings such as `Group`, `Group No`, and
+`GroupNumber` are also recognised; confirm or change the mapping before importing.
+Use positive whole numbers. Blank cells leave new students unallocated, and
+omitting the column keeps the existing import and group-generation workflow.
+
+The preview shows the group numbers and reports invalid values. On confirmation,
+groups are created or reused automatically. Assignments for students who have not
+registered or have an account conflict are saved and shown in the group overview;
+they join once their accounts are matched, provided the groups are still editable.
+Existing group assignments are preserved: a different number is reported as a row
+error. Imports cannot add allocations to groups locked by an assessment.
+
 ### Brand assets
 
 Favicons and the social share image are generated from the SVG sources in
