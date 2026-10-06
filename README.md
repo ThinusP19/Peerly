@@ -280,6 +280,30 @@ they join once their accounts are matched, provided the groups are still editabl
 Existing group assignments are preserved: a different number is reported as a row
 error. Imports cannot add allocations to groups locked by an assessment.
 
+You can also include optional `Group Name` and `Group Lead` (or `Group Leader`)
+columns. A name labels the numbered group; it does not replace the group number.
+Mark one student's leader cell with `x` (uppercase `X` also works), and leave the
+other cells blank. The designation is displayed in the lecturer and student group
+views and grants no additional permissions. For example:
+
+```csv
+Student Number,Surname,Name,Group Lead,Group Number,Group Name
+41200345,Mokoena,Lerato,x,7,Query Queens
+41200382,Nkosi,Thandi,,7,Query Queens
+41200419,Pretorius,Johan,,12,Data Dealers
+```
+
+Names can be up to 120 characters. Supply the same name on each row of a group,
+or supply it once and leave the others blank. Different names or multiple leaders
+for one group are flagged in the preview, and that group's rows are skipped until
+corrected. A name or leader marker requires a group number on that row. Supplied
+values update the group's label or leader; blank cells and omitted columns keep
+existing values. Locked groups cannot have their names or leaders changed by an
+import. A leader awaiting registration or conflict resolution is retained and
+shown to the lecturer; students see the designation once that account joins.
+Regenerating class groups replaces the allocation and clears imported names and
+leader designations.
+
 ### Brand assets
 
 Favicons and the social share image are generated from the SVG sources in

@@ -227,6 +227,9 @@ export interface GroupRecord {
   id: string;
   classId: string;
   groupNumber: number;
+  groupName?: string;
+  leaderStudentNumber?: string;
+  leaderStudentId?: string;
   memberStudentIds: string[];
 }
 
@@ -238,15 +241,21 @@ export async function getGroups(classId: string, asker: Asker): Promise<GroupRec
     id: string;
     class_id: string;
     group_number: number;
+    group_name: string | null;
+    leader_number: string | null;
+    leader_id: string | null;
     member_ids: string[] | null;
   }>(
-    `SELECT g.id, g.class_id, g.group_number,
+    `SELECT g.id, g.class_id, g.group_number, g.group_name,
+            leader.student_number AS leader_number,
+            CASE WHEN bool_or(gm.student_id = leader.user_id) THEN leader.user_id END AS leader_id,
             array_remove(array_agg(gm.student_id ORDER BY u.surname, u.name), NULL) AS member_ids
        FROM groups g
        LEFT JOIN group_members gm ON gm.group_id = g.id
        LEFT JOIN users u ON u.id = gm.student_id
+       LEFT JOIN enrolments leader ON leader.id = g.leader_enrolment_id
       WHERE g.class_id = $1
-      GROUP BY g.id, g.class_id, g.group_number
+      GROUP BY g.id, leader.id
       ORDER BY g.group_number`,
     [classId],
   );
@@ -256,6 +265,9 @@ export async function getGroups(classId: string, asker: Asker): Promise<GroupRec
     classId: row.class_id,
     groupNumber: row.group_number,
     memberStudentIds: row.member_ids ?? [],
+    ...(row.group_name !== null ? { groupName: row.group_name } : {}),
+    ...(row.leader_number !== null ? { leaderStudentNumber: row.leader_number } : {}),
+    ...(row.leader_id !== null ? { leaderStudentId: row.leader_id } : {}),
   }));
 }
 

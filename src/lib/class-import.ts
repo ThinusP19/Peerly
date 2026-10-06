@@ -6,10 +6,10 @@
  * what is wrong on the step where it can be fixed.
  */
 
-export type ImportFieldKey = "studentNumber" | "name" | "surname" | "email" | "groupNumber";
-type ImportMapping = Record<Exclude<ImportFieldKey, "groupNumber">, string> & {
-  groupNumber?: string;
-};
+export type ImportFieldKey =
+  "studentNumber" | "name" | "surname" | "email" | "groupNumber" | "groupName" | "groupLeader";
+type ImportMapping = Record<"studentNumber" | "name" | "surname" | "email", string> &
+  Partial<Record<"groupNumber" | "groupName" | "groupLeader", string>>;
 
 /** How each field is named on screen. The server's error rows use the keys. */
 export const IMPORT_FIELD_LABELS: Record<ImportFieldKey, string> = {
@@ -18,6 +18,8 @@ export const IMPORT_FIELD_LABELS: Record<ImportFieldKey, string> = {
   surname: "Surname",
   email: "Institutional email",
   groupNumber: "Group number",
+  groupName: "Group name",
+  groupLeader: "Group leader",
 };
 
 /** The fields a row cannot do without. Email is optional - nothing reads it yet. */

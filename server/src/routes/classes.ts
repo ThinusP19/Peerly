@@ -105,6 +105,8 @@ const mapping = z.object({
   surname: z.string().min(1),
   email: z.string().optional(),
   groupNumber: z.string().optional(),
+  groupName: z.string().optional(),
+  groupLeader: z.string().optional(),
 });
 
 /** Reads the file and reports what the columns look like, before any mapping. */

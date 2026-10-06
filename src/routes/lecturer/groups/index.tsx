@@ -8,6 +8,7 @@ import { PanelHeader } from "@/components/shared/PanelHeader";
 import { StatCard } from "@/components/shared/StatCard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -195,6 +196,7 @@ function GroupsOverview() {
               >
                 <PanelHeader
                   title={`Group ${group.groupNumber}`}
+                  description={group.groupName}
                   actions={
                     group.memberStudentIds.length < 2 ? (
                       <StatusBadge status="conflict" label="Too small" />
@@ -213,6 +215,11 @@ function GroupsOverview() {
                     >
                       <span className="min-w-0 text-sm break-words text-foreground">
                         {member!.name} {member!.surname}
+                        {group.leaderStudentId === member!.id ? (
+                          <Badge variant="secondary" className="ml-2">
+                            Group leader
+                          </Badge>
+                        ) : null}
                       </span>
                       <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                         {member!.studentNumber}
@@ -224,6 +231,11 @@ function GroupsOverview() {
                       <div className="flex items-baseline justify-between gap-3">
                         <span className="min-w-0 text-sm break-words text-foreground">
                           {row.importedName} {row.importedSurname}
+                          {group.leaderStudentNumber === row.studentNumber ? (
+                            <Badge variant="secondary" className="ml-2">
+                              Group leader
+                            </Badge>
+                          ) : null}
                         </span>
                         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                           {row.studentNumber}

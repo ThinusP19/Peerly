@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PanelHeader } from "@/components/shared/PanelHeader";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { initials } from "@/lib/format";
 import { useSession } from "@/lib/session";
@@ -68,6 +69,7 @@ function MyGroupPage() {
               <PanelHeader
                 eyebrow={`${view.klass.moduleCode} · ${view.klass.name}`}
                 title={`Group ${view.group.groupNumber}`}
+                description={view.group.groupName}
                 actions={
                   <span className="text-sm text-muted-foreground tabular-nums">
                     {view.members.length + 1} members
@@ -86,6 +88,9 @@ function MyGroupPage() {
                     </span>
                     <span className="mt-0.5 block text-xs text-muted-foreground">You</span>
                   </span>
+                  {view.group.leaderStudentId === studentId ? (
+                    <Badge variant="secondary">Group leader</Badge>
+                  ) : null}
                 </li>
 
                 {view.members.map((member) => (
@@ -101,6 +106,9 @@ function MyGroupPage() {
                         You'll rate them
                       </span>
                     </span>
+                    {view.group.leaderStudentId === member.id ? (
+                      <Badge variant="secondary">Group leader</Badge>
+                    ) : null}
                   </li>
                 ))}
               </ul>

@@ -38,6 +38,7 @@ import {
   importFieldLabel,
   importResultMessage,
   mappingProblem,
+  type ImportFieldKey,
 } from "@/lib/class-import";
 import { commitClassList, inspectClassList, previewClassList } from "@/services/peerly";
 import { titleHead } from "@/lib/page-title";
@@ -58,7 +59,7 @@ type StepKey = (typeof steps)[number]["key"];
 
 /** Headers as they appear in a typical exported class list - deliberately messy. */
 
-type FieldKey = "studentNumber" | "name" | "surname" | "email" | "groupNumber";
+type FieldKey = ImportFieldKey;
 
 // The submit strip at the foot of each step panel.
 const panelFooterClass =
@@ -84,6 +85,18 @@ const fields: Array<{ key: FieldKey; label: string; hint: string; guess: string 
     label: "Group number",
     hint: "Optional. Assign students automatically. Blank cells keep existing groups or leave new students unallocated.",
     guess: "Group Number",
+  },
+  {
+    key: "groupName",
+    label: "Group name",
+    hint: "Optional label, up to 120 characters. Requires a group number. Blank cells keep the existing name.",
+    guess: "Group Name",
+  },
+  {
+    key: "groupLeader",
+    label: "Group leader",
+    hint: "Optional. Mark one student per group with x. Requires a group number. Blank cells keep the existing leader; the designation adds no permissions.",
+    guess: "Group Lead",
   },
 ];
 
@@ -130,6 +143,8 @@ function ImportPage() {
       surname: current.surname || (suggested.surname ?? ""),
       email: current.email || (suggested.email ?? ""),
       groupNumber: current.groupNumber || (suggested.groupNumber ?? ""),
+      groupName: current.groupName || (suggested.groupName ?? ""),
+      groupLeader: current.groupLeader || (suggested.groupLeader ?? ""),
     }));
   }, [inspection.data]);
 
@@ -142,6 +157,8 @@ function ImportPage() {
         surname: mapping.surname,
         ...(mapping.email ? { email: mapping.email } : {}),
         ...(mapping.groupNumber ? { groupNumber: mapping.groupNumber } : {}),
+        ...(mapping.groupName ? { groupName: mapping.groupName } : {}),
+        ...(mapping.groupLeader ? { groupLeader: mapping.groupLeader } : {}),
       }),
     enabled: Boolean(file && activeClassId) && (step === "preview" || step === "confirm"),
     // A refusal is an answer about this file and mapping; asking three more
@@ -226,7 +243,7 @@ function ImportPage() {
           <PanelHeader
             title="Upload the class list"
             size="lg"
-            description="Export the list from the student system and upload it here. Include an optional Group Number column to assign students to groups automatically. We'll show you exactly what will be imported before anything changes."
+            description="Export the list from the student system and upload it here. Optional Group Number, Group Name and Group Lead columns assign students to numbered groups, label the groups and designate a leader with x. We'll show you exactly what will be imported before anything changes."
           />
 
           <div className="px-5 py-5 sm:px-6">
@@ -448,6 +465,9 @@ function ImportPage() {
                   students unallocated; existing group assignments are kept. Assignments for
                   unmatched or conflicting accounts are saved until they can be linked. Locked
                   groups cannot gain members.
+                  {mapping.groupName || mapping.groupLeader
+                    ? " Supplied names and leaders will be saved with each numbered group. Blank cells keep existing names and leaders. Each group can have one name and one leader."
+                    : ""}
                 </Card>
               ) : null}
 
@@ -466,6 +486,8 @@ function ImportPage() {
                       <TableHead>Surname</TableHead>
                       <TableHead>Email</TableHead>
                       {mapping.groupNumber ? <TableHead>Group number</TableHead> : null}
+                      {mapping.groupName ? <TableHead>Group name</TableHead> : null}
+                      {mapping.groupLeader ? <TableHead>Group leader</TableHead> : null}
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -520,6 +542,18 @@ function ImportPage() {
                               )}
                             </TableCell>
                           ) : null}
+                          {(["groupName", "groupLeader"] as const).map((field) =>
+                            mapping[field] ? (
+                              <TableCell
+                                key={field}
+                                className={cn(
+                                  fieldsWithErrors.has(field) && "font-semibold text-danger",
+                                )}
+                              >
+                                {row[field] || <span className="text-muted-foreground">-</span>}
+                              </TableCell>
+                            ) : null,
+                          )}
                           <TableCell className="min-w-56">
                             {invalid ? (
                               <ul className="space-y-1">
@@ -602,6 +636,8 @@ function ImportPage() {
               surname: mapping.surname,
               ...(mapping.email ? { email: mapping.email } : {}),
               ...(mapping.groupNumber ? { groupNumber: mapping.groupNumber } : {}),
+              ...(mapping.groupName ? { groupName: mapping.groupName } : {}),
+              ...(mapping.groupLeader ? { groupLeader: mapping.groupLeader } : {}),
             });
             await queryClient.invalidateQueries();
             // FR-04 runs on commit, so report what matched - an unmatched row

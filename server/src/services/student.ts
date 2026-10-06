@@ -98,7 +98,7 @@ export interface StudentAssessmentView {
     closedAt?: string;
   };
   klass: { id: string; moduleCode: string; name: string };
-  group: { id: string; groupNumber: number };
+  group: { id: string; groupNumber: number; groupName?: string; leaderStudentId?: string };
   /** Everyone in the group except the student themselves (BR-02). */
   members: StudentPeer[];
   submission?: { id: string; status: "draft" | "submitted"; submittedAt?: string };
@@ -125,6 +125,8 @@ export async function getStudentAssessments(studentId: string): Promise<StudentA
     class_name: string;
     group_id: string;
     group_number: number;
+    group_name: string | null;
+    leader_id: string | null;
     submission_id: string | null;
     submission_status: "draft" | "submitted" | null;
     submitted_at: Date | null;
@@ -133,7 +135,7 @@ export async function getStudentAssessments(studentId: string): Promise<StudentA
     `SELECT a.id AS assessment_id, a.name AS assessment_name, a.description, a.status,
             a.opens_at, a.closes_at, a.closed_at,
             c.id AS class_id, c.module_code, c.name AS class_name,
-            g.id AS group_id, g.group_number,
+            g.id AS group_id, g.group_number, g.group_name, leader.student_id AS leader_id,
             s.id AS submission_id, s.status AS submission_status, s.submitted_at,
             (SELECT json_agg(json_build_object('id', p.id, 'name', p.name, 'surname', p.surname)
                              ORDER BY p.surname, p.name)
@@ -143,6 +145,9 @@ export async function getStudentAssessments(studentId: string): Promise<StudentA
        FROM group_members mine
        JOIN groups g ON g.id = mine.group_id
        JOIN classes c ON c.id = g.class_id
+       LEFT JOIN enrolments leader_enrolment ON leader_enrolment.id = g.leader_enrolment_id
+       LEFT JOIN group_members leader ON leader.group_id = g.id
+                                    AND leader.student_id = leader_enrolment.user_id
        JOIN assessment_groups ag ON ag.group_id = g.id
        JOIN assessments a ON a.id = ag.assessment_id
        LEFT JOIN submissions s ON s.assessment_id = a.id AND s.evaluator_id = $1
@@ -164,7 +169,12 @@ export async function getStudentAssessments(studentId: string): Promise<StudentA
       ...(row.closed_at ? { closedAt: row.closed_at.toISOString() } : {}),
     },
     klass: { id: row.class_id, moduleCode: row.module_code, name: row.class_name },
-    group: { id: row.group_id, groupNumber: row.group_number },
+    group: {
+      id: row.group_id,
+      groupNumber: row.group_number,
+      ...(row.group_name !== null ? { groupName: row.group_name } : {}),
+      ...(row.leader_id !== null ? { leaderStudentId: row.leader_id } : {}),
+    },
     members: row.members ?? [],
     ...(row.submission_id
       ? {

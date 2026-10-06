@@ -191,6 +191,8 @@ export interface ImportRow {
   surname: string;
   email: string;
   groupNumber?: string;
+  groupName?: string;
+  groupLeader?: string;
   errors: Array<{ field: string; reason: string }>;
 }
 
@@ -200,6 +202,8 @@ export interface ColumnMapping {
   surname: string;
   email?: string;
   groupNumber?: string;
+  groupName?: string;
+  groupLeader?: string;
 }
 
 export interface FileInspection {
@@ -228,6 +232,8 @@ export interface PreviewError {
     surname: string;
     email: string;
     groupNumber?: string;
+    groupName?: string;
+    groupLeader?: string;
   };
 }
 
@@ -245,6 +251,8 @@ export function mergePreviewRows(
     surname: string;
     email?: string;
     groupNumber?: number;
+    groupName?: string;
+    groupLeader?: boolean;
   }>,
   errors: PreviewError[],
 ): ImportRow[] {
@@ -263,6 +271,8 @@ export function mergePreviewRows(
       surname: error.values?.surname ?? "",
       email: error.values?.email ?? "",
       ...(error.values?.groupNumber !== undefined ? { groupNumber: error.values.groupNumber } : {}),
+      ...(error.values?.groupName !== undefined ? { groupName: error.values.groupName } : {}),
+      ...(error.values?.groupLeader !== undefined ? { groupLeader: error.values.groupLeader } : {}),
       errors: [reason],
     });
   }
@@ -275,6 +285,8 @@ export function mergePreviewRows(
       surname: row.surname,
       email: row.email ?? "",
       ...(row.groupNumber !== undefined ? { groupNumber: String(row.groupNumber) } : {}),
+      ...(row.groupName !== undefined ? { groupName: row.groupName } : {}),
+      ...(row.groupLeader ? { groupLeader: "x" } : {}),
       errors: [],
     })),
     ...broken.values(),
@@ -314,6 +326,8 @@ export const previewClassList = async (
         surname: string;
         email?: string;
         groupNumber?: number;
+        groupName?: string;
+        groupLeader?: boolean;
       }>;
       errors: PreviewError[];
       duplicatesInFile: number;

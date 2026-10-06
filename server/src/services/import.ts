@@ -27,6 +27,8 @@ export interface ColumnMapping {
   surname: string;
   email?: string | undefined;
   groupNumber?: string | undefined;
+  groupName?: string | undefined;
+  groupLeader?: string | undefined;
 }
 
 export interface RowError {
@@ -44,6 +46,8 @@ export interface RowError {
     surname: string;
     email: string;
     groupNumber?: string;
+    groupName?: string;
+    groupLeader?: string;
   };
 }
 
@@ -54,6 +58,8 @@ export interface ImportRow {
   surname: string;
   email?: string;
   groupNumber?: number;
+  groupName?: string;
+  groupLeader?: boolean;
 }
 
 export interface ImportPreview {
@@ -90,6 +96,12 @@ export function suggestMapping(headers: string[]): Partial<ColumnMapping> {
     ...(find(/^group(?:[\s_-]*(?:number|no\.?|nr\.?|#))?$/) && {
       groupNumber: find(/^group(?:[\s_-]*(?:number|no\.?|nr\.?|#))?$/)!,
     }),
+    ...(find(/^group[\s_-]*name$/) && {
+      groupName: find(/^group[\s_-]*name$/)!,
+    }),
+    ...(find(/^group[\s_-]*lead(?:er)?$/) && {
+      groupLeader: find(/^group[\s_-]*lead(?:er)?$/)!,
+    }),
   };
 }
 
@@ -113,12 +125,17 @@ export function validateRows(sheet: ParsedSheet, mapping: ColumnMapping) {
     surname: index(mapping.surname),
     email: mapping.email ? index(mapping.email) : -1,
     groupNumber: mapping.groupNumber ? index(mapping.groupNumber) : -1,
+    groupName: mapping.groupName ? index(mapping.groupName) : -1,
+    groupLeader: mapping.groupLeader ? index(mapping.groupLeader) : -1,
   };
 
   for (const [field, position] of Object.entries(columns)) {
     if (
       position === -1 &&
-      (field === "groupNumber" ? Boolean(mapping.groupNumber) : field !== "email")
+      (field === "studentNumber" ||
+        field === "name" ||
+        field === "surname" ||
+        (field !== "email" && Boolean(mapping[field as keyof ColumnMapping])))
     ) {
       throw badRequest(`The file has no column called "${mapping[field as keyof ColumnMapping]}".`);
     }
@@ -127,6 +144,7 @@ export function validateRows(sheet: ParsedSheet, mapping: ColumnMapping) {
   const valid: ImportRow[] = [];
   const errors: RowError[] = [];
   const seen = new Map<string, number>();
+  const rawValues = new Map<number, RowError["values"]>();
 
   sheet.rows.forEach((cells, offset) => {
     // The row's own number in the file when the parser kept it; otherwise +2:
@@ -137,13 +155,18 @@ export function validateRows(sheet: ParsedSheet, mapping: ColumnMapping) {
     const surname = (cells[columns.surname] ?? "").trim();
     const email = columns.email === -1 ? "" : (cells[columns.email] ?? "").trim();
     const groupNumber = columns.groupNumber === -1 ? "" : (cells[columns.groupNumber] ?? "").trim();
+    const groupName = columns.groupName === -1 ? "" : (cells[columns.groupName] ?? "").trim();
+    const groupLeader = columns.groupLeader === -1 ? "" : (cells[columns.groupLeader] ?? "").trim();
     const values = {
       studentNumber,
       name,
       surname,
       email,
       ...(mapping.groupNumber ? { groupNumber } : {}),
+      ...(mapping.groupName ? { groupName } : {}),
+      ...(mapping.groupLeader ? { groupLeader } : {}),
     };
+    rawValues.set(row, values);
 
     if (!studentNumber) {
       errors.push({
@@ -196,6 +219,34 @@ export function validateRows(sheet: ParsedSheet, mapping: ColumnMapping) {
       return;
     }
 
+    if (groupName.length > 120) {
+      errors.push({
+        row,
+        field: "groupName",
+        message: "Enter a group name of up to 120 characters, or leave it blank.",
+        values,
+      });
+      return;
+    }
+    if (groupLeader && groupLeader.toLowerCase() !== "x") {
+      errors.push({
+        row,
+        field: "groupLeader",
+        message: "Mark the group leader with x, or leave the cell blank.",
+        values,
+      });
+      return;
+    }
+    if (!groupNumber && (groupName || groupLeader)) {
+      errors.push({
+        row,
+        field: groupName ? "groupName" : "groupLeader",
+        message: "A group number is required when a group name or leader is specified.",
+        values,
+      });
+      return;
+    }
+
     seen.set(studentNumber, row);
     valid.push({
       row,
@@ -204,10 +255,58 @@ export function validateRows(sheet: ParsedSheet, mapping: ColumnMapping) {
       surname,
       ...(email ? { email } : {}),
       ...(groupNumber ? { groupNumber: Number(groupNumber) } : {}),
+      ...(groupName ? { groupName } : {}),
+      ...(groupLeader ? { groupLeader: true } : {}),
     });
   });
 
-  return { valid, errors };
+  // Check the whole group, so conflicting labels or leaders cannot be chosen
+  // arbitrarily by row order. Blank cells do not conflict with a supplied value.
+  const groups = new Map<number, ImportRow[]>();
+  for (const row of valid) {
+    if (row.groupNumber === undefined) continue;
+    const members = groups.get(row.groupNumber) ?? [];
+    members.push(row);
+    groups.set(row.groupNumber, members);
+  }
+  const conflicts = new Map<number, { field: keyof ColumnMapping; message: string }>();
+  for (const [number, members] of groups) {
+    const names = new Set(members.flatMap((row) => (row.groupName ? [row.groupName] : [])));
+    if (names.size > 1) {
+      conflicts.set(number, {
+        field: "groupName",
+        message: `Group ${number} has different names in this file. Use the same name for the group, or leave cells blank.`,
+      });
+    } else if (members.filter((row) => row.groupLeader).length > 1) {
+      conflicts.set(number, {
+        field: "groupLeader",
+        message: `Group ${number} has more than one leader marked with x. Mark only one leader per group.`,
+      });
+    }
+  }
+  return {
+    valid: valid.filter((row) => {
+      const problem = row.groupNumber === undefined ? undefined : conflicts.get(row.groupNumber);
+      if (!problem) return true;
+      errors.push({ row: row.row, ...problem, values: rawValues.get(row.row)! });
+      return false;
+    }),
+    errors,
+  };
+}
+
+function rowValues(row: ImportRow, mapping: ColumnMapping): RowError["values"] {
+  return {
+    studentNumber: row.studentNumber,
+    name: row.name,
+    surname: row.surname,
+    email: row.email ?? "",
+    ...(mapping.groupNumber
+      ? { groupNumber: row.groupNumber === undefined ? "" : String(row.groupNumber) }
+      : {}),
+    ...(mapping.groupName ? { groupName: row.groupName ?? "" } : {}),
+    ...(mapping.groupLeader ? { groupLeader: row.groupLeader ? "x" : "" } : {}),
+  };
 }
 
 /** Preview and commit share the same checks against existing allocations and locks. */
@@ -252,16 +351,43 @@ async function validateImport(
       row: row.row,
       field: "groupNumber",
       message,
-      values: {
-        studentNumber: row.studentNumber,
-        name: row.name,
-        surname: row.surname,
-        email: row.email ?? "",
-        groupNumber: String(row.groupNumber),
-      },
+      values: rowValues(row, mapping),
     });
     return false;
   });
+  if (blocked && result.valid.some((row) => row.groupName || row.groupLeader)) {
+    const { rows: groups } = await sql.query<{
+      group_number: number;
+      group_name: string | null;
+      leader_number: string | null;
+    }>(
+      `SELECT g.group_number, g.group_name, e.student_number AS leader_number
+         FROM groups g LEFT JOIN enrolments e ON e.id = g.leader_enrolment_id
+        WHERE g.class_id = $1`,
+      [classId],
+    );
+    const oldGroups = new Map(groups.map((group) => [group.group_number, group]));
+    const changed = new Map<number, keyof ColumnMapping>();
+    for (const row of result.valid) {
+      if (row.groupNumber === undefined) continue;
+      const old = oldGroups.get(row.groupNumber);
+      if (row.groupName && row.groupName !== old?.group_name)
+        changed.set(row.groupNumber, "groupName");
+      if (row.groupLeader && row.studentNumber !== old?.leader_number)
+        changed.set(row.groupNumber, "groupLeader");
+    }
+    result.valid = result.valid.filter((row) => {
+      const field = row.groupNumber === undefined ? undefined : changed.get(row.groupNumber);
+      if (!field) return true;
+      result.errors.push({
+        row: row.row,
+        field,
+        message: blocked,
+        values: rowValues(row, mapping),
+      });
+      return false;
+    });
+  }
   return result;
 }
 
@@ -373,6 +499,7 @@ export async function commitImport(
     }
     const groupAssignments = valid.filter((row) => row.groupNumber !== undefined).length;
 
+    const enrolmentIds = new Map<string, string>();
     for (const row of valid) {
       // Every row lands unmatched; FR-04 runs once over the whole list below,
       // by the same rule account activation uses.
@@ -382,7 +509,7 @@ export async function commitImport(
       // and a corrected list may well make them agree. If they still differ it
       // simply becomes a Conflict again. A match, and an entry the lecturer
       // reviewed and left unmatched, are decisions and are kept.
-      const { rows } = await sql.query<{ inserted: boolean }>(
+      const { rows } = await sql.query<{ id: string; inserted: boolean }>(
         `INSERT INTO enrolments
            (class_id, student_number, imported_name, imported_surname, imported_email,
             match_status, user_id, match_note, imported_group_id)
@@ -398,7 +525,7 @@ export async function commitImport(
                 match_note = CASE WHEN enrolments.match_status = 'conflict'
                                   THEN EXCLUDED.match_note
                                   ELSE enrolments.match_note END
-         RETURNING (xmax = 0) AS inserted`,
+         RETURNING id, (xmax = 0) AS inserted`,
         [
           classId,
           row.studentNumber,
@@ -409,8 +536,45 @@ export async function commitImport(
           row.groupNumber === undefined ? null : groupIds.get(row.groupNumber),
         ],
       );
+      enrolmentIds.set(row.studentNumber, rows[0]!.id);
       if (rows[0]?.inserted) imported += 1;
       else updated += 1;
+    }
+
+    const metadataBefore: Array<{
+      groupNumber: number;
+      groupName: string | null;
+      leaderStudentNumber: string | null;
+    }> = [];
+    const metadataAfter: typeof metadataBefore = [];
+    for (const [number, id] of groupIds) {
+      const members = valid.filter((row) => row.groupNumber === number);
+      const name = members.find((row) => row.groupName)?.groupName;
+      const leader = members.find((row) => row.groupLeader);
+      if (!name && !leader) continue;
+      const { rows: old } = await sql.query<{
+        group_name: string | null;
+        leader_number: string | null;
+      }>(
+        `SELECT g.group_name, e.student_number AS leader_number FROM groups g
+           LEFT JOIN enrolments e ON e.id = g.leader_enrolment_id WHERE g.id = $1`,
+        [id],
+      );
+      await sql.query(
+        `UPDATE groups SET group_name = COALESCE($2, group_name),
+                           leader_enrolment_id = COALESCE($3, leader_enrolment_id) WHERE id = $1`,
+        [id, name ?? null, leader ? enrolmentIds.get(leader.studentNumber) : null],
+      );
+      metadataBefore.push({
+        groupNumber: number,
+        groupName: old[0]!.group_name,
+        leaderStudentNumber: old[0]!.leader_number,
+      });
+      metadataAfter.push({
+        groupNumber: number,
+        groupName: name ?? old[0]!.group_name,
+        leaderStudentNumber: leader?.studentNumber ?? old[0]!.leader_number,
+      });
     }
 
     // FR-04 on every class-list commit - including rows that were already on
@@ -446,12 +610,14 @@ export async function commitImport(
             ? ` ${groupAssignments} CSV group assignment(s) saved; ${groupsCreated} group(s) created.`
             : ""),
         classId,
+        ...(metadataBefore.length ? { before: { groupMetadata: metadataBefore } } : {}),
         after: {
           imported,
           updated,
           removed,
           skipped: errors.length,
           groupsCreated,
+          ...(metadataAfter.length ? { groupMetadata: metadataAfter } : {}),
           groupAssignments: valid
             .filter((row) => row.groupNumber !== undefined)
             .map((row) => ({ studentNumber: row.studentNumber, groupNumber: row.groupNumber })),

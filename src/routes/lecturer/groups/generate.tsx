@@ -407,8 +407,8 @@ function GenerateGroupsPage() {
             consequence={
               <p>
                 This replaces the groups currently confirmed for {klass?.moduleCode ?? "this class"}
-                . Once an assessment opens and students start rating, group membership can no longer
-                be changed.
+                . Imported group names and leader designations are cleared. Once an assessment opens
+                and students start rating, group membership can no longer be changed.
               </p>
             }
             confirmLabel="Confirm groups"
