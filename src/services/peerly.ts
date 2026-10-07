@@ -190,6 +190,9 @@ export interface ImportRow {
   name: string;
   surname: string;
   email: string;
+  groupNumber?: string;
+  groupName?: string;
+  groupLeader?: string;
   errors: Array<{ field: string; reason: string }>;
 }
 
@@ -198,6 +201,9 @@ export interface ColumnMapping {
   name: string;
   surname: string;
   email?: string;
+  groupNumber?: string;
+  groupName?: string;
+  groupLeader?: string;
 }
 
 export interface FileInspection {
@@ -220,7 +226,15 @@ export interface PreviewError {
   row: number;
   field: string;
   message: string;
-  values?: { studentNumber: string; name: string; surname: string; email: string };
+  values?: {
+    studentNumber: string;
+    name: string;
+    surname: string;
+    email: string;
+    groupNumber?: string;
+    groupName?: string;
+    groupLeader?: string;
+  };
 }
 
 /**
@@ -236,6 +250,9 @@ export function mergePreviewRows(
     name: string;
     surname: string;
     email?: string;
+    groupNumber?: number;
+    groupName?: string;
+    groupLeader?: boolean;
   }>,
   errors: PreviewError[],
 ): ImportRow[] {
@@ -253,6 +270,9 @@ export function mergePreviewRows(
       name: error.values?.name ?? "",
       surname: error.values?.surname ?? "",
       email: error.values?.email ?? "",
+      ...(error.values?.groupNumber !== undefined ? { groupNumber: error.values.groupNumber } : {}),
+      ...(error.values?.groupName !== undefined ? { groupName: error.values.groupName } : {}),
+      ...(error.values?.groupLeader !== undefined ? { groupLeader: error.values.groupLeader } : {}),
       errors: [reason],
     });
   }
@@ -264,6 +284,9 @@ export function mergePreviewRows(
       name: row.name,
       surname: row.surname,
       email: row.email ?? "",
+      ...(row.groupNumber !== undefined ? { groupNumber: String(row.groupNumber) } : {}),
+      ...(row.groupName !== undefined ? { groupName: row.groupName } : {}),
+      ...(row.groupLeader ? { groupLeader: "x" } : {}),
       errors: [],
     })),
     ...broken.values(),
@@ -302,6 +325,9 @@ export const previewClassList = async (
         name: string;
         surname: string;
         email?: string;
+        groupNumber?: number;
+        groupName?: string;
+        groupLeader?: boolean;
       }>;
       errors: PreviewError[];
       duplicatesInFile: number;
@@ -327,6 +353,8 @@ export interface ImportResult {
   matched: number;
   unmatched: number;
   conflicts: number;
+  groupsCreated: number;
+  groupAssignments: number;
 }
 
 /** Commits the list and runs the class-list match (FR-04, FR-09). */
@@ -730,6 +758,8 @@ export const getClassSummaries = async (_lecturerId: string): Promise<ClassSumma
 export interface EnrolmentRow extends Enrolment {
   account?: User;
   groupNumber?: number;
+  groupName?: string;
+  groupLeader?: boolean;
 }
 
 export const getEnrolmentRows = async (classId: string): Promise<EnrolmentRow[]> =>
@@ -854,6 +884,8 @@ export const getResultRows = async (assessmentId: string): Promise<ResultRow[]> 
       classId: "",
       groupNumber: row.groupNumber,
       memberStudentIds: [],
+      ...(row.groupName !== undefined ? { groupName: row.groupName } : {}),
+      ...(row.leaderStudentId !== undefined ? { leaderStudentId: row.leaderStudentId } : {}),
     },
     baseMark: row.baseMark,
     received: row.received.map((entry) => ({
@@ -869,6 +901,8 @@ interface ApiResultRow {
   studentId: string;
   groupId: string;
   groupNumber: number;
+  groupName?: string;
+  leaderStudentId?: string;
   student: { id: string; name: string; surname: string; studentNumber: string | null };
   ratingsReceived: number;
   meanReceived: number | null;

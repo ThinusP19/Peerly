@@ -10,6 +10,8 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { DangerZone, UnexportedAcknowledgement } from "@/components/shared/DangerZone";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { GroupLabel } from "@/components/shared/GroupLabel";
+import { GroupLeaderBadge } from "@/components/shared/GroupLeaderBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatCard } from "@/components/shared/StatCard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -102,6 +104,7 @@ function ClassListPage() {
         <div className="min-w-0">
           <p className="font-semibold text-foreground">
             {row.importedName} {row.importedSurname}
+            <GroupLeaderBadge leader={row.groupLeader} className="ml-2" />
           </p>
           {row.account && row.matchStatus === "matched" ? (
             <p className="mt-0.5 text-xs text-muted-foreground">{row.account.email}</p>
@@ -115,8 +118,13 @@ function ClassListPage() {
       sortValue: (row) => row.groupNumber ?? 999,
       className: "whitespace-nowrap",
       cell: (row) =>
-        row.groupNumber ? (
-          `Group ${row.groupNumber}`
+        row.groupNumber !== undefined ? (
+          <GroupLabel
+            group={{
+              groupNumber: row.groupNumber,
+              ...(row.groupName ? { groupName: row.groupName } : {}),
+            }}
+          />
         ) : (
           <span className="text-muted-foreground">Not allocated</span>
         ),

@@ -164,6 +164,8 @@ export interface EnrolmentRow {
   matchNote?: string;
   account?: { id: string; name: string; surname: string; email: string };
   groupNumber?: number;
+  groupName?: string;
+  groupLeader?: boolean;
 }
 
 interface EnrolmentQueryRow {
@@ -179,6 +181,8 @@ interface EnrolmentQueryRow {
   account_surname: string | null;
   account_email: string | null;
   group_number: number | null;
+  group_name: string | null;
+  group_leader: boolean | null;
 }
 
 /** The class list, joined to the account each row matched and its group. */
@@ -189,11 +193,15 @@ export async function getEnrolments(classId: string, asker: Asker): Promise<Enro
     `SELECT e.id, e.class_id, e.student_number, e.imported_name, e.imported_surname,
             e.match_status, e.user_id, e.match_note,
             u.name AS account_name, u.surname AS account_surname, u.email AS account_email,
-            g.group_number
+            COALESCE(g.group_number, imported_group.group_number) AS group_number,
+            CASE WHEN g.id IS NOT NULL THEN g.group_name ELSE imported_group.group_name END AS group_name,
+            CASE WHEN g.id IS NOT NULL THEN g.leader_enrolment_id = e.id
+                 ELSE imported_group.leader_enrolment_id = e.id END AS group_leader
        FROM enrolments e
        LEFT JOIN users u ON u.id = e.user_id
        LEFT JOIN group_members gm ON gm.student_id = e.user_id AND gm.class_id = e.class_id
        LEFT JOIN groups g ON g.id = gm.group_id
+       LEFT JOIN groups imported_group ON imported_group.id = e.imported_group_id
       WHERE e.class_id = $1
       ORDER BY e.student_number`,
     [classId],
@@ -219,6 +227,8 @@ export async function getEnrolments(classId: string, asker: Asker): Promise<Enro
         }
       : {}),
     ...(row.group_number !== null ? { groupNumber: row.group_number } : {}),
+    ...(row.group_name !== null ? { groupName: row.group_name } : {}),
+    ...(row.group_leader ? { groupLeader: true } : {}),
   }));
 }
 
@@ -226,6 +236,9 @@ export interface GroupRecord {
   id: string;
   classId: string;
   groupNumber: number;
+  groupName?: string;
+  leaderStudentNumber?: string;
+  leaderStudentId?: string;
   memberStudentIds: string[];
 }
 
@@ -237,15 +250,21 @@ export async function getGroups(classId: string, asker: Asker): Promise<GroupRec
     id: string;
     class_id: string;
     group_number: number;
+    group_name: string | null;
+    leader_number: string | null;
+    leader_id: string | null;
     member_ids: string[] | null;
   }>(
-    `SELECT g.id, g.class_id, g.group_number,
+    `SELECT g.id, g.class_id, g.group_number, g.group_name,
+            leader.student_number AS leader_number,
+            CASE WHEN bool_or(gm.student_id = leader.user_id) THEN leader.user_id END AS leader_id,
             array_remove(array_agg(gm.student_id ORDER BY u.surname, u.name), NULL) AS member_ids
        FROM groups g
        LEFT JOIN group_members gm ON gm.group_id = g.id
        LEFT JOIN users u ON u.id = gm.student_id
+       LEFT JOIN enrolments leader ON leader.id = g.leader_enrolment_id
       WHERE g.class_id = $1
-      GROUP BY g.id, g.class_id, g.group_number
+      GROUP BY g.id, leader.id
       ORDER BY g.group_number`,
     [classId],
   );
@@ -255,6 +274,9 @@ export async function getGroups(classId: string, asker: Asker): Promise<GroupRec
     classId: row.class_id,
     groupNumber: row.group_number,
     memberStudentIds: row.member_ids ?? [],
+    ...(row.group_name !== null ? { groupName: row.group_name } : {}),
+    ...(row.leader_number !== null ? { leaderStudentNumber: row.leader_number } : {}),
+    ...(row.leader_id !== null ? { leaderStudentId: row.leader_id } : {}),
   }));
 }
 

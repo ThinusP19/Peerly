@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { BusyButton } from "@/components/shared/BusyButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { FormField } from "@/components/shared/FormField";
+import { GroupLabel } from "@/components/shared/GroupLabel";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PanelHeader } from "@/components/shared/PanelHeader";
 import { Button } from "@/components/ui/button";
@@ -320,7 +321,7 @@ function GenerateGroupsPage() {
                 >
                   <PanelHeader
                     as="h3"
-                    title={`Group ${group.groupNumber}`}
+                    title={<GroupLabel group={group} />}
                     actions={
                       <span
                         className={cn(
@@ -370,7 +371,7 @@ function GenerateGroupsPage() {
                               <SelectContent>
                                 {proposed.map((target) => (
                                   <SelectItem key={target.id} value={target.id}>
-                                    Group {target.groupNumber}
+                                    <GroupLabel group={target} />
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -407,8 +408,8 @@ function GenerateGroupsPage() {
             consequence={
               <p>
                 This replaces the groups currently confirmed for {klass?.moduleCode ?? "this class"}
-                . Once an assessment opens and students start rating, group membership can no longer
-                be changed.
+                . Imported group names and leader designations are cleared. Once an assessment opens
+                and students start rating, group membership can no longer be changed.
               </p>
             }
             confirmLabel="Confirm groups"

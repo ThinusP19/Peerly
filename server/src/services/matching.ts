@@ -1,5 +1,6 @@
 import type { Sql } from "../db/pool.ts";
 import { record, type Actor } from "./audit.ts";
+import { assignImportedGroups } from "./imported-groups.ts";
 
 /**
  * FR-04: matching student accounts to class-list entries.
@@ -112,6 +113,8 @@ export async function matchEnrolments(
       sql,
     );
   }
+
+  await assignImportedGroups(sql, scope, actor);
 
   return {
     matched: rows.filter((row) => row.status === "matched").length,

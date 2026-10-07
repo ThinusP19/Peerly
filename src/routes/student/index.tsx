@@ -16,6 +16,7 @@ import {
 import { useMemo, type ReactNode } from "react";
 
 import { EmptyState } from "@/components/shared/EmptyState";
+import { GroupLabel } from "@/components/shared/GroupLabel";
 import { Hero } from "@/components/shared/Hero";
 import { PanelHeader } from "@/components/shared/PanelHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -282,7 +283,7 @@ function ActionCard({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-              {klass.moduleCode} · Group {group.groupNumber}
+              {klass.moduleCode} · <GroupLabel group={group} />
             </p>
             <h3 className="mt-0.5 text-lg font-semibold text-foreground">{assessment.name}</h3>
           </div>

@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Info, UsersRound } from "lucide-react";
 
 import { EmptyState } from "@/components/shared/EmptyState";
+import { GroupLeaderBadge } from "@/components/shared/GroupLeaderBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PanelHeader } from "@/components/shared/PanelHeader";
 import { Card } from "@/components/ui/card";
@@ -68,6 +69,7 @@ function MyGroupPage() {
               <PanelHeader
                 eyebrow={`${view.klass.moduleCode} · ${view.klass.name}`}
                 title={`Group ${view.group.groupNumber}`}
+                description={view.group.groupName}
                 actions={
                   <span className="text-sm text-muted-foreground tabular-nums">
                     {view.members.length + 1} members
@@ -86,6 +88,7 @@ function MyGroupPage() {
                     </span>
                     <span className="mt-0.5 block text-xs text-muted-foreground">You</span>
                   </span>
+                  <GroupLeaderBadge leader={view.group.leaderStudentId === studentId} />
                 </li>
 
                 {view.members.map((member) => (
@@ -101,6 +104,7 @@ function MyGroupPage() {
                         You'll rate them
                       </span>
                     </span>
+                    <GroupLeaderBadge leader={view.group.leaderStudentId === member.id} />
                   </li>
                 ))}
               </ul>

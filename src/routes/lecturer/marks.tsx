@@ -6,6 +6,8 @@ import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { GroupLabel } from "@/components/shared/GroupLabel";
+import { GroupLeaderBadge } from "@/components/shared/GroupLeaderBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatCard } from "@/components/shared/StatCard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -24,6 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatMark } from "@/lib/format";
+import { groupLabel } from "@/lib/group-display";
 import { useLecturerClasses } from "@/hooks/use-lecturer-context";
 import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -286,14 +289,14 @@ function MarkEntryPage() {
               return (
                 <TableRow key={group.id} className={cn(missing && "bg-warning-muted/30")}>
                   <TableCell className="font-semibold whitespace-nowrap text-foreground">
-                    Group {group.groupNumber}
+                    <GroupLabel group={group} />
                   </TableCell>
                   <TableCell className="hidden text-muted-foreground tabular-nums sm:table-cell">
                     {group.memberStudentIds.length}
                   </TableCell>
                   <TableCell>
                     <label htmlFor={inputId} className="sr-only">
-                      Base mark for group {group.groupNumber}, out of {maxMark}
+                      Base mark for {groupLabel(group)}, out of {maxMark}
                     </label>
                     <Input
                       id={inputId}
@@ -397,7 +400,7 @@ function MarkEntryPage() {
             Each student's mark is their group's base mark adjusted by how their group rated them.
             Base marks in this run:{" "}
             {groups
-              .map((group) => `Group ${group.groupNumber} ${formatMark(Number(values[group.id]))}`)
+              .map((group) => `${groupLabel(group)} ${formatMark(Number(values[group.id]))}`)
               .join(", ")}
             .
           </p>
@@ -435,8 +438,12 @@ function MarkEntryPage() {
             <ul className="space-y-1 text-muted-foreground">
               {overridden.map((override) => (
                 <li key={override.studentId}>
-                  {override.name} {override.surname}: overridden to {formatMark(override.mark)} -{" "}
-                  {override.reason}
+                  {override.name} {override.surname}
+                  <GroupLeaderBadge
+                    leader={groups.some((group) => group.leaderStudentId === override.studentId)}
+                    className="ml-2"
+                  />
+                  : overridden to {formatMark(override.mark)} - {override.reason}
                 </li>
               ))}
             </ul>

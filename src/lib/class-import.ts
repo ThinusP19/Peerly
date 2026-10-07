@@ -6,7 +6,10 @@
  * what is wrong on the step where it can be fixed.
  */
 
-export type ImportFieldKey = "studentNumber" | "name" | "surname" | "email";
+export type ImportFieldKey =
+  "studentNumber" | "name" | "surname" | "email" | "groupNumber" | "groupName" | "groupLeader";
+type ImportMapping = Record<"studentNumber" | "name" | "surname" | "email", string> &
+  Partial<Record<"groupNumber" | "groupName" | "groupLeader", string>>;
 
 /** How each field is named on screen. The server's error rows use the keys. */
 export const IMPORT_FIELD_LABELS: Record<ImportFieldKey, string> = {
@@ -14,6 +17,9 @@ export const IMPORT_FIELD_LABELS: Record<ImportFieldKey, string> = {
   name: "First name",
   surname: "Surname",
   email: "Institutional email",
+  groupNumber: "Group number",
+  groupName: "Group name",
+  groupLeader: "Group leader",
 };
 
 /** The fields a row cannot do without. Email is optional - nothing reads it yet. */
@@ -30,7 +36,7 @@ export const importFieldLabel = (field: string) =>
  * fields, which the duplicate check read as the same column "" - and the
  * preview then showed "Every row passed validation" over a refused request.
  */
-export function mappingProblem(mapping: Record<ImportFieldKey, string>): string | null {
+export function mappingProblem(mapping: ImportMapping): string | null {
   const missing = REQUIRED_IMPORT_FIELDS.filter((field) => !mapping[field]);
   if (missing.length) {
     const names = missing.map((field) => IMPORT_FIELD_LABELS[field].toLowerCase());
@@ -48,7 +54,7 @@ export function mappingProblem(mapping: Record<ImportFieldKey, string>): string 
 }
 
 /** The file's columns that no field uses, which the import will leave out. */
-export const ignoredColumns = (headers: string[], mapping: Record<ImportFieldKey, string>) => {
+export const ignoredColumns = (headers: string[], mapping: ImportMapping) => {
   const used = new Set(Object.values(mapping).filter(Boolean));
   return headers.filter((header) => header && !used.has(header));
 };
@@ -59,6 +65,8 @@ export interface ImportOutcome {
   matched: number;
   unmatched: number;
   conflicts: number;
+  groupAssignments?: number;
+  groupsCreated?: number;
 }
 
 const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -85,7 +93,10 @@ export function importResultMessage(result: ImportOutcome, moduleCode: string): 
 
   return (
     `${changed} to ${moduleCode}. ` +
-    `The class list now has ${standing.join(", ")}${standing.length ? " and " : ""}${last}.`
+    `The class list now has ${standing.join(", ")}${standing.length ? " and " : ""}${last}.` +
+    (result.groupAssignments
+      ? ` ${count(result.groupAssignments, "CSV group assignment", "CSV group assignments")} saved; ${count(result.groupsCreated ?? 0, "new group", "new groups")} created.`
+      : "")
   );
 }
 

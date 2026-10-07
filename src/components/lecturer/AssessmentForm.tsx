@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { BusyButton } from "@/components/shared/BusyButton";
 import { FormField } from "@/components/shared/FormField";
+import { GroupLabel } from "@/components/shared/GroupLabel";
 import { PanelHeader } from "@/components/shared/PanelHeader";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -257,7 +258,7 @@ export function AssessmentForm({
                       />
                       <span className="min-w-0">
                         <span className="block font-semibold text-foreground">
-                          Group {group.groupNumber}
+                          <GroupLabel group={group} />
                         </span>
                         <span className="mt-0.5 block text-xs text-muted-foreground">
                           {group.memberStudentIds.length} members

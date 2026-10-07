@@ -330,6 +330,8 @@ export interface ResultRow extends Omit<StudentResult, "flags"> {
   flags: ResultFlag[];
   student: { id: string; name: string; surname: string; studentNumber: string | null };
   groupNumber: number;
+  groupName?: string;
+  leaderStudentId?: string;
   override?: MarkOverride;
   /** Every rating this student received, with who gave it (FR-26 drill-down). */
   received: Array<{
@@ -353,6 +355,8 @@ export async function getResults(assessmentId: string, asker: Asker): Promise<Re
     student_id: string;
     group_id: string;
     group_number: number;
+    group_name: string | null;
+    leader_id: string | null;
     name: string;
     surname: string;
     student_number: string | null;
@@ -370,7 +374,7 @@ export async function getResults(assessmentId: string, asker: Asker): Promise<Re
     override_at: Date | null;
     received: ResultRow["received"] | null;
   }>(
-    `SELECT r.student_id, r.group_id, g.group_number,
+    `SELECT r.student_id, r.group_id, g.group_number, g.group_name, leader.student_id AS leader_id,
             u.name, u.surname, u.student_number,
             r.ratings_received, r.mean_received, r.group_mean, r.raw_factor,
             r.adjustment_factor, r.base_mark, r.final_mark, r.flags,
@@ -390,6 +394,9 @@ export async function getResults(assessmentId: string, asker: Asker): Promise<Re
        FROM calculated_results r
        JOIN users u ON u.id = r.student_id
        JOIN groups g ON g.id = r.group_id
+       LEFT JOIN enrolments leader_enrolment ON leader_enrolment.id = g.leader_enrolment_id
+       LEFT JOIN group_members leader ON leader.group_id = g.id
+                                    AND leader.student_id = leader_enrolment.user_id
        LEFT JOIN mark_overrides o
          ON o.assessment_id = r.assessment_id AND o.student_id = r.student_id
        LEFT JOIN users ob ON ob.id = o.overridden_by
@@ -404,6 +411,8 @@ export async function getResults(assessmentId: string, asker: Asker): Promise<Re
     studentId: row.student_id,
     groupId: row.group_id,
     groupNumber: row.group_number,
+    ...(row.group_name !== null ? { groupName: row.group_name } : {}),
+    ...(row.leader_id !== null ? { leaderStudentId: row.leader_id } : {}),
     student: {
       id: row.student_id,
       name: row.name,

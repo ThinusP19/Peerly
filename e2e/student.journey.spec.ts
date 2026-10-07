@@ -24,7 +24,9 @@ test("a student rates their group, submits, and the lecturer sees it", async ({ 
 
   // Start from someone who has not submitted, so this is a first submission
   // rather than an amendment.
-  const classes = await (await lecturer.get("/api/classes")).json();
+  const classes: { classes: Array<{ klass: { id: string; moduleCode: string } }> } = await (
+    await lecturer.get("/api/classes")
+  ).json();
   const withOpen = seededClass(classes.classes);
   const rows = await (await lecturer.get(`/api/classes/${withOpen.klass.id}/assessments`)).json();
   const open = rows.assessments.find(
@@ -33,10 +35,13 @@ test("a student rates their group, submits, and the lecturer sees it", async ({ 
   const before = await (
     await lecturer.get(`/api/assessments/${open.assessment.id}/progress`)
   ).json();
-  const outstanding = before.progress.flatMap(
-    (g: { outstanding: Array<{ studentNumber: string }> }) => g.outstanding,
-  )[0];
+  const group = before.progress.find(
+    (g: { outstanding: Array<{ studentNumber: string }> }) => g.outstanding.length > 0,
+  );
+  const outstanding = group?.outstanding[0];
   expect(outstanding, "the seed should leave someone outstanding").toBeTruthy();
+  const peerCount = group.members.length - 1;
+  expect(peerCount, "the incomplete-review check needs at least two peers").toBeGreaterThan(1);
 
   const context = await browser.newContext({ baseURL: "http://127.0.0.1:7331" });
   const page = await context.newPage();
@@ -45,23 +50,28 @@ test("a student rates their group, submits, and the lecturer sees it", async ({ 
   });
 
   await page.goto("/student");
-  // The dashboard offers the same assessment in the summary and in the list,
-  // so there is more than one way in - take the first.
-  const start = page.getByRole("link", { name: /start evaluation/i }).first();
+  // The lecturer journey creates another open assessment that can appear first.
+  // Follow the same assessment whose progress we checked, regardless of order.
+  const evaluationPath = `/student/evaluate/${open.assessment.id}`;
+  const start = page
+    .getByRole("link", { name: /start evaluation/i })
+    .and(page.locator(`a[href="${evaluationPath}"]`))
+    .first();
   await expect(start).toBeVisible();
   await start.click();
+  await expect(page).toHaveURL(new RegExp(`${evaluationPath}$`));
+  await expect(
+    page.getByRole("heading", { name: open.assessment.name, exact: true }),
+  ).toBeVisible();
 
   // Wait for the form itself, not for the network. Every peer is on the one
-  // page, each with their own scale, so wait until they have all mounted -
-  // counting too early found one card and concluded the group had one member.
+  // page, each with their own scale. Check the exact count from that group's
+  // roster, so a different assessment cannot pass just by having several peers.
   await expect(page.getByRole("radiogroup").first()).toBeVisible();
-  await expect
-    .poll(() => page.getByRole("radiogroup").count(), {
-      message: "waiting for every peer's rating scale to render",
-    })
-    .toBeGreaterThan(1);
-
-  const peerCount = await page.getByRole("radiogroup").count();
+  await expect(
+    page.getByRole("radiogroup"),
+    "every peer in the seeded group should have a rating scale",
+  ).toHaveCount(peerCount);
 
   // FR-16: submission is refused while anyone is unrated, and says who.
   await page.getByRole("radiogroup").first().getByRole("radio").nth(1).check();

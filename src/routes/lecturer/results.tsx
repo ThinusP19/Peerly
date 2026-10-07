@@ -10,6 +10,8 @@ import { DataTable, type Column } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { FlagList } from "@/components/shared/FlagBadge";
 import { FormField } from "@/components/shared/FormField";
+import { GroupLabel } from "@/components/shared/GroupLabel";
+import { GroupLeaderBadge } from "@/components/shared/GroupLeaderBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatCard } from "@/components/shared/StatCard";
 import { Button } from "@/components/ui/button";
@@ -86,8 +88,11 @@ function ResultsPage() {
   const all = useMemo(() => rowsQuery.data ?? [], [rowsQuery.data]);
   const assessment = assessmentQuery.data;
 
-  const groupNumbers = useMemo(
-    () => Array.from(new Set(all.map((row) => row.group.groupNumber))).sort((a, b) => a - b),
+  const groupOptions = useMemo(
+    () =>
+      Array.from(new Map(all.map((row) => [row.group.groupNumber, row.group])).values()).sort(
+        (a, b) => a.groupNumber - b.groupNumber,
+      ),
     [all],
   );
 
@@ -121,6 +126,10 @@ function ResultsPage() {
         <div className="min-w-0">
           <p className="font-semibold whitespace-nowrap text-foreground">
             {row.student.name} {row.student.surname}
+            <GroupLeaderBadge
+              leader={row.group.leaderStudentId === row.student.id}
+              className="ml-2"
+            />
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
             {row.student.studentNumber}
@@ -133,7 +142,7 @@ function ResultsPage() {
       header: "Group",
       sortValue: (row) => row.group.groupNumber,
       className: "whitespace-nowrap",
-      cell: (row) => `Group ${row.group.groupNumber}`,
+      cell: (row) => <GroupLabel group={row.group} />,
     },
     {
       key: "mean",
@@ -306,9 +315,9 @@ function ResultsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All groups</SelectItem>
-              {groupNumbers.map((number) => (
-                <SelectItem key={number} value={String(number)}>
-                  Group {number}
+              {groupOptions.map((group) => (
+                <SelectItem key={group.groupNumber} value={String(group.groupNumber)}>
+                  <GroupLabel group={group} />
                 </SelectItem>
               ))}
             </SelectContent>
@@ -356,9 +365,13 @@ function ResultsPage() {
               <SheetHeader>
                 <SheetTitle>
                   {drillDown.student.name} {drillDown.student.surname}
+                  <GroupLeaderBadge
+                    leader={drillDown.group.leaderStudentId === drillDown.student.id}
+                    className="ml-2"
+                  />
                 </SheetTitle>
                 <SheetDescription>
-                  {drillDown.student.studentNumber} · Group {drillDown.group.groupNumber} ·{" "}
+                  {drillDown.student.studentNumber} · <GroupLabel group={drillDown.group} /> ·{" "}
                   {assessment.name}
                 </SheetDescription>
               </SheetHeader>
@@ -439,6 +452,10 @@ function ResultsPage() {
                             <div className="flex flex-wrap items-baseline justify-between gap-2">
                               <p className="text-sm text-muted-foreground">
                                 from {entry.evaluator.name} {entry.evaluator.surname}
+                                <GroupLeaderBadge
+                                  leader={drillDown.group.leaderStudentId === entry.evaluator.id}
+                                  className="ml-2"
+                                />
                               </p>
                               <p className="text-sm font-semibold text-foreground">
                                 {option?.label}{" "}
@@ -632,8 +649,12 @@ function OverrideDialog({
           <DialogDescription asChild>
             <div className="space-y-2 text-sm text-muted-foreground">
               <p className="font-semibold text-foreground">
-                {row?.student.name} {row?.student.surname} · {row?.student.studentNumber} · Group{" "}
-                {row?.group.groupNumber}
+                {row?.student.name} {row?.student.surname}
+                <GroupLeaderBadge
+                  leader={Boolean(row && row.group.leaderStudentId === row.student.id)}
+                  className="ml-2"
+                />{" "}
+                · {row?.student.studentNumber} · {row ? <GroupLabel group={row.group} /> : null}
               </p>
               <p>
                 The calculated mark stays on record. Overrides appear in the results table and in

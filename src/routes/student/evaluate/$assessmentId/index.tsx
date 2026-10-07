@@ -4,6 +4,8 @@ import { CalendarClock, Check, CircleDashed, Cloud, Lock } from "lucide-react";
 import { useEffect, useMemo } from "react";
 
 import { EmptyState } from "@/components/shared/EmptyState";
+import { GroupLabel } from "@/components/shared/GroupLabel";
+import { GroupLeaderBadge } from "@/components/shared/GroupLeaderBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PanelHeader } from "@/components/shared/PanelHeader";
 import { ProgressBar } from "@/components/shared/ProgressBar";
@@ -133,7 +135,7 @@ function EvaluationForm() {
         backLabel="Your assessments"
         description={
           <>
-            {klass.moduleCode} · Group {group.groupNumber} · rate each of your {members.length}{" "}
+            {klass.moduleCode} · <GroupLabel group={group} /> · rate each of your {members.length}{" "}
             group members.
           </>
         }
@@ -192,7 +194,12 @@ function EvaluationForm() {
           >
             <PanelHeader
               eyebrow={`Member ${index + 1} of ${members.length}`}
-              title={`${member.name} ${member.surname}`}
+              title={
+                <>
+                  {member.name} {member.surname}
+                  <GroupLeaderBadge leader={group.leaderStudentId === member.id} className="ml-2" />
+                </>
+              }
               actions={
                 // Same tone strings as StatusBadge, with form-specific wording.
                 <span

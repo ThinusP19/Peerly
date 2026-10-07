@@ -44,6 +44,9 @@ export interface Group {
   id: string;
   classId: string;
   groupNumber: number;
+  groupName?: string;
+  leaderStudentNumber?: string;
+  leaderStudentId?: string;
   memberStudentIds: string[];
 }
 
