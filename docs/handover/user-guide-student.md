@@ -37,7 +37,8 @@
 Your lecturer uses Peerly after a group project. It asks you to describe how each of your group
 members contributed.
 
-- **You rate each member of your group.** You don't rate yourself.
+- **You rate every member of your group, yourself included.** Your rating of your own
+  contribution counts towards your mark like any other.
 - **You choose a phrase, not a number.** Every option is a short description of what the person
   did, such as *"Usually did what they were asked to do, at an acceptable standard."*
 - **Only your lecturer sees your ratings.** The people you rate never see what you chose for
@@ -205,13 +206,16 @@ works** and **Settings**.
 
    ![The evaluation form: each group member has the nine descriptive options](images/student-evaluation-form.png)
 
-3. Each group member has their own panel, headed *Member 1 of 4* and so on. Under **How did
-   [name] contribute to the group's work?**, select the **one** option that best describes
-   what the person actually did.
-4. Optionally, write a **Comment about [name]** (up to 500 characters). Use it for anything your
-   lecturer should know about how the person worked with the group. Only your lecturer sees
-   comments. The person you're commenting on never sees them.
-5. Repeat for every member. The label beside each name changes from **Not rated** to **Rated**.
+3. Each group member has their own panel, headed *Member 1 of 4* and so on. **The first panel
+   is you** - your own name with **(you)** beside it. Rate yourself as honestly as you rate
+   everyone else; your self-rating counts towards your mark. Under **How did [name] contribute
+   to the group's work?** (or **How did you contribute to the group's work?** for your own
+   panel), select the **one** option that best describes what the person actually did.
+4. Optionally, write a **Comment about [name]** (up to 500 characters), or **Comment about your
+   own contribution** on your own panel. Use it for anything your lecturer should know. Only your
+   lecturer sees comments. The person you're commenting on never sees them.
+5. Repeat for every member, yourself included. The label beside each name changes from **Not
+   rated** to **Rated**.
 6. When the bar says **All members rated**, select **Review your ratings**.
 
 If you want to stop partway, select **Save and finish later**.
@@ -267,8 +271,9 @@ same words you picked, with your comment underneath.
    - **Comments left**: how many comments you wrote
    - the option you chose for each person, and your comments
 
-**You can't submit until everyone is rated.** If you try, Peerly lists the people you missed:
-*"You haven't rated [names] yet. Every group member needs a rating before you can submit."*
+**You can't submit until everyone is rated, including yourself.** If you try, Peerly lists who
+you missed: *"You haven't rated [names] yet. Every group member needs a rating before you can
+submit."*
 
 ---
 
@@ -422,7 +427,8 @@ No. Peerly never shows students other people's ratings, and your lecturer publis
 through the normal university channels.
 
 **Do I rate myself?**
-No. You rate everyone in your group except yourself.
+Yes. You rate everyone in your group, yourself included, and your self-rating counts towards
+your mark like any other. (This changed on 10 October 2026; earlier you did not rate yourself.)
 
 **Why are there no numbers or stars?**
 Descriptions are fairer and clearer than a score out of five. You describe what happened, and

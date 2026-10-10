@@ -8,8 +8,9 @@ This document covers requirement OR-27 (ERD). The schema is the result of applyi
 | `0002_verification_lockout_export.sql` | `email_verification_codes`, `login_attempts`, `assessments.exported_at`, and the nine-point rating scale (seed data) |
 | `0003_full_precision_results.sql` | Widens four `calculated_results` columns from `numeric(8,4)` to unconstrained `numeric`, so intermediate figures keep full precision (FR-22) |
 | `0004_banded_rating_scale.sql` | Sets the rating options to the banded scale agreed on 2026-09-22 (Excellent 100 down to No contribution 59), the top of each band |
+| `0009_self_ratings_and_editable_scale.sql` | Drops `peer_ratings.no_self_evaluation` so a member rates themselves too (2026-10-10), adds a range check on `rating_options.hidden_value`, adds `calculation_settings` and `assessment_rating_values`, and adds `assessments.min_factor` / `assessments.max_factor` so an administrator and a lecturer can adjust the rating values and factor limits |
 
-`server/src/db/migrate.ts` also creates `schema_migrations`, its own bookkeeping table. Including that table, the database has **20 tables**: 19 from the migrations plus `schema_migrations`.
+`server/src/db/migrate.ts` also creates `schema_migrations`, its own bookkeeping table. Including that table, the database has **22 tables**: 21 from the migrations plus `schema_migrations`.
 
 Migrations are immutable once applied. The runner stores each file's SHA-256 checksum and refuses to continue if an applied file has changed. To change the schema, add `0004_...sql` (see [technical-handover.md → Maintenance](./technical-handover.md#77-changing-the-database-schema)).
 
@@ -111,6 +112,8 @@ erDiagram
         timestamptz opens_at
         timestamptz closes_at
         numeric max_mark "numeric(6,2)"
+        numeric min_factor "numeric(5,3), null = use system limit"
+        numeric max_factor "numeric(5,3), null = use system limit"
         timestamptz calculated_at
         uuid calculation_run_id "no FK"
         uuid created_by FK
@@ -126,9 +129,21 @@ erDiagram
         uuid id PK
         text label UK
         text description
-        numeric hidden_value "numeric(6,3), never sent to students"
+        numeric hidden_value "numeric(6,3), 0-1000, never sent to students"
         int display_order UK
         boolean active
+    }
+    calculation_settings {
+        boolean id PK "always true, so one row"
+        numeric min_factor "numeric(5,3)"
+        numeric max_factor "numeric(5,3)"
+        uuid updated_by FK "set null"
+        timestamptz updated_at
+    }
+    assessment_rating_values {
+        uuid assessment_id PK,FK
+        uuid rating_option_id PK,FK
+        numeric hidden_value "numeric(6,3), 0-1000"
     }
     submissions {
         uuid id PK
@@ -231,6 +246,9 @@ erDiagram
     group_members ||--o{ peer_ratings : "evaluator in group (BR-01)"
     group_members ||--o{ peer_ratings : "evaluated in group (BR-01)"
     rating_options ||--o{ peer_ratings : "chosen option"
+    users |o--o{ calculation_settings : "updated_by"
+    assessments ||--o{ assessment_rating_values : "own values"
+    rating_options ||--o{ assessment_rating_values : "overrides value of"
     assessments ||--o{ group_marks : "base marks"
     groups ||--o{ group_marks : "base mark for"
     users |o--o{ group_marks : "entered_by"
@@ -418,13 +436,15 @@ Constraints: **`UNIQUE (class_id, student_id)`** means a student is in at most o
 | `status` | assessment_status | default `draft` | Moves `draft → open → closed`, and `closed → open` on re-opening. The API enforces the transitions. |
 | `opens_at`, `closes_at` | timestamptz | **`CHECK closes_after_it_opens (closes_at > opens_at)`** | The open and close times are informational. Status only changes when the lecturer acts. Nothing opens or closes automatically at these times. |
 | `max_mark` | numeric(6,2) | `CHECK (> 0)`, default 100 | Upper bound for base marks and overrides |
-| `calculated_at` | timestamptz | nullable | Time of the latest calculation. Cleared when the assessment is re-opened. |
+| `min_factor` | numeric(5,3) | nullable (0009) | This assessment's own lower factor limit. `NULL` means use the system default (`calculation_settings`). |
+| `max_factor` | numeric(5,3) | nullable (0009) | This assessment's own upper factor limit. `NULL` means use the system default. |
+| `calculated_at` | timestamptz | nullable | Time of the latest calculation. Cleared when the assessment is re-opened, or when a base mark, the maximum, or this assessment's rating values change. |
 | `calculation_run_id` | uuid | nullable, **no FK** | The latest `calculation_runs.id` |
 | `created_by` | uuid | nullable, FK → users | |
 | `created_at` | timestamptz | | |
 | `exported_at` | timestamptz | nullable (0002) | Time of the latest results export. The deletion confirmation reads it (FR-28). |
 
-Constraint: `UNIQUE (id, class_id)`, used by the composite FKs. Index: `assessments_class_idx`.
+Constraints: `UNIQUE (id, class_id)`, used by the composite FKs. **`own_factor_limits`** (0009): `min_factor` and `max_factor` are either both `NULL` or both set, and when set, `min_factor` is in `(0, 1]` and `max_factor` in `[1, 2]`, so the neutral factor of 1 is always reachable. Index: `assessments_class_idx`.
 
 ### `assessment_groups`
 
@@ -438,18 +458,42 @@ The groups of the class that take part in an assessment (FR-12).
 
 ### `rating_options`
 
-The descriptive rating scale. It is reference data (OR-19), seeded by migration 0002.
+The descriptive rating scale (OR-19), seeded by migration 0002. The labels, descriptions and order are reference data. `hidden_value` is the **system default** behind each option: an administrator may change it (`PUT /api/settings/scale`), and a lecturer may override it for one assessment in `assessment_rating_values`.
 
 | Column | Type | Constraint | Meaning |
 | --- | --- | --- | --- |
 | `id` | uuid | PK | |
 | `label` | text | UNIQUE | What the student sees, for example "Very good" |
 | `description` | text | | The explanation shown to the student |
-| `hidden_value` | numeric(6,3) | | The numeric value the calculation uses. **It must never reach a student** (BR-15, SR-08). The API removes it. |
+| `hidden_value` | numeric(6,3) | `CHECK hidden_value_in_range (0 … 1000)` (0009) | The numeric value the calculation uses, unless an assessment overrides it. **It must never reach a student** (BR-15, SR-08). The API removes it. |
 | `display_order` | int | UNIQUE | Order on screen. 1 is the best option. |
 | `active` | boolean | default true | Inactive options are not offered. Rows that have been used cannot be deleted, because `peer_ratings` references them without a cascade. Deactivate them instead. |
 
-Values: Excellent 100, Very good 94, Satisfactory 89, Ordinary 84, Marginal 79, Deficient 74, Unsatisfactory 69, Superficial 64, No contribution 59. Each is the top of a band of marks (95-100, 90-94 … 50-59). Seeded by 0002 on a 0-100 scale, and set to these values by 0004.
+Default values: Excellent 100, Very good 94, Satisfactory 89, Ordinary 84, Marginal 79, Deficient 74, Unsatisfactory 69, Superficial 64, No contribution 59. Each is the top of a band of marks (95-100, 90-94 … 50-59). Seeded by 0002 on a 0-100 scale, and set to these values by 0004. Since 0009 these are editable defaults rather than fixed, and a change here is a configuration change that every later calculation uses - old runs keep the scale they froze (see `calculation_runs`).
+
+### `calculation_settings` (0009)
+
+The system-wide factor limits an administrator sets (OR-19). At most one row: the primary key is a boolean that can only be `true`. With no row, `felder.ts`'s defaults apply, so a fresh database needs nothing seeded here. The system-wide rating values live on `rating_options.hidden_value`, not here.
+
+| Column | Type | Constraint | Meaning |
+| --- | --- | --- | --- |
+| `id` | boolean | PK, default `true`, `CHECK (id)` | Always `true`, so the table holds one row |
+| `min_factor` | numeric(5,3) | | Lower clamp on the adjustment factor, system-wide |
+| `max_factor` | numeric(5,3) | | Upper clamp |
+| `updated_by` | uuid | nullable, FK → users (set null) | The administrator who last changed it |
+| `updated_at` | timestamptz | default `now()` | |
+
+Constraint: **`factor_limits_bracket_one`**: `min_factor` in `(0, 1]` and `max_factor` in `[1, 2]`, so the neutral factor of 1 is always inside the range.
+
+### `assessment_rating_values` (0009)
+
+One row per rating option a lecturer gave an assessment a value of its own (OR-19). An option with no row here uses the system value on `rating_options`. Only differences are stored, so an option left alone keeps following the default. The calculation reads the two layered together, and the run freezes the result.
+
+| Column | Type | Constraint | Meaning |
+| --- | --- | --- | --- |
+| `assessment_id` | uuid | PK part. FK → assessments (cascade) | Removed with the assessment |
+| `rating_option_id` | uuid | PK part. FK → rating_options | |
+| `hidden_value` | numeric(6,3) | `CHECK (0 … 1000)` | This assessment's value for the option. **Never sent to a student** (BR-15, SR-08). |
 
 ### `submissions`
 
@@ -482,7 +526,7 @@ One row per rating a student gives a group member. Rows exist for drafts as well
 | `comment` | text | nullable. `CHECK (char_length <= 500)` | FR-17 |
 | `created_at` | timestamptz | | |
 
-Constraints: **`no_self_evaluation`**: `CHECK (evaluator_id <> evaluated_id)` (BR-02). **`UNIQUE (assessment_id, evaluator_id, evaluated_id)`** (BR-03). The two group-membership FKs (BR-01). Indexes: `peer_ratings_assessment_idx` and `peer_ratings_evaluated_idx (assessment_id, evaluated_id)`.
+Constraints: **`UNIQUE (assessment_id, evaluator_id, evaluated_id)`** (BR-03). The two group-membership FKs (BR-01). The old `no_self_evaluation CHECK (evaluator_id <> evaluated_id)` was **dropped in 0009**: since 2026-10-10 a member rates the whole group, themselves included, and the self-rating counts towards their mark (`evaluator_id = evaluated_id` is now a valid row). Everything BR-01 and BR-03 guard is unchanged. Indexes: `peer_ratings_assessment_idx` and `peer_ratings_evaluated_idx (assessment_id, evaluated_id)`.
 
 ### `group_marks`
 
@@ -506,7 +550,7 @@ Each run of the Felder calculation is kept as a permanent record (OR-09).
 | `assessment_id` | uuid | FK → assessments (cascade) | |
 | `run_by` | uuid | FK → users | The lecturer who ran the calculation |
 | `rule_version` | text | | `CalculationConfig.ruleVersion`, for example `felder-2026.3-provisional` |
-| `config` | jsonb | | **The complete `CalculationConfig` in force for this run**: factor limits, rounding, neutral factor and flag thresholds. It is frozen at run time, so an old mark can still be explained after the configuration in `server/src/lib/felder.ts` changes (OR-09, OR-19). |
+| `config` | jsonb | | **The complete `CalculationConfig` in force for this run**: factor limits, rounding, neutral factor, flag thresholds and `countSelfRatings`. Since 0009 it also freezes the **rating scale** used (each option's label and value, by id), the assessment's `maxMark`, and whether the scale was customised. It is frozen at run time, so an old mark can still be explained after the configuration in `server/src/lib/felder.ts`, the system rating values, or an assessment's own values change (OR-09, OR-19). |
 | `created_at` | timestamptz | | |
 
 Index: `calculation_runs_assessment_idx (assessment_id, created_at DESC)`. Earlier runs are kept after a recalculation. Only `calculated_results` is replaced.
@@ -586,7 +630,7 @@ The database enforces these rules itself, so they hold even for a request that b
 | Rule | Enforced in the database by |
 | --- | --- |
 | **BR-01** A student rates only members of their own group | `peer_ratings` FKs `evaluator_is_in_the_group` and `evaluated_is_in_the_group` → `group_members (group_id, student_id)`. `assessment_groups` composite FKs keep an assessment's groups inside its class. |
-| **BR-02** No self-evaluation | `peer_ratings.no_self_evaluation CHECK (evaluator_id <> evaluated_id)` |
+| **BR-02** ~~No self-evaluation~~ | **Reversed 2026-10-10.** The `no_self_evaluation CHECK` was dropped in 0009: a member now rates the whole group, themselves included, and the self-rating counts towards their mark. No constraint replaces it. |
 | **BR-03** One rating per evaluator, evaluated student and assessment. An amendment replaces the previous rating. | `peer_ratings UNIQUE (assessment_id, evaluator_id, evaluated_id)`, and `submissions UNIQUE (assessment_id, evaluator_id)` |
 | **BR-07** Mark bounds | `group_marks.base_mark >= 0`, `mark_overrides.override_mark >= 0` and `assessments.max_mark > 0`. The upper bound (`<= max_mark`) and the factor clamp are applied in the API and in `felder.ts`. |
 | **BR-08** An override keeps the calculated mark, with a reason | `mark_overrides.calculated_mark NOT NULL`, `reason CHECK (non-blank)` |
@@ -601,7 +645,7 @@ The database enforces these rules itself, so they hold even for a request that b
 | **FR-27, SR-15** The audit log is append-only | Triggers `audit_entries_no_update` and `audit_entries_no_delete` (`BEFORE UPDATE` / `BEFORE DELETE ... FOR EACH ROW`) call `audit_is_append_only()`, which raises `insufficient_privilege`. The table has no FKs, so a cascade can never remove entries. |
 | **AS-01** Student numbers are unique | `users_student_number_key` (partial unique index) |
 | **OR-07** Concurrent requests cannot create duplicates | All of the unique constraints above, plus `email_verification_codes_one_live_per_user` |
-| **OR-09** Marks stay explainable | `calculation_runs.config` (jsonb, frozen), `calculated_results.raw_factor`, and the fact that earlier runs are never deleted when a new run is made |
+| **OR-09** Marks stay explainable | `calculation_runs.config` (jsonb, frozen - including the rating scale used since 0009), `calculated_results.raw_factor`, and the fact that earlier runs are never deleted when a new run is made |
 
 ### Limits of these guarantees
 

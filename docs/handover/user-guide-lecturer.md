@@ -14,7 +14,8 @@
 > still waiting for the Sponsor to approve the *Felder Calculation Specification* (assumption
 > **AS-08**) is the free-rider flagging thresholds and whether not submitting carries a
 > penalty. Neither of those changes anybody's mark. Every calculation is stamped
-> **`felder-2026.3-provisional`** until the specification is signed.
+> **`felder-2026.4-provisional`** until the specification is signed (the `.4` marks the change on
+> 10 October 2026 to count self-ratings).
 > **Don't publish Peerly marks as final** until you've been told the specification is approved.
 > See [How individual marks are calculated](#11-how-individual-marks-are-calculated).
 
@@ -271,6 +272,12 @@ them.
   these groups** stays disabled until you fix it.
 - Nothing is saved until you confirm.
 
+> On the **Groups** page, a group with fewer than two members also carries a **Too small** badge.
+> Hover over or focus the badge (or read the note below the groups on a touch screen) for the
+> explanation: *"this group has fewer than two members, so nobody in it has a group member to
+> rate and no peer-adjusted mark can be worked out. Move another student into it, or leave it out
+> of assessments."*
+
 ### 5.3 Confirm
 
 1. Select **Confirm these groups**, check **Confirm these groups?**, then select **Confirm
@@ -313,8 +320,9 @@ people are no longer in, so Peerly stops you:
    - **Opens** and **Closes** (date and time). **Closes** must be after **Opens**.
    - **Group mark is out of:** usually `100`. Group marks and overrides can't exceed this
      number.
-5. The **Rating scale** panel shows the nine options students choose from. It's the same for
-   every assessment and can't be edited.
+5. The **Rating scale** panel shows the nine options students choose from. The values behind
+   them (which students never see) come from the system defaults, and you can adjust them for
+   this assessment on its own page once it is saved (see [6.4](#64-rating-values-for-this-assessment)).
 6. Select **Save as draft**. Nothing is visible to students yet.
 
 ![New assessment](images/lecturer-new-assessment.png)
@@ -357,6 +365,34 @@ the name, description, dates and maximum mark. Once an assessment has opened, it
 change**: the group choices are shown but locked. To assess a different set of groups, create a
 new assessment. If a value can't be saved, the reason appears beside that field.
 
+### 6.4 Rating values for this assessment
+
+The assessment page has a **Rating values for this assessment** panel. It controls the values
+behind the rating labels, and the two factor limits, for **this assessment only**. Students
+never see any of these numbers.
+
+A **System Administrator** keeps the system-wide defaults, and every assessment uses them unless
+you change them here. Use this panel when one assessment needs a different scale, for example a
+project where the top band should be worth less.
+
+- Each rating option has a **Value** box. A **System value** column shows the default beside it,
+  and a value you changed stands out from one you left alone. The badge at the top reads **System
+  defaults** or **Own values**.
+- **Lowest adjustment factor** and **Highest adjustment factor** set the limits the factor is
+  kept between (the defaults are 0.6 and 1.1).
+- Rules, checked as you type and again on the server:
+  - a value from 0 to 1000, with at most three decimal places
+  - **each option must be worth at least as much as the one below it**, so a student choosing a
+    higher label never lowers the mark they give
+  - the lowest factor is more than 0 and at most 1; the highest is at least 1 and at most 2
+- Select **Save values** to store them, or **Use system defaults** to drop this assessment's own
+  values and go back to the system scale. Only the options you changed are stored, so if the
+  administrator later changes a default you left alone, this assessment follows it.
+- **Changing the values makes any calculated marks out of date**, exactly as changing a base
+  mark does. Peerly says so and you calculate again. Marks calculated earlier are untouched:
+  each run kept the exact scale it used, so an old mark can still be explained.
+- Every change is recorded in the audit log.
+
 ---
 
 ## 7. Submission monitor
@@ -394,7 +430,10 @@ reload the page.
 How to read it:
 
 - **Rows are the students who gave the ratings** (evaluators). **Columns are the students
-  being rated.** A student doesn't rate themselves, so their own cell shows **-**.
+  being rated.** Since 10 October 2026 every student also rates themselves, so the **diagonal**
+  holds each student's rating of their own contribution, labelled **Self-rating** and shaded
+  apart from the peer ratings. A diagonal cell reads **No self-rating** where the student hasn't
+  rated themselves (for example, in a draft they haven't finished).
 - Each cell shows the **descriptive label** and, underneath, the **scale value** behind it
   (for example *Very good 94*). **Scale values are shown only to lecturers.** Students never
   see them.
@@ -426,6 +465,35 @@ Go to **Marks & Calculation**. Enter the mark each group earned **for the work i
    - whole numbers or **one** decimal place (for example `74.5`)
    - an empty box means *not entered yet* (**No mark yet**), which is different from `0`
 4. The counts at the top show **Marks entered** and **Still outstanding**.
+
+### Uploading marks from a file
+
+For a class with many groups, you can set every group's mark from one file instead of typing
+them. Select **Upload marks** (top right of **Marks & calculation**).
+
+1. Prepare a **.csv** or **.xlsx** file (at most 5 MB) with a heading row and two columns:
+   - **Group** - the group number, or its name
+   - **Mark** - out of the assessment's maximum, whole numbers or one decimal place
+
+   For example:
+
+   ```
+   Group,Mark
+   1,74
+   2,68.5
+   3,81
+   ```
+
+   Peerly also recognises headings such as *Group number*, *Group name*, *Score* or *Punt*, and
+   a mark written `68,5` the way a South African spreadsheet saves it.
+2. Drag the file in or browse for it. **Peerly shows what each row would do before anything is
+   saved:** **New**, **Changes** (with the old mark struck through), **No change**, **Left as
+   is** (a blank mark), or **Fix this row** with the reason. A group missing from the file, or
+   with a blank mark, keeps the mark it already has.
+3. If any row says **Fix this row**, nothing can be saved until you correct the file and upload
+   it again - the save is all or nothing.
+4. Select **Save N marks**. Each mark is recorded in the audit log just as typing it would be.
+   If marks were already calculated, uploading new ones makes them out of date; calculate again.
 
 ---
 
@@ -466,17 +534,20 @@ mark by hand and explain it to a student or a moderator.
 >
 > | Setting | Current value | Status |
 > | --- | --- | --- |
-> | Rule version stamped on each run | `felder-2026.3-provisional` | |
-> | Rating scale | The banded scale in [11.1](#111-the-hidden-scale) | Agreed |
-> | Lowest allowed adjustment factor | **0.6** | Agreed |
-> | Highest allowed adjustment factor | **1.1** | Agreed |
-> | Self-ratings | Not counted, and students can't rate themselves | Agreed |
+> | Rule version stamped on each run | `felder-2026.4-provisional` | |
+> | Rating scale | The banded scale in [11.1](#111-the-hidden-scale), now an editable default | Agreed |
+> | Lowest allowed adjustment factor | **0.6** (the editable default) | Agreed |
+> | Highest allowed adjustment factor | **1.1** (the editable default) | Agreed |
+> | Self-ratings | **Counted:** every member rates the whole group, themselves included | Agreed 10 Oct 2026 |
 > | Rounding of the final mark | **1 decimal place**, halves rounded away from zero | Agreed 23 Sep 2026 |
 > | Factor when there's nothing to compare | **1** (the group mark, unchanged) | Provisional |
 >
-> Each calculation run saves the exact settings **and scale** it used, so an old mark can
-> always be explained even if they change later. **Don't present these marks as final until
-> AS-08 is approved.**
+> The rating values and the two factor limits are now **adjustable**: a System Administrator
+> sets the system defaults, and you can change them for a single assessment (see
+> [6.4](#64-rating-values-for-this-assessment)). The values above are the defaults. Each
+> calculation run saves the exact settings **and scale** it used, so an old mark can always be
+> explained even if they change later. **Don't present these marks as final until AS-08 is
+> approved.**
 
 ### 11.1 The hidden scale
 
@@ -496,6 +567,11 @@ and in the export:
 | Superficial | 60 - 64 | 64 |
 | No contribution | 50 - 59 | 59 |
 
+These values are the **system defaults**. A System Administrator can change them for the whole
+system, and you can change them for a single assessment (see
+[6.4](#64-rating-values-for-this-assessment)). The table above is what Peerly uses unless someone
+has adjusted it.
+
 **The lowest rating still counts for 59.** This is the same compressed scale the Felder
 spreadsheet uses, so one harsh rating moves a factor much less than it would on a 0-to-100
 scale. In practice the **0.6 floor is never reached**. Even a student rated *No contribution*
@@ -508,10 +584,10 @@ in a group of four and 0.62 in a group of eight. The **1.1 ceiling does apply**:
 For each group:
 
 1. **Each student's mean received.** Average the values of the ratings the student received
-   from their group members. Students never rate themselves, so there are no self-ratings to
-   include.
+   from their group members. Since 10 October 2026 this **includes the student's own rating of
+   themselves**, which counts like any other rating.
 2. **The group mean.** Average the members' means from step 1. Each member counts once. A member
-   nobody rated is left out, rather than counted as zero.
+   nobody rated (not even themselves) is left out, rather than counted as zero.
 3. **Adjustment factor = student's mean received ÷ group mean.** A factor of 1 means the student
    was rated exactly at the group's average.
 4. **Apply the limits.** A factor below **0.6** is raised to 0.6, and one above **1.1** is
@@ -538,48 +614,51 @@ didn't submit. The export's **Group mean** column shows the figure the calculati
 ### 11.3 Worked example
 
 A group of four (Anna, Ben, Chris and Dineo) with a **group base mark of 70** out of 100.
-Everyone submitted. Rows are who gave the rating, columns are who received it:
+Everyone submitted. Rows are who gave the rating, columns are who received it, and **the
+diagonal is each student's rating of themselves**, which now counts:
 
 | Evaluator ↓ / Rated → | Anna | Ben | Chris | Dineo |
 | --- | --- | --- | --- | --- |
-| **Anna** | - | Very good (94) | Satisfactory (89) | Deficient (74) |
-| **Ben** | Very good (94) | - | Satisfactory (89) | Marginal (79) |
-| **Chris** | Excellent (100) | Very good (94) | - | Deficient (74) |
-| **Dineo** | Satisfactory (89) | Satisfactory (89) | Satisfactory (89) | - |
+| **Anna** | Excellent (100) | Very good (94) | Satisfactory (89) | Deficient (74) |
+| **Ben** | Very good (94) | Very good (94) | Satisfactory (89) | Marginal (79) |
+| **Chris** | Excellent (100) | Very good (94) | Satisfactory (89) | Deficient (74) |
+| **Dineo** | Satisfactory (89) | Satisfactory (89) | Satisfactory (89) | Satisfactory (89) |
 
-**Step 1, mean received:**
+**Step 1, mean received** (each student's own rating included):
 
-- Anna: (94 + 100 + 89) ÷ 3 = **94.33**
-- Ben: (94 + 94 + 89) ÷ 3 = **92.33**
-- Chris: (89 + 89 + 89) ÷ 3 = **89**
-- Dineo: (74 + 79 + 74) ÷ 3 = **75.67**
+- Anna: (100 + 94 + 100 + 89) ÷ 4 = **95.75**
+- Ben: (94 + 94 + 94 + 89) ÷ 4 = **92.75**
+- Chris: (89 + 89 + 89 + 89) ÷ 4 = **89**
+- Dineo: (74 + 79 + 74 + 89) ÷ 4 = **79**
 
-**Step 2, group mean:** (94.33 + 92.33 + 89 + 75.67) ÷ 4 = **87.83**
+**Step 2, group mean:** (95.75 + 92.75 + 89 + 79) ÷ 4 = **89.125**
 
 **Steps 3 to 6:**
 
-| Student | Factor (mean ÷ 87.83) | After limits (0.6 to 1.1) | Mark = 70 × factor | Final (1 decimal) |
+| Student | Factor (mean ÷ 89.125) | After limits (0.6 to 1.1) | Mark = 70 × factor | Final (1 decimal) |
 | --- | --- | --- | --- | --- |
-| Anna | 1.0740 | 1.0740 | 75.180 | **75.2** |
-| Ben | 1.0512 | 1.0512 | 73.586 | **73.6** |
-| Chris | 1.0133 | 1.0133 | 70.930 | **70.9** |
-| Dineo | 0.8615 | 0.8615 | 60.304 | **60.3** |
+| Anna | 1.0743 | 1.0743 | 75.203 | **75.2** |
+| Ben | 1.0407 | 1.0407 | 72.847 | **72.8** |
+| Chris | 0.9986 | 0.9986 | 69.902 | **69.9** |
+| Dineo | 0.8864 | 0.8864 | 62.048 | **62.0** |
 
 What this example shows:
 
-- **Nobody hits a limit.** On this scale that's normal: the factors stay between about 0.86 and
-  1.07, and the difference between the strongest and weakest member is about 15 marks.
-- **Dineo** was rated *Deficient* or *Marginal* by everyone and gets 60.3, about 10 marks below
-  the group mark.
+- **Nobody hits a limit.** On this scale that's normal: the factors stay between about 0.89 and
+  1.07, and the difference between the strongest and weakest member is about 13 marks.
+- **Dineo**'s peers rated him *Deficient* or *Marginal*, though he rated himself *Satisfactory*;
+  he gets 62.0, about 8 marks below the group mark. His own rating lifts his mean a little, but
+  it is only one of four, so it cannot rescue a low peer rating.
 - Peerly works from the unrounded factor, never the 4-decimal one shown here. At one decimal
   place the two almost always agree, but where a mark sits right on a boundary they can differ,
   and the unrounded one is correct. The export has the full figures.
 - **Flags** (advisory only, see [11.5](#115-result-flags)): Dineo gets **Uniform rating** (he
-  gave everyone *Satisfactory*) and **Low contribution** (mean received of 79, *Marginal*, or
-  less). Nobody gets **Isolated outlier**: the rating furthest from the group mean of 87.83 is
-  the *Deficient* (74) Dineo received, 13.8 away, which is under the threshold of 20. Nobody
-  gets **Reciprocal extremes** either: the biggest gap between two students' ratings of each
-  other is Anna and Dineo, 89 against 74, which is 15 apart, under the threshold of 40.
+  gave everyone, himself included, *Satisfactory*) and **Low contribution** (mean received of
+  79, *Marginal*, or less). Nobody gets **Isolated outlier**: the rating furthest from the group
+  mean of 89.125 is one of the *Deficient* (74) ratings Dineo received, 15.1 away, which is
+  under the threshold of 20. Nobody gets **Reciprocal extremes** either: the biggest gap between
+  two students' ratings of each other is Anna and Dineo, 89 against 74, which is 15 apart, under
+  the threshold of 40.
 
 ### 11.4 Edge cases
 
@@ -587,7 +666,7 @@ What this example shows:
 | --- | --- | --- |
 | **A student didn't submit** | Their own mark is still calculated from what the others said about them. No penalty is applied, because whether non-submission is penalised is an academic decision, not Peerly's. | **Did not submit** |
 | **Fewer than half the group submitted** | Calculated normally, but on thin evidence. | **Incomplete group** |
-| **Nobody rated the student** (for example, nobody else in the group submitted) | No factor can be worked out, so the factor is **1** and they receive the **group mark unchanged**. | **Not peer assessed** |
+| **No peer rated the student** (for example, nobody else in the group submitted) | If they rated themselves, their factor rests on that one self-rating alone. If there are no ratings at all, no factor can be worked out, so the factor is **1** and they receive the **group mark unchanged**. Either way it is not a peer-assessed mark. | **Not peer assessed** |
 | **Group of two** | Calculated normally, but each student's factor rests on one opinion. | **Group of two** |
 | **Group of one** | Nobody to rate or compare with, so the factor is **1** and they get the group mark. (Peerly won't let you confirm a group this small, so this is rare.) | **Group of one** |
 | **Everyone gave identical ratings** | Every mean equals the group mean, so every factor is exactly **1** and everyone gets the group mark. | **Uniform rating** on each student who gave all their members the same option |
@@ -612,7 +691,7 @@ The thresholds behind them are also provisional.
 | **Group of two** | With only two members, each student is rated once, so the mean is very sensitive to a single opinion. | Group has two members. |
 | **Group of one** | This student has nobody else in their group, so there are no peer ratings to adjust their mark by. They receive the group mark unchanged. | Group has one member. |
 | **Unmatched** | This student could not be matched to the imported class list, so their result may be incomplete. | The student's class-list entry isn't matched. |
-| **Not peer assessed** | Nobody in the group rated this student, so there is no factor to apply. They receive the group mark unchanged, which is not a peer-assessed mark. | No ratings received (group of two or more). |
+| **Not peer assessed** | No other group member rated this student. With no ratings at all they receive the group mark unchanged; with only their own rating of themselves, their factor rests on that opinion alone. Either way it is not a peer-assessed mark. | No rating received from any other member (group of two or more), whether or not the student rated themselves. |
 | **Group mark of zero** | This group's base mark is zero, so every member's mark is zero. Check it was entered deliberately. | Base mark is 0. |
 | **Whole group rated lowest** | Every rating in this group was the lowest option, so no factor can be calculated. Every member receives the group mark unchanged. | Group mean is 0. **This can't happen on the current scale**, where the lowest option still counts for 59, so you won't see this flag. It is a safeguard in case the scale is changed. A group rated *No contribution* throughout gets **Uniform rating** and **Low contribution** instead (see [11.4](#114-edge-cases)). |
 
@@ -637,8 +716,10 @@ Go to **Results & Export**.
 
 Select a student's row to open the drill-down. It shows their **Mean received**, **Adjustment
 factor**, **Group base mark** and **Final mark**, any flags, and **Ratings this student
-received**: each evaluator's name, the label with its value, and any comment. If nobody rated
-them, it says so.
+received**: each evaluator's name, the label with its value, and any comment. The student's own
+rating of themselves is listed too, labelled *their own rating of themselves*. The value shown
+beside each label is the one that rating **counted for in this calculation run**, so it still
+matches the mark even after the rating values are changed. If nobody rated them, it says so.
 
 ### 12.2 Override a mark
 
@@ -681,6 +762,9 @@ has two worksheets:
 | **Results** | A header block (**Class**, **Academic period**, **Assessment**, **Generated**, **Calculation run id**, **Calculated at**, **Overrides included**, **Flagged students**), then one row per student: **Student number**, **Surname**, **Name**, **Group**, **Ratings received**, **Mean received**, **Group mean**, **Adjustment factor**, **Group base mark**, **Final mark**, **Override mark**, **Override reason**, **Overridden by**, **Flags** |
 | **Raw Ratings** | One row per rating from a **submitted** evaluation (ratings in unsubmitted drafts are left out, as they are from the calculation): **Group**, **Evaluator number**, **Evaluator**, **Evaluated number**, **Evaluated**, **Rating**, **Scale value**, **Comment**, **Submitted at** |
 
+- The **Raw Ratings** sheet includes each student's rating of themselves (a row where the
+  evaluator and the evaluated student are the same), since self-ratings now count. The **Scale
+  value** column is the value each rating counted for in this calculation run.
 - **Final mark** is always the calculated mark. Where you overrode a mark, use **Override mark**
   for that student.
 - You can only export after calculating: *"Calculate the marks before exporting, so there is
@@ -701,7 +785,8 @@ what it affected. Entries can't be edited or deleted by anyone.
 - Filter by **Event type**, **From date** and **To date**, then use **Clear filters** to reset.
 - The events you'll see: *Class created*, *Class list imported*, *Match conflict resolved*,
   *Groups confirmed*, *Assessment created*, *Assessment changed*, *Assessment opened*,
-  *Assessment closed*, *Assessment re-opened*, *Reminders sent*, *Group mark entered*, *Marks
+  *Assessment closed*, *Assessment re-opened*, *Reminders sent*, *Group mark entered*, *Rating
+  values changed* (when you adjust an assessment's rating values or factor limits), *Marks
   calculated*, *Mark overridden*, *Results exported*, *Assessment deleted* and *Class deleted*.
 
 ---

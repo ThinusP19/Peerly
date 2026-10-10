@@ -24,11 +24,12 @@
 8. [Deactivating and reactivating an account](#8-deactivating-and-reactivating-an-account)
 9. [Account statuses](#9-account-statuses)
 10. [The audit log](#10-the-audit-log)
-11. [Your own settings and password](#11-your-own-settings-and-password)
-12. [Helping lecturers and students](#12-helping-lecturers-and-students)
-13. [Messages you might see and what they mean](#13-messages-you-might-see-and-what-they-mean)
-14. [Known limitations in the current version](#14-known-limitations-in-the-current-version)
-15. [Frequently asked questions](#15-frequently-asked-questions)
+11. [Setting the rating values](#11-setting-the-rating-values)
+12. [Your own settings and password](#12-your-own-settings-and-password)
+13. [Helping lecturers and students](#13-helping-lecturers-and-students)
+14. [Messages you might see and what they mean](#14-messages-you-might-see-and-what-they-mean)
+15. [Known limitations in the current version](#15-known-limitations-in-the-current-version)
+16. [Frequently asked questions](#16-frequently-asked-questions)
 
 ---
 
@@ -49,6 +50,8 @@ As a System Administrator you:
   activated yet
 - send a new activation link to someone whose link expired or went missing
 - **deactivate** accounts that should no longer have access, and **reactivate** them
+- set the **system-wide rating values and factor limits** the mark calculation uses (a lecturer
+  can adjust them for one assessment of their own)
 - read the **audit log** of everything that happens in Peerly
 
 You **don't**:
@@ -69,7 +72,7 @@ change a staff role.
 The **first** System Administrator account is created when Peerly is installed. How that's done,
 and how its initial credentials are handed over and changed, is covered in the *Technical Handover
 Guide*. Change the initial password as soon as you first sign in (see [section
-11](#11-your-own-settings-and-password)).
+12](#12-your-own-settings-and-password)).
 
 If another administrator created your account, you'll receive the **"Set up your Peerly
 account"** email:
@@ -110,8 +113,8 @@ account"** email:
 
 ![Administrator dashboard](images/admin-dashboard.png)
 
-The left-hand menu has **Dashboard**, **Lecturer & Admin Accounts**, **Audit Log** and
-**Settings**.
+The left-hand menu has **Dashboard**, **Lecturer & Admin Accounts**, **Rating Values**, **Audit
+Log** and **Settings**.
 
 The **Administrator dashboard** shows:
 
@@ -294,18 +297,52 @@ Event types you'll see:
 | Classes | Class created, Class list imported, Match conflict resolved, Groups confirmed, Class deleted |
 | Assessments | Assessment created, Assessment changed, Assessment opened, Assessment closed, Assessment re-opened, Reminders sent, Assessment deleted |
 | Marks | Group mark entered, Marks calculated, Mark overridden, Results exported |
+| Settings | Rating values changed (the system defaults, by an administrator, or one assessment's own values, by its lecturer) |
 
 > **Confidentiality.** Some entries describe lecturers' marking. For example, *Group mark
 > entered* includes the mark, and *Mark overridden* includes the student's name, both marks and
 > the lecturer's reason. Look at these only when you need to for an audit or investigation, and
 > never share them. See also [Known
-> limitations](#14-known-limitations-in-the-current-version).
+> limitations](#15-known-limitations-in-the-current-version).
 
 Passwords, codes and links are never written to the audit log.
 
 ---
 
-## 11. Your own settings and password
+## 11. Setting the rating values
+
+Go to **Rating Values**. This page holds the **system-wide** values the mark calculation uses:
+the number behind each rating label, and the two factor limits. Every assessment uses them
+unless its lecturer chose values of its own.
+
+**Students never see these numbers.** They only ever see the descriptive labels. The page is
+refused to lecturers and students; it is yours.
+
+Under **System defaults**:
+
+- Each rating option has a **Value** box, next to the description students see. Higher is better.
+- **Lowest adjustment factor** and **Highest adjustment factor** set how far peer ratings can
+  move a mark. A student rated evenly with their group gets a factor of exactly 1 - the group's
+  own mark - so the lowest must be at most 1 and the highest at least 1.
+- Rules, checked as you type and again on the server:
+  - a value from 0 to 1000, with at most three decimal places
+  - **each option must be worth at least as much as the one below it**, so choosing a higher
+    label never lowers the mark a student gives
+  - the lowest factor is more than 0 and at most 1; the highest is at least 1 and at most 2
+- Select **Save values**. **How a student's mark is calculated** below the table restates the
+  method with the current numbers, so you can check them.
+
+**A change here applies to every calculation from now on.** Marks that were already calculated
+are not touched: each calculation kept the exact values it used, so old marks stay explainable,
+and a change reaches a student's mark only when their lecturer calculates again. Every change is
+recorded in the audit log as *Rating values changed*.
+
+A lecturer can override these for a single assessment of their own. That does not change the
+system defaults you keep here.
+
+---
+
+## 12. Your own settings and password
 
 Go to **Settings**.
 
@@ -318,7 +355,7 @@ Go to **Settings**.
 
 ---
 
-## 12. Helping lecturers and students
+## 13. Helping lecturers and students
 
 | Problem | What to do |
 | --- | --- |
@@ -336,7 +373,7 @@ Go to **Settings**.
 
 ---
 
-## 13. Messages you might see and what they mean
+## 14. Messages you might see and what they mean
 
 | Message | Meaning | What to do |
 | --- | --- | --- |
@@ -357,7 +394,7 @@ Go to **Settings**.
 
 ---
 
-## 14. Known limitations in the current version
+## 15. Known limitations in the current version
 
 1. **The audit log shows marking details** (see [section 10](#10-the-audit-log)). Administrators
    can't open ratings or results pages, but audit entries about marking are visible to them.
@@ -368,11 +405,17 @@ Go to **Settings**.
 
 ---
 
-## 15. Frequently asked questions
+## 16. Frequently asked questions
 
 **Can I see students' ratings or marks?**
 No. The lecturer portal pages refuse administrator accounts. The audit log does record marking
 events (see [section 10](#10-the-audit-log)). Treat those as confidential.
+
+**The Rating Values page lets me change how marks are worked out. Does it show me any marks?**
+No. It sets the values and factor limits the calculation uses, which are configuration, not any
+student's rating or mark. Changing them affects only calculations a lecturer runs afterwards;
+marks already calculated keep the values they were calculated with (see [section
+11](#11-setting-the-rating-values)).
 
 **Can I delete an account?**
 No. Deactivate it instead. Peerly keeps accounts so the audit trail and past results remain

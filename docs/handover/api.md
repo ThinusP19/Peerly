@@ -2,7 +2,7 @@
 
 This reference covers requirement OR-27 (API documentation). It lists every HTTP endpoint the Express API in `server/` exposes. It was written from `server/src/app.ts`, `server/src/routes/*.ts`, `server/src/middleware/*.ts` and the services those routes call, and it describes the code as it stands. If a route and this page disagree, the route is right, so fix this page.
 
-**58 endpoints**: 57 under `/api` plus `GET /health`.
+**64 endpoints**: 63 under `/api` plus `GET /health`.
 
 | Area | Mounted at | Endpoints | Who may call |
 | --- | --- | --- | --- |
@@ -11,8 +11,9 @@ This reference covers requirement OR-27 (API documentation). It lists every HTTP
 | [Staff accounts](#staff-accounts-apiaccounts) | `/api/accounts` | 5 | `admin` |
 | [Audit log](#audit-log-apiaudit) | `/api/audit` | 1 | `lecturer`, `admin` |
 | [Classes, class lists, groups](#classes-apiclasses) | `/api/classes` | 17 | `lecturer`, and only for classes they own |
-| [Assessments, marks, results, export](#assessments-apiassessments) | `/api/assessments` | 18 | `lecturer`, and only for assessments they own. `rating-options` accepts any signed-in role |
+| [Assessments, marks, results, export](#assessments-apiassessments) | `/api/assessments` | 22 | `lecturer`, and only for assessments they own. `rating-options` accepts any signed-in role |
 | [Student portal](#student-portal-apistudent) | `/api/student` | 5 | `student` |
+| [System settings](#system-settings-apisettings) | `/api/settings` | 2 | `admin` |
 
 ---
 
@@ -20,7 +21,7 @@ This reference covers requirement OR-27 (API documentation). It lists every HTTP
 
 ### Transport and format
 
-- Every request body is JSON (`content-type: application/json`, 1 MB limit). The exception is the three class-list import endpoints, which take `multipart/form-data`.
+- Every request body is JSON (`content-type: application/json`, 1 MB limit). The exceptions are the three class-list import endpoints and the base-mark import endpoint, which take `multipart/form-data`.
 - Every response is JSON except `GET /api/assessments/:assessmentId/export`, which returns an `.xlsx` file.
 - Timestamps are ISO-8601 strings in UTC (`2026-09-22T08:03:32.585Z`). Where a request takes a timestamp, the format is noted.
 - Identifiers are UUIDs. The one exception is audit entry ids, which are numeric strings. A path parameter that is not a valid UUID fails validation with `400 validation_failed` before any query runs.
@@ -308,9 +309,10 @@ Source: `server/src/routes/audit.ts` and `services/audit.ts`. **`requireAuth` an
                  objectDescription, detail, classId? }
   ```
 
-- **Event types:** `account.created`, `account.updated`, `account.activated`, `account.deactivated`, `account.activation_resent`, `password.changed`, `class.created`, `class.imported`, `class.deleted`, `enrolment.matched`, `enrolment.conflict`, `enrolment.resolved`, `groups.confirmed`, `assessment.created`, `assessment.updated`, `assessment.opened`, `assessment.closed`, `assessment.reopened`, `assessment.deleted`, `evaluation.submitted`, `evaluation.amended`, `reminders.sent`, `marks.entered`, `marks.calculated`, `mark.overridden`, `results.exported`.
+- **Event types:** `account.created`, `account.updated`, `account.activated`, `account.deactivated`, `account.activation_resent`, `password.changed`, `class.created`, `class.imported`, `class.deleted`, `enrolment.matched`, `enrolment.conflict`, `enrolment.resolved`, `groups.confirmed`, `assessment.created`, `assessment.updated`, `assessment.opened`, `assessment.closed`, `assessment.reopened`, `assessment.deleted`, `evaluation.submitted`, `evaluation.amended`, `reminders.sent`, `marks.entered`, `marks.calculated`, `mark.overridden`, `results.exported`, `scale.updated`.
 - `evaluation.submitted` and `evaluation.amended` record who submitted, for which assessment and class, and how many ratings. They never record a rating, its value or a comment. Saving a draft is not audited: it changes nothing a mark is calculated from.
 - `enrolment.matched` and `enrolment.conflict` are written by automatic class-list matching (FR-04), one per enrolment, with the student who activated or the lecturer who imported as the actor.
+- `scale.updated` records a change to the rating values or the factor limits: by an administrator to the system defaults (no `classId`), or by a lecturer to one assessment's own scale (with the class and assessment). `before_state` and `after_state` hold the values and limits each side of the change.
 
 The `before_state` and `after_state` columns are stored but not returned by the API. Read them in SQL when you investigate an incident.
 
@@ -502,9 +504,72 @@ Sets or clears a group's base mark (FR-21).
 - **200:** `{ "ok": true, "invalidatedCalculation": boolean }`. A mark that changes on a calculated assessment clears `calculatedAt` and `calculationRunId` (as re-opening does) and returns `true`: results and export then wait for a recalculation. Sending the value already stored changes nothing and writes no audit entry.
 - **Errors:** `400 bad_request` with `fields.baseMark` when the mark is outside `0..maxMark` or has more than one decimal place (IS-06). `404` when the group does not take part in this assessment.
 
+### `POST /api/assessments/:assessmentId/marks/import`
+
+Sets every group's base mark from one file (FR-21). The file is read on the server by the same parser as the class list (SR-10: it is never written to disk), and is sent on each call rather than held between the preview and the commit.
+
+- **Content type:** `multipart/form-data`.
+
+  | Part | Required | Content |
+  | --- | --- | --- |
+  | `file` | yes | one `.csv` or `.xlsx` file, at most 5 MB. The file needs a heading row with one column that names the group (its number or its name) and one that holds the mark. |
+  | `commit` | no | `"true"` applies the file. Absent, or `"false"`, returns a preview and writes nothing. |
+
+  The group column matches a heading such as *Group*, *Group number* or *Group name* (and the Afrikaans *Groep*), and the mark column one such as *Mark*, *Score*, *Result* or *Punt*. A cell naming the group as `3` or `Group 3` is read as a number; anything else is read as a group name. Marks may be written `74`, `74.5` or `74,5`.
+
+- **200 (preview):**
+  ```ts
+  { preview: {
+      columns: { group: string, mark: string },   // the headings that were used
+      rows: { row: number, group: string, groupId?: string, groupNumber?: number,
+              groupName?: string, raw: string, mark?: number, current?: number|null,
+              status: "new"|"changed"|"unchanged"|"skipped"|"error", error?: string }[],
+      notInFile: { groupNumber: number, groupName?: string }[] } }
+  ```
+  `row` counts from 1 and includes the heading row. `current` is what is stored now, so the preview can show the change. `status` is `new` (no mark yet), `changed`, `unchanged`, `skipped` (a blank mark, left as it is), or `error`. A row's `error` explains the problem: a missing group, a group not in this assessment, an ambiguous name, a duplicate earlier in the file, a mark that is not a number, a mark outside `0..maxMark`, or one with more than one decimal place. `notInFile` lists participating groups the file says nothing about; they keep their current mark.
+
+- **200 (commit):** `{ "result": { "changed": number, "invalidatedCalculation": boolean } }`. The commit is all or nothing: it refuses the whole file if any row is in `error`. Each mark it writes is audited one group at a time as `marks.entered`, exactly as typing it in would be. A mark that changes on a calculated assessment clears `calculatedAt` and `calculation_run_id` and returns `invalidatedCalculation: true`.
+- **Errors:** `400 bad_request` for an upload larger than 5 MB or one that cannot be read, a missing file ("Choose a file to upload."), a file with no group or mark column, a file with a heading row but no marks under it, and (on commit) `"N row(s) in the file have a problem, so no marks were saved."` when any row is in `error`. `404`.
+
+### This assessment's rating values (`/scale`)
+
+The rating values and factor limits one assessment's calculation uses (OR-19). A lecturer may give an assessment its own, or leave it on the system defaults an administrator keeps (see [System settings](#system-settings-apisettings)). What the calculation reads is the two layered together: an option or limit the lecturer did not change follows the system value. **Lecturer only.** The values never reach a student (SR-08), so these routes are not open to students the way `rating-options` is.
+
+The `Scale` shape is shared with the settings routes:
+
+```ts
+Scale = { options: { id, label, description, order,
+                     hiddenValue: number,     // the value this assessment will use
+                     defaultValue: number }[], // the system value, to show what changed
+          minFactor: number, maxFactor: number,  // the limits in force
+          defaults: { minFactor, maxFactor },     // the system limits
+          customised: boolean }                   // true when this assessment has values of its own
+```
+
+#### `GET /api/assessments/:assessmentId/scale`
+
+- **200:** `{ "scale": Scale }`.
+- **Errors:** `404`.
+
+#### `PUT /api/assessments/:assessmentId/scale`
+
+Sets this assessment's own values.
+
+- **Body:** `{ "values": { "<ratingOptionId>": number, ... }, "minFactor": number, "maxFactor": number }`. `values` must name every active option. Each value is 0 to 1000 with at most three decimal places, and no option may be worth more than the one students see above it. `minFactor` is more than 0 and at most 1; `maxFactor` is at least 1 and at most 2; both at most three decimal places.
+- **200:** `{ "scale": Scale, "invalidatedCalculation": boolean }`. Only values that differ from the system default are stored, so an option left alone keeps following it. Changing the scale makes calculated marks out of date, exactly as a changed base mark does: `invalidatedCalculation` is `true` when the assessment had been calculated, and `calculatedAt` and `calculation_run_id` are cleared. Audited as `scale.updated`. Saving the form unchanged writes nothing.
+- **Errors:** `400 bad_request`, with `fields` keyed `value.<ratingOptionId>`, `minFactor` or `maxFactor`, or a message naming an option that does not exist. `404`.
+
+#### `DELETE /api/assessments/:assessmentId/scale`
+
+Returns the assessment to the system defaults, removing its own values and limits.
+
+- **Body:** none.
+- **200:** `{ "scale": Scale, "invalidatedCalculation": boolean }`, as for `PUT`. Audited as `scale.updated`.
+- **Errors:** `404`.
+
 ### `POST /api/assessments/:assessmentId/calculate`
 
-Runs the Felder calculation (FR-22) with the current `DEFAULT_CONFIG` in `server/src/lib/felder.ts`. It stores a new `calculation_runs` row, which freezes the config used, and replaces the assessment's `calculated_results`.
+Runs the Felder calculation (FR-22) with the current `DEFAULT_CONFIG` in `server/src/lib/felder.ts`, overlaid with the assessment's effective scale: its own rating values and factor limits where the lecturer set them, the system defaults otherwise. It stores a new `calculation_runs` row, which freezes both the config and the scale used (the rating values behind each option, by id and label), and replaces the assessment's `calculated_results`. Freezing the scale keeps an old run explainable after an administrator or lecturer changes the values.
 
 - **Body:** `{ "overrides"?: "keep" | "withdraw" }`. Required once any student in the assessment has an override (FR-24): `keep` leaves each override in force and updates its stored calculated mark to the new run's, and `withdraw` deletes them. Each is audited individually. An override for a student with no mark in the new run is withdrawn either way.
 - **200:** `{ "run": { runId, calculatedAt, students: number, flagged: number } }`
@@ -526,7 +591,8 @@ The results table and its drill-down (FR-26). Only lecturers can call this, and 
                 baseMark: number|null, finalMark: number|null,
                 flags: ResultFlag[],
                 override?: { mark, reason, by: string /* "Name Surname" */, at },
-                received: { evaluator: { id, name, surname }, ratingOptionId, comment: string|null }[] }
+                received: { evaluator: { id, name, surname }, ratingOptionId,
+                            value?: number, comment: string|null }[] }
 
   ResultFlag = "uniform-rating" | "reciprocal-extreme" | "isolated-outlier" | "incomplete-group"
              | "low-contribution" | "no-submission" | "group-of-two" | "group-of-one"
@@ -534,7 +600,7 @@ The results table and its drill-down (FR-26). Only lecturers can call this, and 
              | "capped-at-maximum"
   ```
 
-  `received` lists the ratings the student received in **submitted** evaluations, the same ratings the calculation used. Ratings in drafts that were never submitted are left out.
+  `received` lists the ratings the student received in **submitted** evaluations, the same ratings the calculation used. Since 2026-10-10 that includes the student's own rating of themselves, which counts towards their mark. Ratings in drafts that were never submitted are left out. Each entry's `value` is the number the rating counted for in the current run, read from the scale the run froze, so it still matches the mark after the system values change. It is left out for a run made before the scale was frozen when the option cannot be matched.
 
 ### `POST /api/assessments/:assessmentId/override`
 
@@ -599,15 +665,15 @@ Source: `server/src/routes/student.ts`, `services/student.ts` and `services/eval
     assessment: { id, name, description, status, opensAt, closesAt, closedAt? },
     klass: { id, moduleCode, name },
     group: { id, groupNumber },
-    members: { id, name, surname }[],        // the rest of the group, without the student (BR-02)
+    members: { id, name, surname }[],        // the rest of the group; the student is left out here
     submission?: { id, status: "draft"|"submitted", submittedAt? } }
   ```
 
-  The response contains no marks, factors, rating values or e-mail addresses (SR-08).
+  `members` leaves the signed-in student out. Since 2026-10-10 the student also rates themselves, so the web app adds them back from the session. The response contains no marks, factors, rating values or e-mail addresses (SR-08).
 
 ### `GET /api/student/evaluations/:assessmentId`
 
-- **200:** `{ "context": { assessmentId, groupId, peerIds: string[], status, submission?: { id, status, submittedAt? } }, "entries": RatingEntry[] }`. `entries` holds the student's own saved or submitted ratings and nothing about anybody else's (SR-08). The evaluation form loads from it, so a draft follows the student to another device (CI-10).
+- **200:** `{ "context": { assessmentId, groupId, peerIds: string[], status, submission?: { id, status, submittedAt? } }, "entries": RatingEntry[] }`. Since 2026-10-10 `peerIds` is the student's whole group, themselves included: every member they are expected to rate. `entries` holds the student's own saved or submitted ratings and nothing about anybody else's (SR-08). The evaluation form loads from it, so a draft follows the student to another device (CI-10).
 - **Errors:** `404` when the assessment does not exist, or the student's group does not take part in it.
 
 ### Rating payload
@@ -629,10 +695,28 @@ This is autosave (CI-10). A partial draft is allowed.
 
 ### `POST /api/student/evaluations/:assessmentId/submit`
 
-Submits the evaluation, or amends a submitted one while the assessment is still open (FR-16). Every peer must be rated.
+Submits the evaluation, or amends a submitted one while the assessment is still open (FR-16). Every group member must be rated, the student themselves included (since 2026-10-10).
 
-- **200:** `{ "submission": { id, status: "submitted", submittedAt, ratingCount } }`. When an evaluation is amended, the original `submittedAt` is kept.
-- **Errors:** `400 bad_request` with `fields.missing` holding a comma-separated list of the unrated peer ids (BR-04). `409 conflict` when the assessment is closed (OR-08), when its closing time has passed (BR-05: the closing time ends submissions, whether or not the lecturer has closed the assessment yet), when it is not yet open, or when the student is in a group of one. The remaining errors are the same as for the draft endpoint.
+- **200:** `{ "submission": { id, status: "submitted", submittedAt, ratingCount } }`. When an evaluation is amended, the original `submittedAt` is kept. `ratingCount` now includes the student's rating of themselves.
+- **Errors:** `400 bad_request` with `fields.missing` holding a comma-separated list of the unrated member ids, which can include the student's own id (BR-04). `409 conflict` when the assessment is closed (OR-08), when its closing time has passed (BR-05: the closing time ends submissions, whether or not the lecturer has closed the assessment yet), when it is not yet open, or when the student is in a group of one ("There's nobody else in your group to rate." - a self-rating alone adjusts nothing). The remaining errors are the same as for the draft endpoint.
+
+---
+
+## System settings (`/api/settings`)
+
+Source: `server/src/routes/settings.ts` and `services/scale.ts`. **Every route requires `requireAuth` and `requireRole("admin")`.** These routes hold the system-wide rating values and factor limits (OR-19): the defaults every assessment calculates with unless its lecturer gave it values of its own. A lecturer adjusts an assessment's own scale through [`/api/assessments/:assessmentId/scale`](#this-assessments-rating-values-scale); the system defaults are the administrator's, because a change here reaches every lecturer's next calculation. The values never reach a student (SR-08). The [`Scale`](#this-assessments-rating-values-scale) shape is the one the assessment routes return; for the system scale, `customised` is always `false` and each option's `defaultValue` equals its `hiddenValue`.
+
+### `GET /api/settings/scale`
+
+- **200:** `{ "scale": Scale }`: the current system values and limits, or `felder.ts`'s defaults where none have ever been saved.
+
+### `PUT /api/settings/scale`
+
+Changes the system defaults.
+
+- **Body:** `{ "values": { "<ratingOptionId>": number, ... }, "minFactor": number, "maxFactor": number }`, validated exactly as the per-assessment `PUT` is: every active option named, each value 0 to 1000 with at most three decimal places and no higher than the option above it, `minFactor` in `(0, 1]`, `maxFactor` in `[1, 2]`.
+- **200:** `{ "scale": Scale }`. Assessments already calculated keep their marks, because each run froze the scale it used; the change reaches a student's mark only when a lecturer calculates again. Audited as `scale.updated` with no class. Saving the form unchanged writes nothing.
+- **Errors:** `400 bad_request`, with `fields` keyed `value.<ratingOptionId>`, `minFactor` or `maxFactor`, or a message naming an option that does not exist. `401`, `403`.
 
 ---
 
