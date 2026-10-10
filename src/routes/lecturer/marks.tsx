@@ -1,9 +1,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { AlertTriangle, Check, Loader2, Sigma } from "lucide-react";
+import { AlertTriangle, Check, FileUp, Loader2, Sigma } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { MarkImportDialog } from "@/components/lecturer/MarkImportDialog";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { GroupLabel } from "@/components/shared/GroupLabel";
@@ -89,6 +90,7 @@ function MarkEntryPage() {
   const [states, setStates] = useState<Record<string, RowState>>({});
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [overrideChoice, setOverrideChoice] = useState<"keep" | "withdraw" | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   // Seed the inputs once the saved marks arrive.
   /**
@@ -237,9 +239,41 @@ function MarkEntryPage() {
         description={
           <>
             {klass?.moduleCode} · {assessment.name} · enter the mark each group earned for the work
-            itself. Peerly then adjusts it per student using their peer ratings.
+            itself, or upload them all from a file. Peerly then adjusts it per student using their
+            peer ratings.
           </>
         }
+        actions={
+          <Button variant="outline" className="h-10 px-4" onClick={() => setImportOpen(true)}>
+            <FileUp aria-hidden="true" />
+            Upload marks
+          </Button>
+        }
+      />
+
+      <MarkImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        assessmentId={assessment.id}
+        maxMark={maxMark}
+        onSaved={async ({ changed, invalidatedCalculation }) => {
+          // The boxes were seeded from the old marks; clear them so they are
+          // seeded again from what the file just stored.
+          setValues({});
+          setErrors({});
+          setStates({});
+          if (invalidatedCalculation) {
+            await queryClient.invalidateQueries();
+            toast.warning(
+              `${changed} ${changed === 1 ? "mark" : "marks"} saved. The marks calculated earlier are now out of date, so calculate again before you look at results or export.`,
+            );
+          } else {
+            await queryClient.invalidateQueries({ queryKey: ["group-marks", activeAssessmentId] });
+            toast.success(
+              `${changed} ${changed === 1 ? "group mark" : "group marks"} saved from the file.`,
+            );
+          }
+        }}
       />
 
       <div className="grid gap-3 sm:grid-cols-3">

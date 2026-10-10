@@ -32,7 +32,7 @@ import {
   getAssessment,
   getGroups,
   getPeerRatings,
-  getRatingOptions,
+  getAssessmentScale,
   getResults,
   getSubmissions,
 } from "@/services/peerly";
@@ -92,7 +92,12 @@ function MatrixPage() {
     queryKey: ["peer-ratings", activeAssessmentId],
     queryFn: () => getPeerRatings(activeAssessmentId),
   });
-  const optionsQuery = useQuery({ queryKey: ["rating-options"], queryFn: getRatingOptions });
+  // This assessment's own values where the lecturer set them (OR-19).
+  const optionsQuery = useQuery({
+    queryKey: ["assessment-scale", activeAssessmentId],
+    queryFn: () => getAssessmentScale(activeAssessmentId),
+    select: (scale) => scale?.options ?? [],
+  });
   const resultsQuery = useQuery({
     queryKey: ["results", activeAssessmentId],
     queryFn: () => getResults(activeAssessmentId),
@@ -305,26 +310,16 @@ function MatrixPage() {
                   </th>
 
                   {row.cells.map((cell) => {
-                    if (cell.isSelf) {
-                      return (
-                        <td
-                          key={cell.evaluatedId}
-                          className="border-l bg-muted/50 px-4 py-3.5 text-center text-muted-foreground"
-                        >
-                          <span aria-label="Not applicable - a student does not rate themselves">
-                            -
-                          </span>
-                        </td>
-                      );
-                    }
-
                     if (!cell.ratingOption) {
                       return (
                         <td
                           key={cell.evaluatedId}
-                          className="border-l px-4 py-3.5 align-top text-sm text-muted-foreground italic"
+                          className={cn(
+                            "border-l px-4 py-3.5 align-top text-sm text-muted-foreground italic",
+                            cell.isSelf && "bg-muted/50",
+                          )}
                         >
-                          Not rated
+                          {cell.isSelf ? "No self-rating" : "Not rated"}
                         </td>
                       );
                     }
@@ -339,6 +334,9 @@ function MatrixPage() {
                         key={cell.evaluatedId}
                         className={cn(
                           "border-l px-4 py-3.5 align-top",
+                          // A self-rating sits on the diagonal, shaded apart from
+                          // the peer ratings around it.
+                          cell.isSelf && "bg-muted/50",
                           deviation === "above" && "bg-success-muted/60",
                           deviation === "below" && "bg-danger-muted/60",
                         )}
@@ -368,6 +366,11 @@ function MatrixPage() {
                             >
                               {cell.ratingOption.label}
                             </span>
+                            {cell.isSelf ? (
+                              <span className="block text-xs text-muted-foreground">
+                                Self-rating
+                              </span>
+                            ) : null}
                             <span className="mt-0.5 block text-xs tabular-nums text-muted-foreground">
                               {cell.ratingOption.hiddenValue}
                             </span>

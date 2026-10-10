@@ -20,6 +20,7 @@ import { COMMENT_LIMIT, useDraftProgress, useEvaluationDraft } from "@/lib/evalu
 import { formatDateTimeLong, formatDeadline } from "@/lib/format";
 import { closedAtOf } from "@/lib/assessment-form";
 import { useSession } from "@/lib/session";
+import { rateesFor } from "@/lib/ratees";
 import { acceptsWork } from "@/lib/student-dashboard";
 import { cn } from "@/lib/utils";
 import { getStudentRatingOptions, getStudentAssessment } from "@/services/peerly";
@@ -49,7 +50,8 @@ function EvaluationForm() {
     queryFn: getStudentRatingOptions,
   });
 
-  const members = useMemo(() => view.data?.members ?? [], [view.data]);
+  // Everyone the student rates, themselves first (2026-10-10).
+  const members = useMemo(() => rateesFor(view.data?.members ?? [], user), [view.data, user]);
   const memberIds = useMemo(() => members.map((m) => m.id), [members]);
 
   const { draft, hydrated, justSaved, isSubmitted, setRating, setComment } = useEvaluationDraft(
@@ -135,8 +137,8 @@ function EvaluationForm() {
         backLabel="Your assessments"
         description={
           <>
-            {klass.moduleCode} · <GroupLabel group={group} /> · rate each of your {members.length}{" "}
-            group members.
+            {klass.moduleCode} · <GroupLabel group={group} /> · rate all {members.length} members of
+            your group, yourself included.
           </>
         }
       />
@@ -197,6 +199,9 @@ function EvaluationForm() {
               title={
                 <>
                   {member.name} {member.surname}
+                  {member.isSelf ? (
+                    <span className="font-normal text-muted-foreground"> (you)</span>
+                  ) : null}
                   <GroupLeaderBadge leader={group.leaderStudentId === member.id} className="ml-2" />
                 </>
               }
@@ -223,7 +228,9 @@ function EvaluationForm() {
             <div className="space-y-4 px-5 py-5 sm:px-6">
               <fieldset>
                 <legend className="mb-2 text-sm font-medium text-foreground">
-                  How did {member.name} contribute to the group's work?
+                  {member.isSelf
+                    ? "How did you contribute to the group's work?"
+                    : `How did ${member.name} contribute to the group's work?`}
                 </legend>
                 <RatingScale
                   options={options.data ?? []}
@@ -235,7 +242,9 @@ function EvaluationForm() {
 
               <div className="space-y-1.5">
                 <Label htmlFor={commentId}>
-                  Comment about {member.name}{" "}
+                  {member.isSelf
+                    ? "Comment about your own contribution"
+                    : `Comment about ${member.name}`}{" "}
                   <span className="font-normal text-muted-foreground">(optional)</span>
                 </Label>
                 <Textarea
@@ -244,7 +253,11 @@ function EvaluationForm() {
                   maxLength={COMMENT_LIMIT}
                   value={entry.comment ?? ""}
                   onChange={(event) => setComment(member.id, event.target.value)}
-                  placeholder="Anything your lecturer should know about how this person worked with the group."
+                  placeholder={
+                    member.isSelf
+                      ? "Anything your lecturer should know about the work you did for the group."
+                      : "Anything your lecturer should know about how this person worked with the group."
+                  }
                 />
                 <p className="text-right text-xs tabular-nums text-muted-foreground">
                   {(entry.comment ?? "").length} / {COMMENT_LIMIT}

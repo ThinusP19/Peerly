@@ -13,6 +13,7 @@ import {
   ScrollText,
   Settings,
   Sigma,
+  SlidersHorizontal,
   Users,
   UsersRound,
   type LucideIcon,
@@ -72,6 +73,7 @@ const lecturerNav = [
 const adminNav = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/admin/accounts", label: "Lecturer & Admin Accounts", icon: Users },
+  { to: "/admin/rating-values", label: "Rating Values", icon: SlidersHorizontal },
   { to: "/admin/audit", label: "Audit Log", icon: ScrollText },
   { to: "/admin/settings", label: "Settings", icon: Settings },
 ] as const satisfies readonly NavItem[];

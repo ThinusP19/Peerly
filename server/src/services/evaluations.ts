@@ -6,8 +6,10 @@ import { inSouthAfrica } from "../lib/mail.ts";
 /**
  * Capturing and submitting a peer evaluation (FR-15, FR-16, FR-17).
  *
- * The database already refuses self-evaluation, duplicate pairs and rating
- * outside your own group (BR-01, BR-02, BR-03, OR-07). Nothing here re-implements
+ * The database already refuses duplicate pairs and rating outside your own
+ * group (BR-01, BR-03, OR-07). Rating yourself is allowed and expected: since
+ * 2026-10-10 every member rates the whole group, themselves included, as the
+ * client's Felder spreadsheet does. Nothing here re-implements
  * those; the checks below exist to turn a refusal into a sentence a student can
  * act on, rather than to be the only thing standing in the way. Delete every
  * check in this file and the rules still hold - the messages just get worse.
@@ -25,7 +27,7 @@ export interface RatingEntry {
 export interface EvaluationContext {
   assessmentId: string;
   groupId: string;
-  /** Who this student is expected to rate: their group, minus themselves. */
+  /** Who this student is expected to rate: their whole group, themselves included. */
   peerIds: string[];
   status: "draft" | "open" | "closed";
   /** #13: no work before it, even once the lecturer has opened it early. */
@@ -59,7 +61,7 @@ export async function getEvaluationContext(
     `SELECT g.id AS group_id, a.status, a.opens_at, a.closes_at,
             (SELECT array_agg(peer.student_id)
                FROM group_members peer
-              WHERE peer.group_id = g.id AND peer.student_id <> $1) AS peer_ids,
+              WHERE peer.group_id = g.id) AS peer_ids,
             s.id AS submission_id, s.status AS submission_status, s.submitted_at
        FROM group_members mine
        JOIN groups g ON g.id = mine.group_id
@@ -129,7 +131,7 @@ function validateEntries(entries: RatingEntry[], context: EvaluationContext, com
   for (const entry of entries) {
     if (entry.evaluatedStudentId === undefined) continue;
 
-    // BR-02. The database would refuse this too; saying so plainly is kinder
+    // BR-01. The database would refuse this too; saying so plainly is kinder
     // than a constraint violation.
     if (!context.peerIds.includes(entry.evaluatedStudentId)) {
       throw badRequest("You can only rate the members of your own group.");
@@ -307,9 +309,10 @@ export async function submitEvaluation(
   const context = await getEvaluationContext(studentId, assessmentId);
   requireOpen(context);
 
-  if (context.peerIds.length === 0) {
-    // A group of one has nobody to rate. Better to say so than to accept an
-    // empty submission that means nothing.
+  if (context.peerIds.length < 2) {
+    // A group of one has nobody to rate but themselves, and a self-rating
+    // alone adjusts nothing. Better to say so than to accept a submission
+    // that means nothing.
     throw conflict("There's nobody else in your group to rate.");
   }
 

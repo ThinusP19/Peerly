@@ -40,8 +40,9 @@ test("a student rates their group, submits, and the lecturer sees it", async ({ 
   );
   const outstanding = group?.outstanding[0];
   expect(outstanding, "the seed should leave someone outstanding").toBeTruthy();
-  const peerCount = group.members.length - 1;
-  expect(peerCount, "the incomplete-review check needs at least two peers").toBeGreaterThan(1);
+  // Everyone in the group, the student themselves included (2026-10-10).
+  const rateeCount = group.members.length;
+  expect(rateeCount, "the incomplete-review check needs at least two ratees").toBeGreaterThan(1);
 
   const context = await browser.newContext({ baseURL: "http://127.0.0.1:7331" });
   const page = await context.newPage();
@@ -64,14 +65,16 @@ test("a student rates their group, submits, and the lecturer sees it", async ({ 
     page.getByRole("heading", { name: open.assessment.name, exact: true }),
   ).toBeVisible();
 
-  // Wait for the form itself, not for the network. Every peer is on the one
-  // page, each with their own scale. Check the exact count from that group's
-  // roster, so a different assessment cannot pass just by having several peers.
+  // Wait for the form itself, not for the network. Everyone the student rates
+  // is on the one page, each with their own scale, themselves first. Check the
+  // exact count from that group's roster, so a different assessment cannot
+  // pass just by having several members.
   await expect(page.getByRole("radiogroup").first()).toBeVisible();
   await expect(
     page.getByRole("radiogroup"),
-    "every peer in the seeded group should have a rating scale",
-  ).toHaveCount(peerCount);
+    "every member of the seeded group, the student included, should have a rating scale",
+  ).toHaveCount(rateeCount);
+  await expect(page.getByText(/how did you contribute/i)).toBeVisible();
 
   // FR-16: submission is refused while anyone is unrated, and says who.
   await page.getByRole("radiogroup").first().getByRole("radio").nth(1).check();
@@ -89,10 +92,12 @@ test("a student rates their group, submits, and the lecturer sees it", async ({ 
   // Go back and finish the rest.
   await page.goBack();
   await expect(page.getByRole("radiogroup").first()).toBeVisible();
-  for (let i = 0; i < peerCount; i += 1) {
+  for (let i = 0; i < rateeCount; i += 1) {
     await page.getByRole("radiogroup").nth(i).getByRole("radio").nth(1).check();
   }
-  await expect(page.getByText(new RegExp(`${peerCount} of ${peerCount} rated`, "i"))).toBeVisible();
+  await expect(
+    page.getByText(new RegExp(`${rateeCount} of ${rateeCount} rated`, "i")),
+  ).toBeVisible();
 
   await page
     .getByRole("link", { name: /review/i })

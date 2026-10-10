@@ -21,6 +21,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { FormField } from "@/components/shared/FormField";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PanelHeader } from "@/components/shared/PanelHeader";
+import { CalculationExplainer, ScaleEditor } from "@/components/shared/ScaleEditor";
 import { ProgressBar } from "@/components/shared/ProgressBar";
 import { StatCard } from "@/components/shared/StatCard";
 import { AssessmentStatusBadge } from "@/components/shared/AssessmentStatusBadge";
@@ -40,11 +41,14 @@ import {
   deleteAssessment,
   getAssessment,
   getAssessmentDeletionImpact,
+  getAssessmentScale,
   getAssessments,
   getGroups,
   getSubmissions,
   reopenAssessment,
   updateAssessment,
+  updateAssessmentScale,
+  type ScaleChanges,
 } from "@/services/peerly";
 import { titleHead } from "@/lib/page-title";
 
@@ -71,6 +75,28 @@ function AssessmentDetailPage() {
     queryKey: ["assessment", assessmentId],
     queryFn: () => getAssessment(assessmentId),
   });
+  // OR-19: the values this assessment will be calculated with.
+  const scaleQuery = useQuery({
+    queryKey: ["assessment-scale", assessmentId],
+    queryFn: () => getAssessmentScale(assessmentId),
+  });
+  const saveScale = async (changes: ScaleChanges | null) => {
+    const { scale, invalidatedCalculation } = await updateAssessmentScale(assessmentId, changes);
+    queryClient.setQueryData(["assessment-scale", assessmentId], scale);
+    if (invalidatedCalculation) {
+      // FR-13: the calculated marks used the old values.
+      await queryClient.invalidateQueries();
+      toast.warning(
+        "Rating values saved. The marks calculated earlier are now out of date, so calculate again before you look at results or export.",
+      );
+    } else {
+      toast.success(
+        changes
+          ? "Rating values saved for this assessment."
+          : "This assessment now uses the system defaults.",
+      );
+    }
+  };
   // FR-28: whether deleting would lose the only copy of these results. Asked of
   // the server, because it is a fact about what is stored rather than about
   // what this screen happens to have loaded.
@@ -311,6 +337,20 @@ function AssessmentDetailPage() {
             tone={submitted === expected ? "success" : "warning"}
           />
         </Card>
+      ) : null}
+
+      {scaleQuery.data ? (
+        <>
+          <ScaleEditor
+            scale={scaleQuery.data}
+            title="Rating values for this assessment"
+            description="The value behind each rating option when this assessment's marks are calculated. Students never see these. Change them here to differ from the system defaults for this assessment only."
+            showDefaults
+            onSave={(changes) => saveScale(changes)}
+            onReset={() => saveScale(null)}
+          />
+          <CalculationExplainer scale={scaleQuery.data} />
+        </>
       ) : null}
 
       <Card className="flex min-h-0 flex-col overflow-hidden rounded-2xl border-0 shadow-card">

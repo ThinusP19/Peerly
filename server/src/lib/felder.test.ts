@@ -189,6 +189,80 @@ describe("the agreed scale, end to end", () => {
   });
 });
 
+describe("self-ratings count, as in the client's spreadsheet (2026-10-10)", () => {
+  // Group mark 70. Each member rated by the other two, and by themselves.
+  //   a: peers 94, 94; self 100 -> mean 96
+  //   b: peers 89, 89; self 89  -> mean 89
+  //   c: peers 79, 79; self 94  -> mean 84
+  // Group mean = (96 + 89 + 84) / 3 = 269 / 3.
+  const memberIds = ["a", "b", "c"];
+  const ratings: Rating[] = [
+    { evaluatorId: "b", evaluatedId: "a", value: 94 },
+    { evaluatorId: "c", evaluatedId: "a", value: 94 },
+    { evaluatorId: "a", evaluatedId: "a", value: 100 },
+    { evaluatorId: "a", evaluatedId: "b", value: 89 },
+    { evaluatorId: "c", evaluatedId: "b", value: 89 },
+    { evaluatorId: "b", evaluatedId: "b", value: 89 },
+    { evaluatorId: "a", evaluatedId: "c", value: 79 },
+    { evaluatorId: "b", evaluatedId: "c", value: 79 },
+    { evaluatorId: "c", evaluatedId: "c", value: 94 },
+  ];
+  const input = group({ memberIds, ratings, submittedIds: memberIds, baseMark: 70 });
+
+  it("is the agreed rule", () => {
+    expect(DEFAULT_CONFIG.countSelfRatings).toBe(true);
+  });
+
+  it("counts a self-rating like any other, with figures worked out by hand", () => {
+    const results = calculateGroup(input);
+    // 96 / (269 / 3) = 288 / 269 = 1.070631... x 70 = 74.944... -> 74.9
+    expect(byId(results, "a").ratingsReceived).toBe(3);
+    expect(byId(results, "a").meanReceived).toBe(96);
+    expect(byId(results, "a").finalMark).toBe(74.9);
+    // 267 / 269 = 0.992565... x 70 = 69.479... -> 69.5
+    expect(byId(results, "b").finalMark).toBe(69.5);
+    // 252 / 269 = 0.936802... x 70 = 65.576... -> 65.6
+    expect(byId(results, "c").finalMark).toBe(65.6);
+  });
+
+  it("ignores self-ratings entirely when the setting is off", () => {
+    const results = calculateGroup(input, { ...DEFAULT_CONFIG, countSelfRatings: false });
+    // Peers only: 94, 89, 79; group mean 262 / 3.
+    // 282 / 262 = 1.076335... x 70 = 75.343... -> 75.3
+    expect(byId(results, "a").ratingsReceived).toBe(2);
+    expect(byId(results, "a").finalMark).toBe(75.3);
+    // 267 / 262 x 70 = 71.335... -> 71.3
+    expect(byId(results, "b").finalMark).toBe(71.3);
+    // 237 / 262 x 70 = 63.320... -> 63.3
+    expect(byId(results, "c").finalMark).toBe(63.3);
+  });
+
+  it("flags a member rated only by themselves as not peer assessed", () => {
+    const selfOnly: Rating[] = [
+      { evaluatorId: "a", evaluatedId: "a", value: 100 },
+      ...uniformRatings(["b", "c"], 89),
+    ];
+    const results = calculateGroup(
+      group({ memberIds, ratings: selfOnly, submittedIds: memberIds }),
+    );
+
+    expect(byId(results, "a").flags).toContain("not-peer-assessed");
+    expect(byId(results, "b").flags).not.toContain("not-peer-assessed");
+  });
+
+  it("never reads a self-rating as a dispute with somebody else", () => {
+    const harsh: Rating[] = [
+      ...ratings.filter((rating) => rating.evaluatedId !== "c"),
+      { evaluatorId: "a", evaluatedId: "c", value: 89 },
+      { evaluatorId: "b", evaluatedId: "c", value: 89 },
+      { evaluatorId: "c", evaluatedId: "c", value: 59 },
+    ];
+    const results = calculateGroup(group({ memberIds, ratings: harsh, submittedIds: memberIds }));
+
+    expect(byId(results, "c").flags).not.toContain("reciprocal-extreme");
+  });
+});
+
 describe("FR-23 - the edge cases, each named", () => {
   it("case 1: a student who submitted nothing is still marked on what they received", () => {
     // Withholding their mark would be a penalty, and FR-20 says indicators are

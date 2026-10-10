@@ -169,8 +169,8 @@ describe("each run records what it used (OR-09)", () => {
     expect(rows[0]!.rule_version).toBe(DEFAULT_CONFIG.ruleVersion);
     expect(rows[0]!.config.minFactor).toBe(DEFAULT_CONFIG.minFactor);
     expect(rows[0]!.config.roundTo).toBe(DEFAULT_CONFIG.roundTo);
-    expect(rows[0]!.config.scale[0]).toEqual({ label: "Excellent", value: 100 });
-    expect(rows[0]!.config.scale.at(-1)).toEqual({ label: "No contribution", value: 59 });
+    expect(rows[0]!.config.scale[0]).toMatchObject({ label: "Excellent", value: 100 });
+    expect(rows[0]!.config.scale.at(-1)).toMatchObject({ label: "No contribution", value: 59 });
   });
 });
 

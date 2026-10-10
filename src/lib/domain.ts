@@ -80,7 +80,7 @@ export const resultFlagMeta: Record<
   "not-peer-assessed": {
     label: "Not peer assessed",
     description:
-      "Nobody in the group rated this student, so there is no factor to apply. They receive the group mark unchanged, which is not a peer-assessed mark.",
+      "No other group member rated this student. With no ratings at all they receive the group mark unchanged; with only their own rating of themselves, their factor rests on that opinion alone. Either way it is not a peer-assessed mark.",
     tone: "danger",
   },
   "zero-base-mark": {
@@ -133,6 +133,7 @@ export const auditEventMeta: Record<AuditEventType, string> = {
   "evaluation.amended": "Evaluation amended",
   "enrolment.matched": "Student matched to class list",
   "enrolment.conflict": "Match conflict flagged",
+  "scale.updated": "Rating values changed",
 };
 
 /* ------------------------------------------------------------------ *
@@ -249,12 +250,14 @@ export function buildMatrix(
     const submission = submissions.find((s) => s.evaluatorStudentId === evaluatorId);
     const given = submission ? ratings.filter((r) => r.submissionId === submission.id) : [];
 
+    // The diagonal is the student's rating of themselves, which counts towards
+    // their mark like any other since 2026-10-10. It stays marked as self so
+    // the screen can set it apart.
     const cells: MatrixCell[] = memberIds.map((evaluatedId) => {
-      if (evaluatedId === evaluatorId) return { evaluatedId, isSelf: true };
       const rating = given.find((r) => r.evaluatedStudentId === evaluatedId);
       return {
         evaluatedId,
-        isSelf: false,
+        isSelf: evaluatedId === evaluatorId,
         ratingOption: rating ? optionById.get(rating.ratingOptionId) : undefined,
         comment: rating?.comment,
       };

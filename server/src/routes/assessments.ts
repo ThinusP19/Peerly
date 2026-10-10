@@ -18,6 +18,11 @@ import {
   setGroupBaseMark,
   updateAssessment,
 } from "../services/assessment-writes.ts";
+import { getAssessmentScale, updateAssessmentScale } from "../services/scale.ts";
+import { commitMarkImport, previewMarkImport } from "../services/mark-import.ts";
+import { badRequest } from "../middleware/errors.ts";
+import { classListUpload } from "./uploads.ts";
+import { scaleBody } from "./settings.ts";
 import {
   getGroupMarks,
   getGroupProgress,
@@ -163,6 +168,68 @@ assessmentRoutes.put("/:assessmentId/marks/:groupId", requireRole("lecturer"), a
     currentUser(req).user,
   );
   res.json({ ok: true, ...outcome });
+});
+
+/**
+ * Every group's base mark from one .csv or .xlsx file (FR-21).
+ *
+ * `commit` absent or false: a preview of what each row would do, which writes
+ * nothing. `commit` true: the same file applied, all or nothing. The file is
+ * sent twice rather than held between the two, because SR-10 says an upload
+ * is never kept.
+ */
+assessmentRoutes.post(
+  "/:assessmentId/marks/import",
+  requireRole("lecturer"),
+  (req, res, next) =>
+    classListUpload(req, res, (error: unknown) => {
+      if (!error) return next();
+      const code = (error as { code?: string }).code;
+      next(
+        badRequest(
+          code === "LIMIT_FILE_SIZE"
+            ? "That file is larger than 5 MB. Please upload a smaller one."
+            : "We couldn't read that upload. Please choose a .csv or .xlsx file.",
+        ),
+      );
+    }),
+  async (req, res) => {
+    const { assessmentId: id } = assessmentId.parse(req.params);
+    const user = currentUser(req).user;
+    if (!req.file) throw badRequest("Choose a file to upload.");
+
+    const commit = z.object({ commit: z.enum(["true", "false"]).optional() }).parse(req.body ?? {});
+    if (commit.commit === "true") {
+      res.json({ result: await commitMarkImport(id, req.file, user) });
+    } else {
+      res.json({ preview: await previewMarkImport(id, req.file, user) });
+    }
+  },
+);
+
+/* ------------------------------------------------------------------ *
+ * This assessment's rating values and factor limits - OR-19
+ * ------------------------------------------------------------------ */
+
+/**
+ * The values the calculation will use for this assessment, beside the system
+ * defaults. Lecturer only: the values never reach a student (SR-08).
+ */
+assessmentRoutes.get("/:assessmentId/scale", requireRole("lecturer"), async (req, res) => {
+  const { assessmentId: id } = assessmentId.parse(req.params);
+  res.json({ scale: await getAssessmentScale(id, currentUser(req).user) });
+});
+
+assessmentRoutes.put("/:assessmentId/scale", requireRole("lecturer"), async (req, res) => {
+  const { assessmentId: id } = assessmentId.parse(req.params);
+  const body = scaleBody.parse(req.body);
+  res.json(await updateAssessmentScale(id, body, currentUser(req).user));
+});
+
+/** Back to the system defaults. */
+assessmentRoutes.delete("/:assessmentId/scale", requireRole("lecturer"), async (req, res) => {
+  const { assessmentId: id } = assessmentId.parse(req.params);
+  res.json(await updateAssessmentScale(id, null, currentUser(req).user));
 });
 
 /* ------------------------------------------------------------------ *

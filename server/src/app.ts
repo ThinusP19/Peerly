@@ -12,6 +12,7 @@ import { auditRoutes } from "./routes/audit.ts";
 import { authRoutes } from "./routes/auth.ts";
 import { assessmentRoutes } from "./routes/assessments.ts";
 import { classRoutes } from "./routes/classes.ts";
+import { settingsRoutes } from "./routes/settings.ts";
 import { studentRoutes } from "./routes/student.ts";
 
 export function createApp() {
@@ -75,6 +76,7 @@ export function createApp() {
   app.use("/api/student", studentRoutes);
   app.use("/api/audit", auditRoutes);
   app.use("/api/accounts", accountRoutes);
+  app.use("/api/settings", settingsRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

@@ -17,6 +17,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNow } from "@/hooks/use-now";
 import { ApiError } from "@/lib/api";
+import { rateesFor } from "@/lib/ratees";
 import { useDraftProgress, useEvaluationDraft } from "@/lib/evaluation-draft";
 import { formatDateTimeLong } from "@/lib/format";
 import { useSession } from "@/lib/session";
@@ -50,7 +51,8 @@ function ReviewPage() {
     queryFn: getStudentRatingOptions,
   });
 
-  const members = useMemo(() => view.data?.members ?? [], [view.data]);
+  // Everyone the student rates, themselves first (2026-10-10).
+  const members = useMemo(() => rateesFor(view.data?.members ?? [], user), [view.data, user]);
   const memberIds = useMemo(() => members.map((m) => m.id), [members]);
 
   const { draft, hydrated, markSubmitted } = useEvaluationDraft(assessmentId, studentId);
@@ -191,14 +193,14 @@ function ReviewPage() {
               {missingMembers.map((member, index) => (
                 <span key={member.id}>
                   {index ? ", " : ""}
-                  {member.name} {member.surname}
+                  {member.isSelf ? "yourself" : `${member.name} ${member.surname}`}
                   <GroupLeaderBadge leader={group.leaderStudentId === member.id} className="ml-2" />
                 </span>
               ))}{" "}
               yet.
             </p>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Every group member needs a rating before you can submit.
+              Everyone in your group, you included, needs a rating before you can submit.
             </p>
           </div>
         </div>
@@ -221,6 +223,9 @@ function ReviewPage() {
               title={
                 <>
                   {member.name} {member.surname}
+                  {member.isSelf ? (
+                    <span className="font-normal text-muted-foreground"> (you)</span>
+                  ) : null}
                   <GroupLeaderBadge leader={group.leaderStudentId === member.id} className="ml-2" />
                 </>
               }
@@ -235,7 +240,9 @@ function ReviewPage() {
                     Edit
                     <span className="sr-only">
                       {" "}
-                      your rating for {member.name} {member.surname}
+                      {member.isSelf
+                        ? "your rating of yourself"
+                        : `your rating for ${member.name} ${member.surname}`}
                     </span>
                   </Link>
                 </Button>
@@ -246,7 +253,11 @@ function ReviewPage() {
               {missing ? (
                 <div className="flex gap-2.5 rounded-lg border border-warning/30 bg-warning-muted p-3 text-sm text-warning">
                   <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-                  <p>You haven't chosen a rating for {member.name} yet.</p>
+                  <p>
+                    {member.isSelf
+                      ? "You haven't rated yourself yet."
+                      : `You haven't chosen a rating for ${member.name} yet.`}
+                  </p>
                 </div>
               ) : (
                 <div>

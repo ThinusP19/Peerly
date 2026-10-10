@@ -48,7 +48,8 @@ export type AuditEventType =
   | "evaluation.submitted"
   | "evaluation.amended"
   | "enrolment.matched"
-  | "enrolment.conflict";
+  | "enrolment.conflict"
+  | "scale.updated";
 
 export interface Actor {
   id?: string | undefined;

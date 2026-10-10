@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEvaluationDraft } from "@/lib/evaluation-draft";
+import { rateesFor } from "@/lib/ratees";
 import { formatDateTimeLong, isOverdue } from "@/lib/format";
 import { closedAtOf } from "@/lib/assessment-form";
 import { useSession } from "@/lib/session";
@@ -41,7 +42,8 @@ function SubmittedPage() {
 
   const { draft, hydrated, isSubmitted, reopen } = useEvaluationDraft(assessmentId, studentId);
 
-  const members = useMemo(() => view.data?.members ?? [], [view.data]);
+  // Everyone the student rates, themselves first (2026-10-10).
+  const members = useMemo(() => rateesFor(view.data?.members ?? [], user), [view.data, user]);
   const optionById = useMemo(
     () => new Map((options.data ?? []).map((option) => [option.id, option])),
     [options.data],
@@ -120,7 +122,10 @@ function SubmittedPage() {
               Group members rated
             </dt>
             <dd className="text-sm break-words text-foreground tabular-nums sm:text-right">
-              {members.length} of {members.length}
+              {/* Counted, not assumed: an evaluation submitted before self-ratings
+                  were asked for has none. */}
+              {members.filter((m) => draft.entries[m.id]?.ratingOptionId).length} of{" "}
+              {members.length}
             </dd>
           </div>
           <div className="flex flex-col gap-1 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6">
@@ -142,6 +147,9 @@ function SubmittedPage() {
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                   <p className="min-w-0 text-sm font-semibold text-foreground">
                     {member.name} {member.surname}
+                    {member.isSelf ? (
+                      <span className="font-normal text-muted-foreground"> (you)</span>
+                    ) : null}
                     <GroupLeaderBadge
                       leader={group.leaderStudentId === member.id}
                       className="ml-2"

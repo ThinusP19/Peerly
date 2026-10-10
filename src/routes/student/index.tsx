@@ -295,10 +295,11 @@ function ActionCard({
         <div className="flex items-center gap-2 text-sm text-foreground">
           <Users className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           <span>
+            {/* The group, plus the student themselves (2026-10-10). */}
             <span className="font-semibold">
-              {members.length} {members.length === 1 ? "person" : "people"}
+              {members.length ? members.length + 1 : 0} people
             </span>{" "}
-            to rate
+            to rate{members.length ? ", including you" : ""}
           </span>
         </div>
 

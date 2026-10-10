@@ -20,12 +20,14 @@ export function FileUpload({
   onFileChange,
   accept = ".csv,.xlsx",
   acceptLabel = "Accepted formats: .csv and .xlsx · maximum 5 MB",
+  prompt = "Drag your class list here, or browse for it",
   className,
 }: {
   file: File | null;
   onFileChange: (file: File | null) => void;
   accept?: string;
   acceptLabel?: string;
+  prompt?: string;
   className?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -107,9 +109,7 @@ export function FileUpload({
           <UploadCloud className="size-5" aria-hidden="true" />
         </span>
         <div className="space-y-1">
-          <p className="text-sm font-semibold text-foreground">
-            Drag your class list here, or browse for it
-          </p>
+          <p className="text-sm font-semibold text-foreground">{prompt}</p>
           <p className="text-xs text-muted-foreground">{acceptLabel}</p>
         </div>
         <Button variant="outline" size="sm" onClick={() => inputRef.current?.click()}>

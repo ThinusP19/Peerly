@@ -86,11 +86,22 @@ export interface CalculationConfig {
    * Excellent and got No contribution back - which is what "extremes" says.
    */
   reciprocalThreshold: number;
+  /**
+   * Whether a member's rating of themselves counts towards their own mean.
+   *
+   * True, decided 2026-10-10 on client feedback: the client's Felder
+   * spreadsheet counts self-ratings, and every member now rates the whole
+   * group, themselves included. Kept as a setting (OR-19) so a run says which
+   * rule it used, and so turning it back off is a configuration change. Off,
+   * a self-rating is ignored everywhere in the calculation, flags included.
+   */
+  countSelfRatings: boolean;
 }
 
 /** The values this module was built and tested against. */
 export const DEFAULT_CONFIG: CalculationConfig = {
-  ruleVersion: "felder-2026.3-provisional",
+  // 2026.4: self-ratings count (2026-10-10).
+  ruleVersion: "felder-2026.4-provisional",
   // Confirmed 2026-09-22.
   minFactor: 0.6,
   maxFactor: 1.1,
@@ -104,6 +115,8 @@ export const DEFAULT_CONFIG: CalculationConfig = {
   outlierThreshold: 20,
   // Effectively opposite ends of a 59-100 scale. Provisional, as above.
   reciprocalThreshold: 40,
+  // Confirmed 2026-10-10.
+  countSelfRatings: true,
 };
 
 export type ResultFlag =
@@ -211,7 +224,12 @@ export function calculateGroup(
   config: CalculationConfig = DEFAULT_CONFIG,
   limits: AssessmentLimits = {},
 ): StudentResult[] {
-  const { memberIds, baseMark, ratings } = group;
+  const { memberIds, baseMark } = group;
+  // With self-ratings off, they are dropped here, before anything reads them,
+  // so no step below can count one by accident.
+  const ratings = config.countSelfRatings
+    ? group.ratings
+    : group.ratings.filter((rating) => rating.evaluatorId !== rating.evaluatedId);
   const submitted = new Set(group.submittedIds);
   const unmatched = new Set(group.unmatchedIds ?? []);
 
@@ -272,9 +290,7 @@ export function calculateGroup(
       rawFactor = null;
       adjustmentFactor = config.neutralFactor;
 
-      // FR-23 case two: nobody rated this student, so their mark was not peer
-      // assessed at all. A group of one already says so in its own flag.
-      if (meanReceived === null && memberIds.length > 1) flags.add("not-peer-assessed");
+      // FR-23 case two is flagged below, with the self-rated-only case.
       // FR-22: the whole group was rated at the bottom and receives the base
       // mark unadjusted - which the lecturer must see was not an adjustment.
       if (groupMean === 0) flags.add("zero-group-mean");
@@ -285,6 +301,15 @@ export function calculateGroup(
       // the final step, so the mark is computed from the factor as it is.
       adjustmentFactor = clamp(rawFactor, config.minFactor, config.maxFactor);
     }
+
+    // FR-23 case two: no peer rated this student, so their mark was not peer
+    // assessed. That includes a member whose only rating is their own - their
+    // factor then rests on their own opinion alone, which the lecturer must
+    // see. A group of one already says so in its own flag.
+    const peerRatings = ratings.filter(
+      (rating) => rating.evaluatedId === studentId && rating.evaluatorId !== studentId,
+    ).length;
+    if (peerRatings === 0 && memberIds.length > 1) flags.add("not-peer-assessed");
 
     // FR-23 case six: a base mark of zero makes every mark zero. Correct, but
     // flagged, so a mark left at zero in error is not mistaken for a decision.
@@ -311,7 +336,8 @@ export function calculateGroup(
     // A pair who rated each other at opposite ends usually means a dispute
     // rather than a difference in contribution.
     for (const rating of ratings) {
-      if (rating.evaluatedId !== studentId) continue;
+      // Their rating of themselves is not a dispute with anybody.
+      if (rating.evaluatedId !== studentId || rating.evaluatorId === studentId) continue;
       const back = ratings.find(
         (other) => other.evaluatorId === studentId && other.evaluatedId === rating.evaluatorId,
       );

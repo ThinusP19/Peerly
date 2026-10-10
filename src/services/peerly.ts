@@ -437,6 +437,100 @@ export const createStaffAccount = async (input: Omit<User, "id" | "createdAt" | 
  * Null clears it, and null is not zero: zero is a mark the group earned, and
  * null is one the lecturer has not entered yet.
  */
+/* ---------------------- rating values (OR-19) ---------------------- */
+
+export interface FactorLimits {
+  minFactor: number;
+  maxFactor: number;
+}
+
+/** A rating option with the value the calculation will use. Staff only. */
+export interface ScaleOption extends RatingOption {
+  /** The system-wide value, beside whatever is in force here. */
+  defaultValue: number;
+}
+
+export interface Scale extends FactorLimits {
+  options: ScaleOption[];
+  defaults: FactorLimits;
+  /** True when an assessment has values or limits of its own. */
+  customised: boolean;
+}
+
+export interface ScaleChanges extends FactorLimits {
+  /** Every option's value, by option id. */
+  values: Record<string, number>;
+}
+
+/** The system-wide values and limits. Administrator only. */
+export const getDefaultScale = async (): Promise<Scale> =>
+  (await get<{ scale: Scale }>("/api/settings/scale")).scale;
+
+export const updateDefaultScale = async (changes: ScaleChanges): Promise<Scale> =>
+  (await request<{ scale: Scale }>("/api/settings/scale", { method: "PUT", body: changes })).scale;
+
+/** The values one assessment will be calculated with, beside the defaults. */
+export const getAssessmentScale = async (assessmentId: string): Promise<Scale | null> =>
+  unset(assessmentId)
+    ? null
+    : (await get<{ scale: Scale }>(`/api/assessments/${assessmentId}/scale`)).scale;
+
+/**
+ * Sets this assessment's own values, or with `null` returns it to the system
+ * defaults. Changing them makes calculated marks out of date (FR-13).
+ */
+export const updateAssessmentScale = (assessmentId: string, changes: ScaleChanges | null) =>
+  request<{ scale: Scale; invalidatedCalculation: boolean }>(
+    `/api/assessments/${assessmentId}/scale`,
+    changes ? { method: "PUT", body: changes } : { method: "DELETE" },
+  );
+
+/* ------------------------- base marks from a file ------------------------- */
+
+export interface MarkImportRow {
+  row: number;
+  group: string;
+  groupId?: string;
+  groupNumber?: number;
+  groupName?: string;
+  raw: string;
+  mark?: number;
+  current?: number | null;
+  status: "new" | "changed" | "unchanged" | "skipped" | "error";
+  error?: string;
+}
+
+export interface MarkImportPreview {
+  columns: { group: string; mark: string };
+  rows: MarkImportRow[];
+  notInFile: Array<{ groupNumber: number; groupName?: string }>;
+}
+
+const markFile = (file: File, commit: boolean) => {
+  const body = new FormData();
+  body.append("file", file);
+  body.append("commit", String(commit));
+  return body;
+};
+
+/** What each row of a marks file would do. Writes nothing. */
+export const previewMarkImport = async (assessmentId: string, file: File) =>
+  (
+    await uploadJson<{ preview: MarkImportPreview }>(
+      `/api/assessments/${assessmentId}/marks/import`,
+      markFile(file, false),
+    )
+  ).preview;
+
+/** Applies a marks file, all or nothing. */
+export const commitMarkImport = async (assessmentId: string, file: File) =>
+  (
+    await uploadJson<{ result: { changed: number; invalidatedCalculation: boolean } }>(
+      `/api/assessments/${assessmentId}/marks/import`,
+      markFile(file, true),
+    )
+  ).result;
+
 export const setGroupBaseMark = (assessmentId: string, groupId: string, baseMark: number | null) =>
   // invalidatedCalculation: the change made the calculated marks out of date,
   // and they have to be calculated again before results or an export (FR-13).
@@ -850,7 +944,13 @@ export interface ResultRow {
   group: Group;
   baseMark: number | null;
   /** Every rating this student received, with who gave it. */
-  received: Array<{ evaluator: User; ratingOptionId: string; comment?: string }>;
+  received: Array<{
+    evaluator: User;
+    ratingOptionId: string;
+    /** What this rating counted for in the run the mark came from. */
+    value?: number;
+    comment?: string;
+  }>;
 }
 
 /** Results summary rows, joined to everything the drill-down needs. */
@@ -891,6 +991,7 @@ export const getResultRows = async (assessmentId: string): Promise<ResultRow[]> 
     received: row.received.map((entry) => ({
       evaluator: entry.evaluator as unknown as User,
       ratingOptionId: entry.ratingOptionId,
+      ...(entry.value !== undefined ? { value: entry.value } : {}),
       ...(entry.comment ? { comment: entry.comment } : {}),
     })),
   }));
@@ -916,6 +1017,7 @@ interface ApiResultRow {
   received: Array<{
     evaluator: { id: string; name: string; surname: string };
     ratingOptionId: string;
+    value?: number;
     comment?: string;
   }>;
 }

@@ -451,7 +451,9 @@ function ResultsPage() {
                           <li key={entry.evaluator.id} className="space-y-2 px-4 py-3">
                             <div className="flex flex-wrap items-baseline justify-between gap-2">
                               <p className="text-sm text-muted-foreground">
-                                from {entry.evaluator.name} {entry.evaluator.surname}
+                                {entry.evaluator.id === drillDown.student.id
+                                  ? "their own rating of themselves"
+                                  : `from ${entry.evaluator.name} ${entry.evaluator.surname}`}
                                 <GroupLeaderBadge
                                   leader={drillDown.group.leaderStudentId === entry.evaluator.id}
                                   className="ml-2"
@@ -460,7 +462,8 @@ function ResultsPage() {
                               <p className="text-sm font-semibold text-foreground">
                                 {option?.label}{" "}
                                 <span className="text-xs font-normal text-muted-foreground tabular-nums">
-                                  ({option?.hiddenValue})
+                                  {/* The value this rating counted for in this run. */}(
+                                  {entry.value ?? option?.hiddenValue})
                                 </span>
                               </p>
                             </div>

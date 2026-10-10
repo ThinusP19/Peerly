@@ -22,6 +22,7 @@ import { Route as StudentRouteRouteImport } from './routes/student/route'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminAccountsRouteImport } from './routes/admin/accounts'
 import { Route as AdminAuditRouteImport } from './routes/admin/audit'
+import { Route as AdminRatingValuesRouteImport } from './routes/admin/rating-values'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as LecturerIndexRouteImport } from './routes/lecturer/index'
 import { Route as LecturerAuditRouteImport } from './routes/lecturer/audit'
@@ -110,6 +111,11 @@ const AdminAccountsRoute = AdminAccountsRouteImport.update({
 const AdminAuditRoute = AdminAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminRatingValuesRoute = AdminRatingValuesRouteImport.update({
+  id: '/rating-values',
+  path: '/rating-values',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
@@ -252,6 +258,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/admin/accounts': typeof AdminAccountsRoute
   '/admin/audit': typeof AdminAuditRoute
+  '/admin/rating-values': typeof AdminRatingValuesRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/lecturer/audit': typeof LecturerAuditRoute
   '/lecturer/export': typeof LecturerExportRoute
@@ -288,6 +295,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/admin/accounts': typeof AdminAccountsRoute
   '/admin/audit': typeof AdminAuditRoute
+  '/admin/rating-values': typeof AdminRatingValuesRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/lecturer/audit': typeof LecturerAuditRoute
   '/lecturer/export': typeof LecturerExportRoute
@@ -328,6 +336,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/admin/accounts': typeof AdminAccountsRoute
   '/admin/audit': typeof AdminAuditRoute
+  '/admin/rating-values': typeof AdminRatingValuesRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/lecturer/audit': typeof LecturerAuditRoute
   '/lecturer/export': typeof LecturerExportRoute
@@ -369,6 +378,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/admin/accounts'
     | '/admin/audit'
+    | '/admin/rating-values'
     | '/admin/settings'
     | '/lecturer/audit'
     | '/lecturer/export'
@@ -405,6 +415,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/admin/accounts'
     | '/admin/audit'
+    | '/admin/rating-values'
     | '/admin/settings'
     | '/lecturer/audit'
     | '/lecturer/export'
@@ -444,6 +455,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/admin/accounts'
     | '/admin/audit'
+    | '/admin/rating-values'
     | '/admin/settings'
     | '/lecturer/audit'
     | '/lecturer/export'
@@ -575,6 +587,13 @@ declare module '@tanstack/react-router' {
       path: '/audit'
       fullPath: '/admin/audit'
       preLoaderRoute: typeof AdminAuditRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/rating-values': {
+      id: '/admin/rating-values'
+      path: '/rating-values'
+      fullPath: '/admin/rating-values'
+      preLoaderRoute: typeof AdminRatingValuesRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/settings': {
@@ -751,6 +770,7 @@ declare module '@tanstack/react-router' {
 interface AdminRouteRouteChildren {
   AdminAccountsRoute: typeof AdminAccountsRoute
   AdminAuditRoute: typeof AdminAuditRoute
+  AdminRatingValuesRoute: typeof AdminRatingValuesRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
@@ -758,6 +778,7 @@ interface AdminRouteRouteChildren {
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminAccountsRoute: AdminAccountsRoute,
   AdminAuditRoute: AdminAuditRoute,
+  AdminRatingValuesRoute: AdminRatingValuesRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminIndexRoute: AdminIndexRoute,
 }

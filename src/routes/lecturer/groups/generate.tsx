@@ -337,7 +337,8 @@ function GenerateGroupsPage() {
                   {tooSmall ? (
                     <p className="flex items-start gap-2 border-b bg-warning-muted/40 px-5 py-2.5 text-xs text-warning sm:px-6">
                       <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-                      Too small to run a peer assessment.
+                      Too small to run a peer assessment: with fewer than two members, nobody has a
+                      group member to rate. Move a student into it before confirming.
                     </p>
                   ) : null}
 

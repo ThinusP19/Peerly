@@ -91,12 +91,26 @@ describe("buildMatrix (FR-19)", () => {
     expect(matrix.memberIds).toEqual(["s1", "s2", "s3"]);
   });
 
-  it("marks the diagonal as self and never rates it", () => {
+  it("marks the diagonal as self, empty where nobody rated themselves", () => {
     matrix.rows.forEach((row, index) => {
       const diagonal = row.cells[index];
       expect(diagonal.isSelf).toBe(true);
       expect(diagonal.ratingOption).toBeUndefined();
     });
+  });
+
+  it("shows a self-rating on the diagonal, and counts it like any other (2026-10-10)", () => {
+    const withSelf = buildMatrix(
+      group,
+      submissions,
+      [...ratings, rating("s1", "s1", "ro-5")],
+      options,
+    );
+    const s1 = withSelf.rows.find((row) => row.evaluatorId === "s1")!;
+    expect(s1.cells[0]!.isSelf).toBe(true);
+    expect(s1.cells[0]!.ratingOption?.id).toBe("ro-5");
+    // s1 received 50 from s2 and 50 from themselves.
+    expect(withSelf.columnMeans[0]).toBe(50);
   });
 
   it("distinguishes a non-submitting evaluator from a low rating (user story 9)", () => {

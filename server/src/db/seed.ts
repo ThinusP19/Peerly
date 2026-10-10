@@ -459,8 +459,8 @@ async function seed() {
           );
           submitted += 1;
 
+          // Everyone rates the whole group, themselves included (2026-10-10).
           for (const evaluated of memberIds) {
-            if (evaluated === evaluator) continue;
             // Weighted towards the upper half of the scale, which is what real
             // peer ratings look like, with enough spread to make the matrix and
             // the free-rider flags worth looking at.

@@ -12,6 +12,7 @@ import { badRequest, conflict, notFoundOrForbidden } from "../middleware/errors.
 import { getAssessment } from "./assessments.ts";
 import { record } from "./audit.ts";
 import { getClass, type Asker } from "./classes.ts";
+import { effectiveScale } from "./scale.ts";
 
 /**
  * Running the calculation and reading its results (FR-22, FR-24, FR-26, OR-09).
@@ -62,9 +63,14 @@ async function gatherGroups(assessmentId: string): Promise<GroupInput[]> {
     evaluated_id: string;
     value: string;
   }>(
-    `SELECT r.group_id, r.evaluator_id, r.evaluated_id, o.hidden_value AS value
+    // The assessment's own value where the lecturer set one, the system value
+    // otherwise - the same layering effectiveScale shows them.
+    `SELECT r.group_id, r.evaluator_id, r.evaluated_id,
+            coalesce(v.hidden_value, o.hidden_value) AS value
        FROM peer_ratings r
        JOIN rating_options o ON o.id = r.rating_option_id
+       LEFT JOIN assessment_rating_values v
+         ON v.assessment_id = r.assessment_id AND v.rating_option_id = o.id
        JOIN submissions s ON s.id = r.submission_id
       WHERE r.assessment_id = $1
         -- A draft is not a submission. Counting one would let a student move a
@@ -171,15 +177,12 @@ export async function runCalculation(
     );
   }
 
-  // BR-07: the assessment's maximum caps every mark the factor would lift above it.
-  const results = calculateAssessment(groups, DEFAULT_CONFIG, { maxMark: assessment.maxMark });
+  // The factor limits in force for this assessment: its own, or the system's.
+  const scale = await effectiveScale(assessmentId);
+  const config = { ...DEFAULT_CONFIG, minFactor: scale.minFactor, maxFactor: scale.maxFactor };
 
-  // The scale is frozen with the run alongside the config (OR-09): ratings
-  // point at options by id, so without this a later change to the scale would
-  // leave an old run's marks unexplainable from what was stored.
-  const { rows: scale } = await query<{ label: string; hidden_value: string }>(
-    "SELECT label, hidden_value FROM rating_options ORDER BY display_order",
-  );
+  // BR-07: the assessment's maximum caps every mark the factor would lift above it.
+  const results = calculateAssessment(groups, config, { maxMark: assessment.maxMark });
 
   return withTransaction(async (sql) => {
     const { rows: run } = await sql.query<{ id: string; created_at: Date }>(
@@ -188,14 +191,20 @@ export async function runCalculation(
       [
         assessmentId,
         user.id,
-        DEFAULT_CONFIG.ruleVersion,
+        config.ruleVersion,
+        // The scale is frozen with the run alongside the config (OR-09):
+        // ratings point at options by id, and the values behind them can now
+        // be changed by an administrator or the lecturer, so without this a
+        // later change would leave an old run's marks unexplainable.
         JSON.stringify({
-          ...DEFAULT_CONFIG,
+          ...config,
           // The ceiling the marks were capped at (BR-07), which can change later.
           maxMark: assessment.maxMark,
-          scale: scale.map((option) => ({
+          customisedScale: scale.customised,
+          scale: scale.options.map((option) => ({
+            id: option.id,
             label: option.label,
-            value: Number(option.hidden_value),
+            value: option.hiddenValue,
           })),
         }),
       ],
@@ -298,11 +307,13 @@ export async function runCalculation(
         eventType: "marks.calculated",
         objectDescription: `${klass.moduleCode} · ${assessment.name}`,
         detail:
-          `Calculated ${results.length} individual mark(s) using ${DEFAULT_CONFIG.ruleVersion}; ` +
+          `Calculated ${results.length} individual mark(s) using ${config.ruleVersion}` +
+          (scale.customised ? " with this assessment's own rating values" : "") +
+          "; " +
           `${flagged} flagged for review.`,
         classId: assessment.classId,
         assessmentId,
-        after: { runId, ruleVersion: DEFAULT_CONFIG.ruleVersion, students: results.length },
+        after: { runId, ruleVersion: config.ruleVersion, students: results.length },
       },
       sql,
     );
@@ -337,6 +348,12 @@ export interface ResultRow extends Omit<StudentResult, "flags"> {
   received: Array<{
     evaluator: { id: string; name: string; surname: string };
     ratingOptionId: string;
+    /**
+     * The value this rating counted for in the current run - read from the
+     * scale the run froze, so it matches the mark even after the system
+     * values have since been changed.
+     */
+    value?: number;
     comment?: string;
   }>;
 }
@@ -372,7 +389,7 @@ export async function getResults(assessmentId: string, asker: Asker): Promise<Re
     override_reason: string | null;
     override_by: string | null;
     override_at: Date | null;
-    received: ResultRow["received"] | null;
+    received: Array<ResultRow["received"][number] & { label: string }> | null;
   }>(
     `SELECT r.student_id, r.group_id, g.group_number, g.group_name, leader.student_id AS leader_id,
             u.name, u.surname, u.student_number,
@@ -383,10 +400,12 @@ export async function getResults(assessmentId: string, asker: Asker): Promise<Re
             (SELECT json_agg(json_build_object(
                       'evaluator', json_build_object('id', ev.id, 'name', ev.name, 'surname', ev.surname),
                       'ratingOptionId', pr.rating_option_id,
+                      'label', ro.label,
                       'comment', pr.comment)
                     ORDER BY ev.surname, ev.name)
                FROM peer_ratings pr
                JOIN users ev ON ev.id = pr.evaluator_id
+               JOIN rating_options ro ON ro.id = pr.rating_option_id
                -- The ratings the mark was calculated from, not drafts.
                JOIN submissions ps ON ps.id = pr.submission_id AND ps.status = 'submitted'
               WHERE pr.assessment_id = r.assessment_id AND pr.evaluated_id = r.student_id)
@@ -406,6 +425,15 @@ export async function getResults(assessmentId: string, asker: Asker): Promise<Re
   );
 
   const number = (value: string | null) => (value === null ? null : Number(value));
+
+  // The scale the current run used. Runs before 0009 froze it by label only.
+  const { rows: run } = await query<{
+    config: { scale?: Array<{ id?: string; label: string; value: number }> };
+  }>("SELECT config FROM calculation_runs WHERE id = $1", [assessment.calculationRunId ?? null]);
+  const frozen = run[0]?.config.scale ?? [];
+  const valueOf = (optionId: string, label: string) =>
+    (frozen.find((option) => option.id === optionId) ?? frozen.find((o) => o.label === label))
+      ?.value;
 
   return rows.map((row) => ({
     studentId: row.student_id,
@@ -437,7 +465,10 @@ export async function getResults(assessmentId: string, asker: Asker): Promise<Re
           },
         }
       : {}),
-    received: row.received ?? [],
+    received: (row.received ?? []).map(({ label, ...rating }) => {
+      const value = valueOf(rating.ratingOptionId, label);
+      return value === undefined ? rating : { ...rating, value };
+    }),
   }));
 }
 

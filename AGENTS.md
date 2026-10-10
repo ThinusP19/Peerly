@@ -26,9 +26,11 @@ how to merge to `main` when you are finished.
 
 - **Marks end up on an academic record.** Anything touching the calculation needs
   a test before it needs a commit. Use `numeric` in SQL, never a float.
-- **Business rules belong in the database.** Self-evaluation, duplicate ratings,
-  cross-group ratings and one-group-per-student are enforced by constraints, not
-  only by the interface. Keep it that way - the API can be called directly.
+- **Business rules belong in the database.** Duplicate ratings, cross-group
+  ratings, one-group-per-student and the rating-value limits are enforced by
+  constraints, not only by the interface. Keep it that way - the API can be
+  called directly. (Self-evaluation is **allowed** since 2026-10-10: every
+  member rates themselves too, and it counts towards their mark.)
 - **Enforce rules on the server, not in the screen.** Disabling a button is a
   courtesy; the endpoint is reachable without it. Several defects found on
   2026-09-23 were exactly this - a UI that refused and an API that did not.
@@ -37,7 +39,9 @@ how to merge to `main` when you are finished.
 - **The audit log is append-only.** Triggers refuse `UPDATE` and `DELETE`, and
   FR-27 means *every* write leaves an entry - not only the interesting ones.
 - **Changing the calculation's config changes marks.** Bump `ruleVersion` in
-  `DEFAULT_CONFIG` when you do, so old runs stay explainable.
+  `DEFAULT_CONFIG` when you do, so old runs stay explainable. The rating values
+  and factor limits are data, not code: an administrator edits the defaults and
+  a lecturer can override them per assessment (`server/src/services/scale.ts`).
 
 ## Commands
 

@@ -70,7 +70,7 @@ describe("getStudentAssessments", () => {
     expect(view!.group.groupNumber).toBe(3);
   });
 
-  it("lists the peers to rate, never the student themselves (BR-02)", async () => {
+  it("lists the other members by name; the screen adds the student themselves", async () => {
     const { students } = await scenario();
 
     const [view] = await getStudentAssessments(students[0]!.id);

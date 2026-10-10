@@ -99,7 +99,10 @@ export interface StudentAssessmentView {
   };
   klass: { id: string; moduleCode: string; name: string };
   group: { id: string; groupNumber: number; groupName?: string; leaderStudentId?: string };
-  /** Everyone in the group except the student themselves (BR-02). */
+  /**
+   * Everyone in the group except the student themselves. The evaluation also
+   * asks the student to rate themselves; the screen adds them from the session.
+   */
   members: StudentPeer[];
   submission?: { id: string; status: "draft" | "submitted"; submittedAt?: string };
 }

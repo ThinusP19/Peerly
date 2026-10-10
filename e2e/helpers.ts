@@ -55,7 +55,13 @@ export const LECTURER_PAGES = [
 
 export const STUDENT_PAGES = ["/student", "/student/group", "/student/guide", "/student/settings"];
 
-export const ADMIN_PAGES = ["/admin", "/admin/accounts", "/admin/audit", "/admin/settings"];
+export const ADMIN_PAGES = [
+  "/admin",
+  "/admin/accounts",
+  "/admin/rating-values",
+  "/admin/audit",
+  "/admin/settings",
+];
 
 /** Where each role's saved session cookie lives. */
 export const storageStateFor = (role: string) =>

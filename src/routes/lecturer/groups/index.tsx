@@ -17,6 +17,9 @@ import { useClassRoster, useLecturerContext } from "@/hooks/use-lecturer-context
 import { getEnrolmentRows, getGroups, getGroupsEditable } from "@/services/peerly";
 import { titleHead } from "@/lib/page-title";
 
+const TOO_SMALL_EXPLANATION =
+  "Too small: this group has fewer than two members, so nobody in it has a group member to rate and no peer-adjusted mark can be worked out. Move another student into it, or leave it out of assessments.";
+
 export const Route = createFileRoute("/lecturer/groups/")({
   head: () => titleHead("Groups"),
   component: GroupsOverview,
@@ -199,7 +202,19 @@ function GroupsOverview() {
                   description={group.groupName}
                   actions={
                     group.memberStudentIds.length < 2 ? (
-                      <StatusBadge status="conflict" label="Too small" />
+                      // Explained on hover or focus, and in the card below for
+                      // touch screens, where nothing hovers (client feedback
+                      // 2026-10-10: the badge alone didn't say what it meant).
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span tabIndex={0} className="cursor-help rounded-md">
+                            <StatusBadge status="conflict" label="Too small" />
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          {TOO_SMALL_EXPLANATION}
+                        </TooltipContent>
+                      </Tooltip>
                     ) : (
                       <span className="text-sm text-muted-foreground tabular-nums">
                         {group.memberStudentIds.length} members
@@ -207,6 +222,12 @@ function GroupsOverview() {
                     )
                   }
                 />
+                {group.memberStudentIds.length < 2 ? (
+                  <p className="flex items-start gap-2 border-b bg-warning-muted/40 px-5 py-2.5 text-xs text-warning sm:px-6">
+                    <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+                    {TOO_SMALL_EXPLANATION}
+                  </p>
+                ) : null}
                 <ul className="flex-1 divide-y">
                   {members.map((member) => (
                     <li

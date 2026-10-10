@@ -70,6 +70,8 @@ async function scenario(status: "draft" | "open" | "closed" = "open", groupSize 
     options: options.map((o) => o.id),
     me: students[0]!,
     peers: students.slice(1),
+    /** Everyone the student rates: the whole group, themselves included. */
+    everyone: students,
   };
 }
 
@@ -77,12 +79,12 @@ const rateAll = (peers: string[], optionId: string): RatingEntry[] =>
   peers.map((id) => ({ evaluatedStudentId: id, ratingOptionId: optionId }));
 
 describe("getEvaluationContext", () => {
-  it("names the peers to rate, excluding the student themselves (BR-02)", async () => {
-    const { assessmentId, me, peers } = await scenario();
+  it("names everyone to rate, the student themselves included (2026-10-10)", async () => {
+    const { assessmentId, me, everyone } = await scenario();
 
     const context = await getEvaluationContext(me, assessmentId);
-    expect(context.peerIds.sort()).toEqual([...peers].sort());
-    expect(context.peerIds).not.toContain(me);
+    expect(context.peerIds.sort()).toEqual([...everyone].sort());
+    expect(context.peerIds).toContain(me);
   });
 
   it("refuses an assessment the student's group takes no part in", async () => {
@@ -96,81 +98,86 @@ describe("getEvaluationContext", () => {
 });
 
 describe("submitEvaluation", () => {
-  it("records a rating for every peer", async () => {
+  it("records a rating for every member, the student's own included", async () => {
+    const { assessmentId, me, everyone, options } = await scenario();
+
+    const result = await submitEvaluation(me, assessmentId, rateAll(everyone, options[0]!));
+    expect(result.status).toBe("submitted");
+    expect(result.ratingCount).toBe(4);
+
+    const { rows } = await query(
+      "SELECT 1 FROM peer_ratings WHERE evaluator_id = $1 AND evaluated_id = $1",
+      [me],
+    );
+    expect(rows).toHaveLength(1);
+  });
+
+  it("refuses an evaluation without the student's own rating, and names them (FR-16)", async () => {
     const { assessmentId, me, peers, options } = await scenario();
 
-    const result = await submitEvaluation(me, assessmentId, rateAll(peers, options[0]!));
-    expect(result.status).toBe("submitted");
-    expect(result.ratingCount).toBe(3);
+    await expect(
+      submitEvaluation(me, assessmentId, rateAll(peers, options[0]!)),
+    ).rejects.toMatchObject({ fields: { missing: me } });
   });
 
   it("refuses an incomplete evaluation and names who is missing (FR-16)", async () => {
     const { assessmentId, me, peers, options } = await scenario();
 
     await expect(
-      submitEvaluation(me, assessmentId, rateAll(peers.slice(0, 2), options[0]!)),
+      submitEvaluation(me, assessmentId, rateAll([me, ...peers.slice(0, 2)], options[0]!)),
     ).rejects.toMatchObject({ fields: { missing: peers[2] } });
   });
 
   it("refuses a rating for someone outside the group (BR-01)", async () => {
-    const { assessmentId, me, peers, options } = await scenario();
+    const { assessmentId, me, options, everyone } = await scenario();
     const stranger = await createUser({ role: "student" });
 
     await expect(
       submitEvaluation(me, assessmentId, [
-        ...rateAll(peers, options[0]!),
+        ...rateAll(everyone, options[0]!),
         { evaluatedStudentId: stranger.id, ratingOptionId: options[0]! },
       ]),
     ).rejects.toThrow(/your own group/);
   });
 
-  it("refuses a self-evaluation (BR-02)", async () => {
-    const { assessmentId, me, peers, options } = await scenario();
-
-    await expect(
-      submitEvaluation(me, assessmentId, [
-        ...rateAll(peers, options[0]!),
-        { evaluatedStudentId: me, ratingOptionId: options[0]! },
-      ]),
-    ).rejects.toThrow(/your own group/);
-  });
-
   it("refuses rating the same person twice (BR-03)", async () => {
-    const { assessmentId, me, peers, options } = await scenario();
+    const { assessmentId, me, peers, options, everyone } = await scenario();
 
     await expect(
       submitEvaluation(me, assessmentId, [
-        ...rateAll(peers, options[0]!),
+        ...rateAll(everyone, options[0]!),
         { evaluatedStudentId: peers[0]!, ratingOptionId: options[1]! },
       ]),
     ).rejects.toThrow(/only be rated once/);
   });
 
   it("refuses an assessment that has not opened", async () => {
-    const { assessmentId, me, peers, options } = await scenario("draft");
+    const { assessmentId, me, options, everyone } = await scenario("draft");
 
-    await expect(submitEvaluation(me, assessmentId, rateAll(peers, options[0]!))).rejects.toThrow(
-      /hasn't opened/,
-    );
+    await expect(
+      submitEvaluation(me, assessmentId, rateAll(everyone, options[0]!)),
+    ).rejects.toThrow(/hasn't opened/);
   });
 
   it("refuses a closed assessment, however the request arrives (OR-08)", async () => {
-    const { assessmentId, me, peers, options } = await scenario("closed");
+    const { assessmentId, me, options, everyone } = await scenario("closed");
 
-    await expect(submitEvaluation(me, assessmentId, rateAll(peers, options[0]!))).rejects.toThrow(
-      /closed/,
+    await expect(
+      submitEvaluation(me, assessmentId, rateAll(everyone, options[0]!)),
+    ).rejects.toThrow(/closed/);
+  });
+
+  it("refuses a group of one, rather than accepting a self-rating that adjusts nothing", async () => {
+    const { assessmentId, me, options } = await scenario("open", 1);
+
+    await expect(submitEvaluation(me, assessmentId, rateAll([me], options[0]!))).rejects.toThrow(
+      /nobody else/,
     );
   });
 
-  it("refuses a group of one, rather than accepting an empty submission", async () => {
-    const { assessmentId, me } = await scenario("open", 1);
-
-    await expect(submitEvaluation(me, assessmentId, [])).rejects.toThrow(/nobody else/);
-  });
-
   it("stores an optional comment, and null where there is none (FR-17)", async () => {
-    const { assessmentId, me, peers, options } = await scenario();
-    const entries = rateAll(peers, options[0]!);
+    const { assessmentId, me, options, everyone } = await scenario();
+    const entries = rateAll(everyone, options[0]!);
     entries[0]!.comment = "  Carried the group.  ";
 
     await submitEvaluation(me, assessmentId, entries);
@@ -184,18 +191,18 @@ describe("submitEvaluation", () => {
   });
 
   it("refuses a comment over 500 characters", async () => {
-    const { assessmentId, me, peers, options } = await scenario();
-    const entries = rateAll(peers, options[0]!);
+    const { assessmentId, me, options, everyone } = await scenario();
+    const entries = rateAll(everyone, options[0]!);
     entries[0]!.comment = "x".repeat(501);
 
     await expect(submitEvaluation(me, assessmentId, entries)).rejects.toThrow(/500 characters/);
   });
 
   it("lets a student amend while the assessment is still open (FR-16)", async () => {
-    const { assessmentId, me, peers, options } = await scenario();
-    await submitEvaluation(me, assessmentId, rateAll(peers, options[0]!));
+    const { assessmentId, me, options, everyone } = await scenario();
+    await submitEvaluation(me, assessmentId, rateAll(everyone, options[0]!));
 
-    await submitEvaluation(me, assessmentId, rateAll(peers, options[8]!));
+    await submitEvaluation(me, assessmentId, rateAll(everyone, options[8]!));
 
     const { rows } = await query<{ rating_option_id: string; count: string }>(
       `SELECT rating_option_id, count(*) AS count FROM peer_ratings
@@ -204,24 +211,24 @@ describe("submitEvaluation", () => {
     );
     expect(rows).toHaveLength(1);
     expect(rows[0]!.rating_option_id).toBe(options[8]);
-    expect(Number(rows[0]!.count)).toBe(3);
+    expect(Number(rows[0]!.count)).toBe(4);
   });
 
   it("keeps the original submission time through an amendment", async () => {
-    const { assessmentId, me, peers, options } = await scenario();
-    const first = await submitEvaluation(me, assessmentId, rateAll(peers, options[0]!));
-    const second = await submitEvaluation(me, assessmentId, rateAll(peers, options[1]!));
+    const { assessmentId, me, options, everyone } = await scenario();
+    const first = await submitEvaluation(me, assessmentId, rateAll(everyone, options[0]!));
+    const second = await submitEvaluation(me, assessmentId, rateAll(everyone, options[1]!));
 
     expect(second.submittedAt).toBe(first.submittedAt);
   });
 
   it("leaves nothing behind when it refuses (OR-05)", async () => {
-    const { assessmentId, me, peers, options } = await scenario();
+    const { assessmentId, me, options, everyone } = await scenario();
     const stranger = await createUser({ role: "student" });
 
     await expect(
       submitEvaluation(me, assessmentId, [
-        ...rateAll(peers, options[0]!),
+        ...rateAll(everyone, options[0]!),
         { evaluatedStudentId: stranger.id, ratingOptionId: options[0]! },
       ]),
     ).rejects.toThrow();
@@ -234,28 +241,14 @@ describe("submitEvaluation", () => {
     const { assessmentId, students, options } = await scenario();
     const [a, b] = students as [string, string, string, string];
 
-    await submitEvaluation(
-      a,
-      assessmentId,
-      rateAll(
-        students.filter((s) => s !== a),
-        options[0]!,
-      ),
-    );
-    await submitEvaluation(
-      b,
-      assessmentId,
-      rateAll(
-        students.filter((s) => s !== b),
-        options[1]!,
-      ),
-    );
+    await submitEvaluation(a, assessmentId, rateAll(students, options[0]!));
+    await submitEvaluation(b, assessmentId, rateAll(students, options[1]!));
 
     const { rows } = await query<{ count: string }>(
       "SELECT count(*) AS count FROM peer_ratings WHERE evaluator_id = $1",
       [a],
     );
-    expect(Number(rows[0]!.count)).toBe(3);
+    expect(Number(rows[0]!.count)).toBe(4);
   });
 });
 
@@ -267,12 +260,12 @@ describe("the closing time closes it (BR-05)", () => {
     ]);
 
   it("refuses a submission once the closing time has passed", async () => {
-    const { assessmentId, me, peers, options } = await scenario();
+    const { assessmentId, me, options, everyone } = await scenario();
     await expire(assessmentId);
 
-    await expect(submitEvaluation(me, assessmentId, rateAll(peers, options[0]!))).rejects.toThrow(
-      /closing time/i,
-    );
+    await expect(
+      submitEvaluation(me, assessmentId, rateAll(everyone, options[0]!)),
+    ).rejects.toThrow(/closing time/i);
   });
 
   it("refuses a draft once the closing time has passed", async () => {
@@ -288,7 +281,7 @@ describe("the closing time closes it (BR-05)", () => {
     // The point of the requirement: the deadline decides, not the button. If
     // this ever passes because the status was flipped to closed, the test has
     // stopped testing anything.
-    const { assessmentId, me, peers, options } = await scenario("open");
+    const { assessmentId, me, options, everyone } = await scenario("open");
     await expire(assessmentId);
 
     const { rows } = await query<{ status: string }>(
@@ -296,15 +289,15 @@ describe("the closing time closes it (BR-05)", () => {
       [assessmentId],
     );
     expect(rows[0]!.status).toBe("open");
-    await expect(submitEvaluation(me, assessmentId, rateAll(peers, options[0]!))).rejects.toThrow(
-      /closing time/i,
-    );
+    await expect(
+      submitEvaluation(me, assessmentId, rateAll(everyone, options[0]!)),
+    ).rejects.toThrow(/closing time/i);
   });
 
   it("still accepts a submission before the closing time", async () => {
-    const { assessmentId, me, peers, options } = await scenario();
+    const { assessmentId, me, options, everyone } = await scenario();
 
-    const result = await submitEvaluation(me, assessmentId, rateAll(peers, options[0]!));
+    const result = await submitEvaluation(me, assessmentId, rateAll(everyone, options[0]!));
     expect(result.status).toBe("submitted");
   });
 });
@@ -322,10 +315,10 @@ describe("getOwnEntries (CI-10)", () => {
   });
 
   it("returns a submitted evaluation, so it can be viewed afterwards", async () => {
-    const { assessmentId, me, peers, options } = await scenario();
-    await submitEvaluation(me, assessmentId, rateAll(peers, options[0]!));
+    const { assessmentId, me, peers, options, everyone } = await scenario();
+    await submitEvaluation(me, assessmentId, rateAll(everyone, options[0]!));
 
-    expect(await getOwnEntries(me, assessmentId)).toHaveLength(peers.length);
+    expect(await getOwnEntries(me, assessmentId)).toHaveLength(everyone.length);
   });
 
   it("never returns another student's ratings (SR-08)", async () => {
@@ -406,8 +399,8 @@ describe("saveDraft (CI-10)", () => {
   });
 
   it("refuses once the evaluation has been submitted", async () => {
-    const { assessmentId, me, peers, options } = await scenario();
-    await submitEvaluation(me, assessmentId, rateAll(peers, options[0]!));
+    const { assessmentId, me, peers, options, everyone } = await scenario();
+    await submitEvaluation(me, assessmentId, rateAll(everyone, options[0]!));
 
     await expect(
       saveDraft(me, assessmentId, rateAll(peers.slice(0, 1), options[1]!)),
@@ -415,11 +408,11 @@ describe("saveDraft (CI-10)", () => {
   });
 
   it("becomes a submission when the student finishes", async () => {
-    const { assessmentId, me, peers, options } = await scenario();
+    const { assessmentId, me, peers, options, everyone } = await scenario();
     await saveDraft(me, assessmentId, rateAll(peers.slice(0, 2), options[0]!));
 
-    const result = await submitEvaluation(me, assessmentId, rateAll(peers, options[0]!));
-    expect(result.ratingCount).toBe(3);
+    const result = await submitEvaluation(me, assessmentId, rateAll(everyone, options[0]!));
+    expect(result.ratingCount).toBe(4);
 
     const { rows } = await query<{ count: string }>(
       "SELECT count(*) AS count FROM submissions WHERE evaluator_id = $1",
@@ -443,8 +436,8 @@ describe("the audit trail (FR-27)", () => {
     }>("SELECT * FROM audit_entries ORDER BY id");
 
   it("records a submission against the class and assessment", async () => {
-    const { assessmentId, classId, me, peers, options } = await scenario();
-    await submitEvaluation(me, assessmentId, rateAll(peers, options[0]!));
+    const { assessmentId, classId, me, options, everyone } = await scenario();
+    await submitEvaluation(me, assessmentId, rateAll(everyone, options[0]!));
 
     const { rows } = await entries();
     expect(rows).toHaveLength(1);
@@ -458,9 +451,9 @@ describe("the audit trail (FR-27)", () => {
   });
 
   it("records an amendment as an amendment", async () => {
-    const { assessmentId, me, peers, options } = await scenario();
-    await submitEvaluation(me, assessmentId, rateAll(peers, options[0]!));
-    await submitEvaluation(me, assessmentId, rateAll(peers, options[1]!));
+    const { assessmentId, me, options, everyone } = await scenario();
+    await submitEvaluation(me, assessmentId, rateAll(everyone, options[0]!));
+    await submitEvaluation(me, assessmentId, rateAll(everyone, options[1]!));
 
     const { rows } = await entries();
     expect(rows.map((row) => row.event_type)).toEqual([
@@ -470,9 +463,9 @@ describe("the audit trail (FR-27)", () => {
   });
 
   it("does not count a draft finished later as an amendment", async () => {
-    const { assessmentId, me, peers, options } = await scenario();
+    const { assessmentId, me, peers, options, everyone } = await scenario();
     await saveDraft(me, assessmentId, rateAll(peers.slice(0, 1), options[0]!));
-    await submitEvaluation(me, assessmentId, rateAll(peers, options[0]!));
+    await submitEvaluation(me, assessmentId, rateAll(everyone, options[0]!));
 
     const { rows } = await entries();
     expect(rows.map((row) => row.event_type)).toEqual(["evaluation.submitted"]);
@@ -481,13 +474,13 @@ describe("the audit trail (FR-27)", () => {
   it("never records what the ratings were", async () => {
     // The log is read by administrators; a rating's label, value and comment
     // are not theirs to see (SR-16).
-    const { assessmentId, me, peers, options } = await scenario();
-    const entriesWithComment = rateAll(peers, options[0]!).map((entry) => ({
+    const { assessmentId, me, peers, options, everyone } = await scenario();
+    const entriesWithComment = rateAll(everyone, options[0]!).map((entry) => ({
       ...entry,
       comment: "a private remark",
     }));
     await submitEvaluation(me, assessmentId, entriesWithComment);
-    await submitEvaluation(me, assessmentId, rateAll(peers, options[1]!));
+    await submitEvaluation(me, assessmentId, rateAll(everyone, options[1]!));
 
     const { rows: scale } = await query<{ id: string; label: string; hidden_value: string }>(
       "SELECT id, label, hidden_value::text FROM rating_options",
@@ -520,12 +513,12 @@ describe("the opening time opens it (#13)", () => {
     );
 
   it("refuses a submission before the opening time, even once opened", async () => {
-    const { assessmentId, me, peers, options } = await scenario();
+    const { assessmentId, me, options, everyone } = await scenario();
     await openedEarly(assessmentId);
 
-    await expect(submitEvaluation(me, assessmentId, rateAll(peers, options[0]!))).rejects.toThrow(
-      /opens on/,
-    );
+    await expect(
+      submitEvaluation(me, assessmentId, rateAll(everyone, options[0]!)),
+    ).rejects.toThrow(/opens on/);
   });
 
   it("refuses a draft before the opening time", async () => {
