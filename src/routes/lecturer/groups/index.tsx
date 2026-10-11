@@ -18,7 +18,15 @@ import { getEnrolmentRows, getGroups, getGroupsEditable } from "@/services/peerl
 import { titleHead } from "@/lib/page-title";
 
 const TOO_SMALL_EXPLANATION =
-  "Too small: this group has fewer than two members, so nobody in it has a group member to rate and no peer-adjusted mark can be worked out. Move another student into it, or leave it out of assessments.";
+  "Too small: this group has fewer than two members, even counting everyone on the class list, so nobody in it has a group member to rate and no peer-adjusted mark can be worked out. Move another student into it, or leave it out of assessments.";
+
+/**
+ * A group that only looks small because its other members haven't registered
+ * yet is not too small (client feedback 2026-10-10: "Too small" read as a
+ * problem with the group when the class list was simply still signing up).
+ */
+const awaitingExplanation = (expected: number) =>
+  `Not too small: this group has ${expected} students on the class list, but fewer than two of them have registered yet. It fills up as the others sign up. Until then, the students who haven't registered can't rate or be rated.`;
 
 export const Route = createFileRoute("/lecturer/groups/")({
   head: () => titleHead("Groups"),
@@ -63,7 +71,21 @@ function GroupsOverview() {
       : [];
   const loading = groups.isPending || contextLoading || (assessments.length > 0 && !assessment);
   const totalStudents = list.reduce((sum, group) => sum + group.memberStudentIds.length, 0);
-  const smallGroups = list.filter((group) => group.memberStudentIds.length < 2);
+  // Class-list rows placed in a group but not (yet) in it as an account.
+  const pendingIn = (group: (typeof list)[number]) =>
+    (enrolments.data ?? []).filter(
+      (row) =>
+        row.groupNumber === group.groupNumber &&
+        (!row.userId || !group.memberStudentIds.includes(row.userId)),
+    );
+  const smallGroups = list.filter(
+    (group) => group.memberStudentIds.length + pendingIn(group).length < 2,
+  );
+  const awaitingGroups = list.filter(
+    (group) =>
+      group.memberStudentIds.length < 2 &&
+      group.memberStudentIds.length + pendingIn(group).length >= 2,
+  );
 
   const classGroupsButton = (
     <Button asChild className="h-10 px-4">
@@ -156,7 +178,11 @@ function GroupsOverview() {
           label="Groups under 2 members"
           value={smallGroups.length}
           hint={
-            smallGroups.length ? "Peer rating needs at least 2 members" : "All groups are viable"
+            smallGroups.length
+              ? "Peer rating needs at least 2 members"
+              : awaitingGroups.length
+                ? `${awaitingGroups.length} waiting for students to register`
+                : "All groups are viable"
           }
           tone={smallGroups.length ? "warning" : "success"}
           loading={loading}
@@ -186,11 +212,14 @@ function GroupsOverview() {
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {list.map((group) => {
             const members = group.memberStudentIds.map((id) => roster.get(id)).filter(Boolean);
-            const pending = (enrolments.data ?? []).filter(
-              (row) =>
-                row.groupNumber === group.groupNumber &&
-                (!row.userId || !group.memberStudentIds.includes(row.userId)),
-            );
+            const pending = pendingIn(group);
+            const expected = group.memberStudentIds.length + pending.length;
+            const explanation =
+              group.memberStudentIds.length >= 2
+                ? null
+                : expected >= 2
+                  ? { badge: "Awaiting sign-ups", text: awaitingExplanation(expected) }
+                  : { badge: "Too small", text: TOO_SMALL_EXPLANATION };
 
             return (
               <Card
@@ -201,19 +230,20 @@ function GroupsOverview() {
                   title={`Group ${group.groupNumber}`}
                   description={group.groupName}
                   actions={
-                    group.memberStudentIds.length < 2 ? (
+                    explanation ? (
                       // Explained on hover or focus, and in the card below for
                       // touch screens, where nothing hovers (client feedback
                       // 2026-10-10: the badge alone didn't say what it meant).
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span tabIndex={0} className="cursor-help rounded-md">
-                            <StatusBadge status="conflict" label="Too small" />
+                            <StatusBadge
+                              status={expected >= 2 ? "outstanding" : "conflict"}
+                              label={explanation.badge}
+                            />
                           </span>
                         </TooltipTrigger>
-                        <TooltipContent className="max-w-xs">
-                          {TOO_SMALL_EXPLANATION}
-                        </TooltipContent>
+                        <TooltipContent className="max-w-xs">{explanation.text}</TooltipContent>
                       </Tooltip>
                     ) : (
                       <span className="text-sm text-muted-foreground tabular-nums">
@@ -222,10 +252,10 @@ function GroupsOverview() {
                     )
                   }
                 />
-                {group.memberStudentIds.length < 2 ? (
+                {explanation ? (
                   <p className="flex items-start gap-2 border-b bg-warning-muted/40 px-5 py-2.5 text-xs text-warning sm:px-6">
                     <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-                    {TOO_SMALL_EXPLANATION}
+                    {explanation.text}
                   </p>
                 ) : null}
                 <ul className="flex-1 divide-y">
