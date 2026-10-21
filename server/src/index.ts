@@ -1,12 +1,17 @@
 import { createApp } from "./app.ts";
 import { env } from "./config/env.ts";
 import { closePool } from "./db/pool.ts";
+import { assignAllImportedGroups } from "./services/imported-groups.ts";
 
 const app = createApp();
 const onListening = () => {
   console.log(
     `Peerly API listening on http://${env.host ?? "localhost"}:${env.port} (${env.nodeEnv})`,
   );
+  // Students who signed up while an earlier rule kept them out of their group.
+  assignAllImportedGroups().catch((error: unknown) => {
+    console.error("Could not place waiting students in their imported groups:", error);
+  });
 };
 const server = env.host
   ? app.listen(env.port, env.host, onListening)

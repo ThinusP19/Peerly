@@ -225,6 +225,16 @@ name agree with the class list. Differences in capitals, spaces or hyphens are i
 names differ, the row becomes a **Conflict** for you to check, because that is exactly what
 someone using another student's number would look like.
 
+**You don't have to wait for everyone to register before creating an assessment.** If your
+class list gives each student a group, a student who registers later joins that group as soon
+as they confirm their email, and from then on they can rate their group and be rated in any
+assessment it takes part in. This keeps working after classmates have started or submitted:
+anyone who already submitted can amend their ratings to include the newcomer until the
+deadline. It stops once the assessment closes or its deadline passes, so finished results never
+gain a member who had no chance to take part. Until then the assessment's **Students** count
+only includes students who have signed up, and shows how many more on the class list are still
+to sign up.
+
 ### 4.5 Resolve a conflict
 
 1. On **Classes**, find the row marked **Conflict** and select **Resolve**.

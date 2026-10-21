@@ -43,6 +43,7 @@ import {
   getAssessmentDeletionImpact,
   getAssessmentScale,
   getAssessments,
+  getEnrolmentRows,
   getGroups,
   getSubmissions,
   reopenAssessment,
@@ -131,6 +132,11 @@ function AssessmentDetailPage() {
     queryFn: () => getGroups(assessment!.classId),
     enabled: Boolean(assessment?.classId),
   });
+  const enrolmentsQuery = useQuery({
+    queryKey: ["enrolments", assessment?.classId],
+    queryFn: () => getEnrolmentRows(assessment!.classId),
+    enabled: Boolean(assessment?.classId),
+  });
 
   // Keep the header's context selector in step with whatever is being viewed.
   useEffect(() => {
@@ -168,6 +174,16 @@ function AssessmentDetailPage() {
   const klass = lecturerClasses.find((c) => c.id === assessment.classId);
   const groups = (groupsQuery.data ?? []).filter((g) => assessment.groupIds.includes(g.id));
   const expected = groups.flatMap((g) => g.memberStudentIds).length;
+  // On the class list in one of these groups, but not signed up yet. They join
+  // the assessment by themselves once they register, until it closes.
+  const memberIds = new Set(groups.flatMap((g) => g.memberStudentIds));
+  const groupNumbers = new Set(groups.map((g) => g.groupNumber));
+  const awaitingSignUp = (enrolmentsQuery.data ?? []).filter(
+    (row) =>
+      row.groupNumber != null &&
+      groupNumbers.has(row.groupNumber) &&
+      (!row.userId || !memberIds.has(row.userId)),
+  ).length;
   const submitted = (submissionsQuery.data ?? []).filter((s) => s.status === "submitted").length;
   const calculated = Boolean(assessment.calculatedAt);
   const unexported = (impactQuery.data?.unexportedAssessments.length ?? 0) > 0;
@@ -304,7 +320,13 @@ function AssessmentDetailPage() {
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Groups" value={groups.length} icon={Users} />
-        <StatCard label="Students" value={expected} />
+        <StatCard
+          label="Students"
+          value={expected}
+          hint={
+            awaitingSignUp ? `${awaitingSignUp} more on the class list still to sign up` : undefined
+          }
+        />
         <StatCard
           label="Submitted"
           value={submitted}

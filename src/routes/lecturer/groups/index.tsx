@@ -294,7 +294,7 @@ function GroupsOverview() {
                         status={row.matchStatus}
                         label={
                           row.matchStatus === "matched"
-                            ? "Assignment pending — groups locked"
+                            ? "Signed up after the assessment finished"
                             : row.matchStatus === "conflict"
                               ? "Account conflict"
                               : "Awaiting registration"
@@ -305,9 +305,9 @@ function GroupsOverview() {
                 </ul>
                 {pending.length ? (
                   <p className="border-t px-5 py-3 text-xs text-muted-foreground sm:px-6">
-                    {pending.length} CSV assignments pending. Students join automatically when
-                    matched to an account, while group editing is allowed. Pending students cannot
-                    evaluate yet.
+                    {pending.length} still to join. Students join their group as soon as they
+                    register and confirm their e-mail, until the assessment closes. Until then they
+                    cannot evaluate or be rated.
                   </p>
                 ) : null}
               </Card>
