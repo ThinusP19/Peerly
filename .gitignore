@@ -38,8 +38,46 @@ server/node_modules
 # Browser-test snapshots from the Playwright MCP tools
 .playwright-mcp/
 
-# Local environment files: credentials never go in the repository
+# Local environment files: credentials never go in the repository.
+# Covers .env, .env.demo, .env.production and so on, in any folder.
 .env
+.env.*
+!.env.example
+.npmrc
+.vercel
+
+# Keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.ppk
+id_rsa*
+id_ed25519*
+
+# Database dumps and local databases: they hold student data
+*.dump
+*.backup
+*.sql.gz
+*.sqlite
+*.sqlite3
+*.db
+backups/
+
+# Spreadsheets and class lists: real ones hold student names and marks.
+# Committed samples are made-up seed data and stay tracked.
+*.csv
+*.xlsx
+*.xls
+!docs/handover/sample-data/*.csv
+
+# Local tool state
+.claude/settings.local.json
+.claude/worktrees/
+CLAUDE.local.md
+coverage/
+*.tsbuildinfo
+.eslintcache
 
 e2e/.auth/
 test-results/
